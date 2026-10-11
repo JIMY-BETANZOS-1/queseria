@@ -31,6 +31,9 @@ Si una fase requiere cambiar el esquema: detente, explica el cambio y espera apr
 - Leche alterada: se descarta. Se paga a precio normal por defecto (`pagar_leche_alterada=true`).
 - Al marcarse alterada el día D (hora del servidor): sanción de precio D+1..D+7. Reincidencia (durante la
   sanción o hasta 7 días después) → BLOQUEO D+1..D+7 (la semana se reinicia). Después vuelve al precio normal.
+- Productor bloqueado en la app del acopiador: aviso rojo "Productor bloqueado, no debe entregar leche".
+  Si el acopiador confirma que la recibió, la registra igual; la base crea la alerta `productor_bloqueado`
+  y retiene el pago hasta que el admin revise la alerta. La app NUNCA impide el registro.
 - Alterada exige su análisis (ph/temperatura/grasa/densidad/antibióticos o foto).
 - Solo se usa y se paga leche YA revisada por el analista. Leche de productor bloqueado, no aprobado
   (alta en campo) o con firma inválida: se registra pero su pago queda RETENIDO hasta decisión del admin.

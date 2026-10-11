@@ -13,16 +13,22 @@
 -- MAPA PANTALLA -> OBJETOS
 --   Dashboard            v_resultado_mensual, v_flujo_mensual, v_productor_observado, v_leche_stock,
 --                        v_lote_disponible, v_acopiador_mes
---   Mapa / Recolecciones v_recoleccion_detalle (+ alerta_recoleccion)
+--   Mapa / Recolecciones v_recoleccion_detalle (+ alerta_recoleccion, analisis_calidad)
 --   Proveedores          v_productor_resumen, v_recoleccion_detalle
 --   Acopiadores          acopiador, ruta_acopiador, v_acopiador_mes, pago_acopiador
---   Control de calidad   v_recoleccion_sin_revisar, v_productor_estado_hoy, v_analista_resumen, sancion_productor
+--   Rutas                ruta, ruta_acopiador
+--   Control de calidad   v_recoleccion_sin_revisar, v_productor_estado_hoy, v_analista_resumen, sancion_productor,
+--                        analisis_calidad
 --   Insumos              v_insumo_stock, movimiento_insumo
+--   Leche de la jornada  v_leche_jornada, merma_leche, lote_leche
 --   Recetas / Producción receta, receta_insumo, lote_produccion, lote_leche, lote_costo, v_leche_jornada, v_lote_resumen
 --   Ventas               cliente, venta, venta_detalle, v_lote_disponible, baja_producto
---   Pagos a productores  v_pago_pendiente_productor, liquidacion_productor, v_liquidacion_productor
+--   Pagos a productores  v_pago_pendiente_productor, liquidacion_productor, liquidacion_detalle, v_liquidacion_productor
 --   Gastos               gasto_operativo, categoria_gasto
 --   Configuración        configuracion, precio_leche, usuario, dispositivo, codigo_activacion
+--     Historial de cambios  auditoria (solo lectura)
+--   Sincronización móvil (Fase 2): pull incremental por actualizado_en de productor, ruta,
+--                        ruta_acopiador, acopiador, usuario y recoleccion
 --
 -- REGLAS DE NEGOCIO QUE EL ESQUEMA HACE CUMPLIR
 --   * Acopiador registra litros + GPS; analista registra calidad. Cada recolección se juzga sola.
@@ -42,7 +48,7 @@
 --     (sincronización idempotente con INSERT ... ON CONFLICT DO NOTHING).
 --   * Productores creados en el campo (sin internet) llevan uuid_cliente: la API los inserta
 --     ANTES que sus recolecciones y las enlaza con el id real.
---   * actualizado_en permite el "pull" incremental hacia los celulares.
+--   * actualizado_en permite el "pull" incremental hacia los celulares (lo usa la sincronización, Fase 2).
 --   * Zona horaria de negocio: America/Lima.
 --   * La API debe ejecutar  SET LOCAL app.usuario_id = '<id>'  en cada transacción
 --     para que la auditoría sepa quién hizo el cambio.
@@ -853,8 +859,9 @@ GROUP BY l.id, p.codigo, p.nombre;
 -- ---------------------------------------------------------------------
 -- Estado de los productores y pantallas de calidad
 -- ---------------------------------------------------------------------
--- La app del acopiador usa sancionado/bloqueado para pintar el nombre en rojo
--- o impedir el registro del productor bloqueado.
+-- La app del acopiador usa sancionado/bloqueado para pintar el nombre en rojo. Si está bloqueado
+-- muestra el aviso "Productor bloqueado, no debe entregar leche"; si el acopiador confirma que la
+-- recibió, la registra igual: la base crea la alerta productor_bloqueado y retiene el pago.
 CREATE VIEW v_productor_estado_hoy AS
 SELECT p.id AS productor_id,
        COALESCE(bool_or(s.id IS NOT NULL), false)    AS sancionado,
