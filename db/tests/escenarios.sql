@@ -200,8 +200,10 @@ SELECT pg_temp.chk('resultado marzo: perdida merma leche', (SELECT perdida_leche
 SELECT pg_temp.chk('flujo marzo existe', EXISTS(SELECT 1 FROM v_flujo_mensual WHERE mes='2026-03-01' AND total_invertido>0));
 
 -- 11 Correccion/anulacion levanta sancion
-UPDATE recoleccion SET estado_calidad='normal' WHERE id=pg_temp.u(30);
-SELECT pg_temp.chk('correccion levanta bloqueo', (SELECT levantada_en IS NOT NULL FROM sancion_productor WHERE recoleccion_id=pg_temp.u(30)));
+SELECT pg_temp.err('liquidada: no se corrige calidad','UPDATE recoleccion SET estado_calidad=''normal'' WHERE id=pg_temp.u(30)','ya fue liquidada');
+SELECT pg_temp.err('liquidada: no se anula','UPDATE recoleccion SET anulada_en=now(),anulada_por=(SELECT adm FROM m),motivo_anulacion=''x'' WHERE id=pg_temp.u(30)','ya fue liquidada');
+SELECT pg_temp.err('liquidada: no cambian litros','UPDATE recoleccion SET litros=1 WHERE id=pg_temp.u(10)','ya fue liquidada');
+SELECT pg_temp.chk('liquidada: observacion si se puede editar', (SELECT count(*) FROM recoleccion WHERE id=pg_temp.u(10))=1);
 UPDATE recoleccion SET anulada_en=now(),anulada_por=(SELECT adm FROM m),motivo_anulacion='error' WHERE id=pg_temp.u(11);
 SELECT pg_temp.chk('anulacion levanta sancion precio', (SELECT levantada_en IS NOT NULL FROM sancion_productor WHERE recoleccion_id=pg_temp.u(11)));
 
@@ -209,6 +211,9 @@ SELECT pg_temp.chk('anulacion levanta sancion precio', (SELECT levantada_en IS N
 SELECT pg_temp.rec(80,p3,aco,10,'2026-05-01 07:00-05','alterado',ana,now()::text) FROM m;
 INSERT INTO analisis_calidad(recoleccion_id,ph,foto_url) VALUES (pg_temp.u(80),5.5,'f.jpg');
 SELECT pg_temp.chk('observado inicia_manana', (SELECT estado FROM v_productor_observado WHERE productor_id=(SELECT p3 FROM m))='inicia_manana');
+UPDATE recoleccion SET estado_calidad='normal' WHERE id=pg_temp.u(80);
+SELECT pg_temp.chk('correccion levanta sancion (no liquidada)', (SELECT levantada_en IS NOT NULL FROM sancion_productor WHERE recoleccion_id=pg_temp.u(80)));
+UPDATE recoleccion SET estado_calidad='alterado' WHERE id=pg_temp.u(80);
 SELECT pg_temp.chk('observado trae analisis', (SELECT foto_url FROM v_productor_observado WHERE productor_id=(SELECT p3 FROM m))='f.jpg');
 SELECT pg_temp.chk('v_productor_resumen', (SELECT count(*) FROM v_productor_resumen)=5);
 SELECT pg_temp.chk('v_analista_resumen', EXISTS(SELECT 1 FROM v_analista_resumen WHERE pct_alteradas>0));
