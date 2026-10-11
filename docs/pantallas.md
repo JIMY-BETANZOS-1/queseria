@@ -69,14 +69,16 @@ Convención: **lee** = consulta; **escribe** = inserta/actualiza (las reglas las
 - **`auditoria`** → "Historial de cambios" dentro de Configuración (A13b), solo lectura.
 - **`analisis_calidad`** y **`liquidacion_detalle`** → agregados al mapa del esquema (A3, A6, A11).
 - **`actualizado_en`** → anotado en el mapa del esquema: lo usa la sincronización móvil (Fase 2).
+- **Mi día del acopiador (B6)** → `GET /acopiador/mi-dia` (lo ya sincronizado, desde `v_recoleccion_detalle`);
+  el móvil suma lo pendiente de Room (Fase 2).
+- **Por revisar del analista (C3)** → el pull envía `v_recoleccion_sin_revisar` completa y `recolecciones_hoy`
+  incremental leyendo `recoleccion.actualizado_en` (Fase 2, ver `docs/sincronizacion.md`).
 
 ### Pendientes (no bloquean; se revisan en la fase indicada)
-1. **Mi día del acopiador (B6)**: no hay vista de resumen por acopiador y día; se calcula en el móvil con los
-   datos locales de Room (Fase de móvil).
-2. **Por revisar del analista (C3)**: `v_recoleccion_sin_revisar` no expone `actualizado_en`; el pull incremental
-   del analista leerá `recoleccion` directamente (Fase 2: sincronización).
-3. **`productor`** (tabla): el mapa solo lista `v_productor_resumen`, pero Proveedores (A4) escribe en `productor`.
-4. **`v_recoleccion_pago`**: no figura en el mapa; la usa Pagos (A11) para elegir qué recolecciones entran a la liquidación.
-5. **Funciones internas** (`fn_precio_leche`, `fn_en_sancion`, `fn_leche_disponible`, `fn_saldo_lote`,
+1. **Observaciones del esquema** (Fase 2): el acopiador puede registrar productores de rutas que no son suyas
+   y se puede anular una recolección ya liquidada. Detalle en `docs/sincronizacion.md`.
+2. **`productor`** (tabla): el mapa solo lista `v_productor_resumen`, pero Proveedores (A4) escribe en `productor`.
+3. **`v_recoleccion_pago`**: no figura en el mapa; la usa Pagos (A11) para elegir qué recolecciones entran a la liquidación.
+4. **Funciones internas** (`fn_precio_leche`, `fn_en_sancion`, `fn_leche_disponible`, `fn_saldo_lote`,
    `fn_costo_litro_jornada`, `fn_distancia_m`, `fn_lote_abierto`): las usan triggers y vistas; ninguna pantalla las
    necesita. `fn_leche_disponible` y `fn_saldo_lote` pueden servir para validar en el formulario antes de guardar.

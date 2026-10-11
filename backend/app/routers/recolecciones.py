@@ -1,10 +1,13 @@
-"""Lectura de recolecciones (v_recoleccion_detalle). El registro llega con la sincronización móvil (Fase 2)."""
+"""Recolecciones (v_recoleccion_detalle) y su anulación. El registro llega por /sync/push."""
 from datetime import date
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
 from .. import db
 from ..deps import Usuario, solo_admin
+from ..errores import conflicto, no_encontrado
+from ..esquemas.alertas import AnularRecoleccion
 from ..esquemas.recolecciones import RecoleccionDetalle
 
 router = APIRouter(prefix="/recolecciones", tags=["recolecciones"])
@@ -35,3 +38,18 @@ def listar(desde: date | None = None, hasta: date | None = None, ruta_id: int | 
     with db.transaccion(usuario.id) as conn:
         return buscar(conn, desde=desde, hasta=hasta, ruta_id=ruta_id, productor_id=productor_id,
                       registrado_por=registrado_por, incluir_anuladas=incluir_anuladas, limit=limit, offset=offset)
+
+
+@router.post("/{recoleccion_id}/anular", response_model=RecoleccionDetalle)
+def anular(recoleccion_id: UUID, datos: AnularRecoleccion, usuario: Usuario = Depends(solo_admin)):
+    """Nunca se borra: queda con motivo. Si originó una sanción, el trigger de la base la levanta."""
+    with db.transaccion(usuario.id) as conn:
+        fila = db.uno(conn, """
+            UPDATE recoleccion SET anulada_en = now(), anulada_por = %s, motivo_anulacion = %s
+             WHERE id = %s AND anulada_en IS NULL RETURNING id
+        """, (usuario.id, datos.motivo, recoleccion_id))
+        if fila is None:
+            if db.uno(conn, "SELECT 1 FROM recoleccion WHERE id = %s", (recoleccion_id,)) is None:
+                raise no_encontrado("La recolección no existe")
+            raise conflicto("La recolección ya está anulada")
+        return db.uno(conn, "SELECT * FROM v_recoleccion_detalle WHERE recoleccion_id = %s", (recoleccion_id,))

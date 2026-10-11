@@ -27,6 +27,10 @@ class Config(BaseSettings):
 
     cors_origenes: str = "http://localhost:5173"
 
+    # Fotos de análisis de calidad (fuera de git)
+    storage_dir: Path = RAIZ / "backend" / "storage"
+    foto_max_mb: int = 5
+
     @property
     def conninfo(self) -> str:
         from psycopg.conninfo import make_conninfo

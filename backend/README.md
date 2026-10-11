@@ -31,6 +31,7 @@ rutas y productores con datos únicos.
 | `app/db.py` | Pool psycopg 3; `transaccion(usuario_id)` fija `app.usuario_id` (= `SET LOCAL`) para la auditoría |
 | `app/errores.py` | Traduce errores de la base: trigger (`P0001`) y unique → 409; check, FK, not null, formato → 422 |
 | `app/seguridad.py` | bcrypt (contraseña y PIN), JWT, códigos de activación (se guarda solo su HMAC) |
+| `app/firma.py` | Cadena canónica v1 y verificación ECDSA P-256 de las recolecciones |
 | `app/deps.py` | Usuario actual (revisa en cada petición que usuario y celular sigan activos) y roles |
 | `app/routers/` | Endpoints por módulo; `app/esquemas/` modelos pydantic |
 
@@ -44,6 +45,13 @@ Errores siempre con el formato `{"codigo": "...", "mensaje": "..."}` (los de val
   `debe_cambiar_pin` = el PIN lo puso el admin.
 - `POST /auth/pin/cambiar` — (móvil) PIN actual + nuevo.
 
+**Móvil** (contrato completo y cadena firmada en [`docs/sincronizacion.md`](../docs/sincronizacion.md))
+- `POST /sync/push` — (acopiador, analista) productores de campo + recolecciones; resultado por ítem `creado|duplicado|rechazado`.
+- `POST /sync/calidad` — (analista) revisiones: normal o alterado con análisis.
+- `GET /sync/pull?desde=` — (acopiador, analista) cambios incrementales + estado de sanción y precios completos.
+- `GET /acopiador/mi-dia` — (acopiador) litros y recolecciones de hoy.
+- `POST /analisis/{recoleccion_id}/foto` — (analista, admin) foto JPEG/PNG/WebP (máx. `FOTO_MAX_MB`); `GET` la devuelve.
+
 **Admin** (todo requiere rol admin)
 - Rutas: `GET/POST /rutas`, `GET/PATCH /rutas/{id}`, `PUT/DELETE /rutas/{id}/acopiador`, `GET /rutas/{id}/asignaciones`.
   Reasignar cierra la asignación vigente (`vigente_hasta = desde`) y abre la nueva desde esa fecha.
@@ -55,7 +63,9 @@ Errores siempre con el formato `{"codigo": "...", "mensaje": "..."}` (los de val
   `GET /productores/observados` (`v_productor_observado`), `POST /productores`, `GET/PATCH /productores/{id}`,
   `POST /productores/{id}/aprobar`, `GET /productores/{id}/recolecciones` (`v_recoleccion_detalle`).
 - Recolecciones: `GET /recolecciones` (`v_recoleccion_detalle`; filtros `desde`, `hasta`, `ruta_id`, `productor_id`,
-  `registrado_por`, `incluir_anuladas`, `limit`, `offset`).
+  `registrado_por`, `incluir_anuladas`, `limit`, `offset`), `POST /recolecciones/{id}/anular` (`motivo`; nunca se borra).
+- Alertas: `GET /alertas` (pendientes; `todas`, `tipo`, `recoleccion_id`), `POST /alertas/{id}/revisar` (`resolucion`).
+  Revisar `productor_bloqueado` o `firma_invalida` libera la retención del pago (lo decide `v_recoleccion_pago`).
 - Precio de la leche: `GET /precios-leche` (historial), `POST /precios-leche` (nueva vigencia; no se edita ni borra).
 - Configuración: `GET /configuracion`, `PUT /configuracion/{clave}` (el valor conserva el formato del actual:
   entero, número, true/false, color).

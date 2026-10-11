@@ -2,6 +2,9 @@
 .env
 *.env.local
 
+# Archivos subidos (fotos de análisis)
+backend/storage/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -1,11 +1,14 @@
 """Pruebas contra la base queseria_test cargada con schema.sql + seed.sql (ver scripts/test.ps1)."""
+import base64
 import os
 import random
+import tempfile
 import uuid
 
-# Antes de importar la app: base de pruebas y secreto propio
+# Antes de importar la app: base de pruebas, secreto propio y carpeta temporal para las fotos
 os.environ["PGDATABASE"] = "queseria_test"
 os.environ["JWT_SECRET"] = "secreto-solo-para-pruebas-0123456789"
+os.environ["STORAGE_DIR"] = tempfile.mkdtemp(prefix="queseria-storage-")
 
 import psycopg  # noqa: E402
 import pytest  # noqa: E402
@@ -81,10 +84,11 @@ def generar_codigo(client, admin, usuario_id: int) -> str:
     return r.json()["codigo"]
 
 
-def activar(client, codigo: str, device_uuid: str | None = None):
+def activar(client, codigo: str, device_uuid: str | None = None,
+            clave_publica: str = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE-prueba"):
     return client.post("/auth/dispositivo/activar", json={
         "codigo": codigo, "device_uuid": device_uuid or str(uuid.uuid4()),
-        "clave_publica": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE-prueba", "modelo": "Prueba"})
+        "clave_publica": clave_publica, "modelo": "Prueba"})
 
 
 def login_pin(client, device_uuid: str, pin: str):
@@ -99,3 +103,84 @@ def acopiador_con_celular(client, admin, pin="4321") -> dict:
     r = login_pin(client, device, pin)
     assert r.status_code == 200, r.text
     return {**acop, "device_uuid": device, "token": r.json()["access_token"], "pin": pin}
+
+
+# ----------------------------------------------------------------- sincronización (Fase 2)
+def nueva_clave():
+    """Par de claves ECDSA P-256 como las del Android Keystore: (privada, pública SPKI DER en base64)."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    privada = ec.generate_private_key(ec.SECP256R1())
+    publica = privada.public_key().public_bytes(serialization.Encoding.DER,
+                                                serialization.PublicFormat.SubjectPublicKeyInfo)
+    return privada, base64.b64encode(publica).decode()
+
+
+def firmar(privada, item: dict) -> dict:
+    """Firma el ítem como lo hará el celular (cadena canónica v1, SHA256withECDSA, DER en base64)."""
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    from app.esquemas.sync import RecoleccionPush
+    from app.firma import cadena_canonica
+
+    cadena = cadena_canonica(RecoleccionPush.model_validate({k: v for k, v in item.items() if k != "firma"}))
+    return {**item, "firma": base64.b64encode(privada.sign(cadena.encode(), ec.ECDSA(hashes.SHA256()))).decode()}
+
+
+def movil_con_celular(client, admin, rol: str, pin="4321") -> dict:
+    """Acopiador o analista nuevo con celular vinculado (clave EC real) y sesión iniciada."""
+    if rol == "acopiador":
+        usuario = crear_acopiador(client, admin, pin=pin)
+    else:
+        r = client.post("/analistas", json={"nombre_completo": f"Analista Prueba {uuid.uuid4().hex[:6]}",
+                                            "dni": dni(), "celular": celular(), "pin_inicial": pin},
+                        headers=cab(admin))
+        assert r.status_code == 201, r.text
+        usuario = r.json()
+    privada, publica = nueva_clave()
+    device = str(uuid.uuid4())
+    assert activar(client, generar_codigo(client, admin, usuario["id"]), device, publica).status_code == 200
+    r = login_pin(client, device, pin)
+    assert r.status_code == 200, r.text
+    return {**usuario, "device_uuid": device, "token": r.json()["access_token"], "clave": privada}
+
+
+def crear_ruta_asignada(client, admin, acopiador_id: int) -> int:
+    r = client.post("/rutas", json={"nombre": f"Ruta sync {uuid.uuid4().hex[:8]}"}, headers=cab(admin))
+    assert r.status_code == 201, r.text
+    ruta_id = r.json()["id"]
+    r = client.put(f"/rutas/{ruta_id}/acopiador", json={"acopiador_id": acopiador_id}, headers=cab(admin))
+    assert r.status_code == 200, r.text
+    return ruta_id
+
+
+def crear_productor(client, admin, ruta_id: int | None = None) -> dict:
+    datos = {"nombre": f"Productor sync {uuid.uuid4().hex[:6]}", "tipo": "de_ruta", "ruta_id": ruta_id}
+    if ruta_id is None:
+        datos = {"nombre": datos["nombre"], "tipo": "externo", "documento": dni(), "celular": celular()}
+    r = client.post("/productores", json=datos, headers=cab(admin))
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def item_recoleccion(movil: dict, productor_id: int | None = None, firmado: bool = True, **extra) -> dict:
+    """Recolección como la arma el celular (con GPS en Huata y firmada con la clave del celular)."""
+    from datetime import datetime, timezone
+
+    item = {"id": str(uuid.uuid4()), "litros": round(random.uniform(5, 60), 2),
+            "registrada_en": datetime.now(timezone.utc).isoformat(),
+            "latitud": -15.614512, "longitud": -69.972310, "precision_m": 8.5, "origen_ubicacion": "gps",
+            "ubicacion_simulada": False, "hora_automatica": True, "hash_anterior": None}
+    if productor_id is not None:
+        item["productor_id"] = productor_id
+    item.update(extra)
+    return firmar(movil["clave"], item) if firmado else item
+
+
+def push(client, movil: dict, productores=(), recolecciones=()):
+    r = client.post("/sync/push", json={"productores": list(productores), "recolecciones": list(recolecciones)},
+                    headers=cab(movil["token"]))
+    assert r.status_code == 200, r.text
+    return r.json()

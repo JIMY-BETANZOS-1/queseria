@@ -63,12 +63,22 @@ CHECKS = {
     "ck_productor_tipo": "Un productor de ruta necesita ruta; un externo no lleva ruta y necesita documento y celular",
     "ck_ruta_acopiador_fechas": "La fecha de cambio no puede ser anterior al inicio de la asignación vigente",
     "precio_leche_precio_litro_check": "El precio por litro debe ser mayor que cero",
+    "recoleccion_litros_check": "Los litros deben ser mayores que cero",
+    "ck_recoleccion_lat": "La latitud debe estar entre -90 y 90",
+    "ck_recoleccion_lon": "La longitud debe estar entre -180 y 180",
+    "ck_recoleccion_gps": "La ubicación necesita latitud y longitud",
+    "ck_recoleccion_orig": "El origen de la ubicación no coincide con las coordenadas",
+    "ck_recoleccion_anulacion": "La anulación necesita fecha, usuario y motivo",
+    "ck_analisis_ph": "El pH debe estar entre 0 y 14",
+    "ck_analisis_grasa": "La grasa debe estar entre 0 y 100 %",
 }
 
 FORANEAS = {
     "ruta_acopiador_acopiador_id_fkey": "El acopiador no existe",
     "ruta_acopiador_ruta_id_fkey": "La ruta no existe",
     "productor_ruta_id_fkey": "La ruta no existe",
+    "recoleccion_productor_id_fkey": "El productor no existe",
+    "analisis_calidad_recoleccion_id_fkey": "La recolección no existe",
 }
 
 
@@ -107,6 +117,11 @@ MENSAJES_VALIDACION = {
     "date_parsing": "Fecha inválida (AAAA-MM-DD)",
     "date_from_datetime_parsing": "Fecha inválida (AAAA-MM-DD)",
     "uuid_parsing": "UUID inválido",
+    "datetime_parsing": "Fecha y hora inválida (ISO 8601)",
+    "datetime_from_date_parsing": "Fecha y hora inválida (ISO 8601)",
+    "timezone_aware": "La fecha y hora debe incluir la zona horaria",
+    "dict_type": "Debe ser un objeto",
+    "too_long": "Demasiados elementos",
     "greater_than": "Valor demasiado pequeño",
     "greater_than_equal": "Valor demasiado pequeño",
     "less_than_equal": "Valor demasiado grande",
@@ -115,6 +130,19 @@ MENSAJES_VALIDACION = {
     "extra_forbidden": "Campo no permitido",
     "json_invalid": "JSON inválido",
 }
+
+def describir_validacion(errores: list[dict]) -> str:
+    """Errores de pydantic -> una línea en español (para rechazos por ítem de la sincronización)."""
+    partes = []
+    for err in errores:
+        campo = ".".join(str(p) for p in err["loc"])
+        if err["type"] == "value_error" and "error" in err.get("ctx", {}):
+            mensaje = str(err["ctx"]["error"])
+        else:
+            mensaje = MENSAJES_VALIDACION.get(err["type"], err.get("msg", "Valor inválido"))
+        partes.append(f"{campo}: {mensaje}" if campo else mensaje)
+    return "Datos inválidos — " + "; ".join(partes)
+
 
 ESTADOS_HTTP = {401: "no_autorizado", 403: "prohibido", 404: "no_encontrado", 405: "metodo_no_permitido"}
 
