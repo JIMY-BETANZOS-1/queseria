@@ -18,7 +18,7 @@ if (-not (Select-String -Path $archivoEnv -Pattern '^\s*JWT_SECRET\s*=\s*\S{16,}
 }
 
 $host_bind = if ($Lan) { '0.0.0.0' } else { '127.0.0.1' }
-if ($Lan) { Write-Host "Escuchando en red local ($host_bind:$Puerto) — visible para otros equipos" }
+if ($Lan) { Write-Host "Escuchando en red local (${host_bind}:$Puerto) — visible para otros equipos" }
 
 Push-Location $script:Backend
 try {
