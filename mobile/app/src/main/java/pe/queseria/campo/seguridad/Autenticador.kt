@@ -135,6 +135,9 @@ class Autenticador(
     /** El servidor rechazó el token (401): vencido, celular o usuario desactivado. */
     fun invalidarToken() = borrarToken()
 
+    /** Momento hasta el que el PIN está bloqueado en este celular; null si no está bloqueado. */
+    fun bloqueadoHasta(): Long? = pin.bloqueadoHasta()
+
     // -------------------------------------------------------------
     private fun abrir(u: UsuarioLocal, conServidor: Boolean): EstadoSesion.Abierta {
         guardarUsuario(u)
