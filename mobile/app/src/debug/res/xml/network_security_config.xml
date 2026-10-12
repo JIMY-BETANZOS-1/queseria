@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solo debug: permite HTTP en claro hacia el servidor de desarrollo en la red local -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

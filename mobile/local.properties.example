@@ -1,0 +1,5 @@
+## Copiar como local.properties (no se sube a git) y completar.
+## Ruta del SDK de Android (Android Studio la completa sola al abrir el proyecto)
+sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
+## URL de la API. Debug acepta http:// en la red local; release exige https://
+api.base.url=http://IP_DE_TU_PC:8000/

@@ -228,3 +228,28 @@ sincronizó lo suma el celular desde Room.
    se quiere controlar, la forma correcta es una alerta nueva en el esquema (`fuera_de_ruta`).
 2. **Anular una recolección ya liquidada.** El esquema no lo impide, ni siquiera si la liquidación
    está pagada. El backend tampoco lo impide (la regla debe vivir en la base).
+
+## Observaciones de la app Android (Fase 3A)
+
+Huecos del contrato encontrados al implementar el móvil. El backend no se cambió; la app sigue al backend.
+
+3. **Ingreso sin red (decidido por el cliente).** `POST /auth/pin/login` exige red. La app guarda,
+   tras cada login exitoso en el servidor, un hash PBKDF2 del PIN (cifrado con una clave del Keystore)
+   y sin red valida contra él. Bloqueo local: 5 intentos → 15 min, copiando los valores por defecto de
+   `PIN_MAX_INTENTOS` / `PIN_BLOQUEO_MIN`. **La API no expone esos valores**: si el admin los cambia
+   en `.env`, el celular no se entera. La primera vez se necesita red.
+4. **"Definir PIN" al activar.** El backend no tiene ese paso: el PIN inicial lo pone el admin al crear
+   el usuario; el primer login devuelve `debe_cambiar_pin=true` y la app pide cambiarlo con
+   `POST /auth/pin/cambiar` (necesita red).
+5. **Token vencido sin red.** El JWT móvil dura `JWT_MINUTOS_MOVIL` (12 h). La sincronización en segundo
+   plano no puede renovarlo sin el PIN: si vence, lo pendiente espera a que el acopiador ingrese con PIN
+   y señal. Nada se pierde (sigue en Room).
+6. **401 ambiguo en el login.** "PIN incorrecto" y "celular no vinculado o desactivado" llegan con el
+   mismo `codigo: no_autorizado`; solo cambia el texto. La app muestra el mensaje del servidor y cuenta
+   el intento en el bloqueo local en ambos casos. Un `codigo` propio (p. ej. `celular_desvinculado`)
+   permitiría ofrecer "vincular de nuevo" sin depender del texto.
+7. **Revinculación y firmas pendientes.** Si el celular se vuelve a vincular, la app **reutiliza** la
+   clave del Keystore: las recolecciones pendientes firmadas antes siguen validando. Si se reinstala la
+   app, la clave y el `device_uuid` se pierden (y con ellos lo no sincronizado).
+8. **Rol analista.** El mismo APK lo puede activar un analista, pero las Fases 3A/3B solo implementan al
+   acopiador: el pull del analista se rechaza en el celular con "Esta versión de la app es solo para acopiadores".

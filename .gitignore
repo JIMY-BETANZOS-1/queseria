@@ -26,6 +26,14 @@ local.properties
 captures/
 .cxx/
 
+# Móvil (Android): compilados, configuración local (URL del servidor) y llaves
+mobile/.gradle/
+mobile/build/
+mobile/app/build/
+mobile/local.properties
+mobile/.idea/
+mobile/.kotlin/
+
 # IDE y sistema
 .idea/
 .vscode/
