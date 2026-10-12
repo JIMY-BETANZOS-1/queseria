@@ -244,10 +244,10 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
 5. **Token vencido sin red.** El JWT móvil dura `JWT_MINUTOS_MOVIL` (12 h). La sincronización en segundo
    plano no puede renovarlo sin el PIN: si vence, lo pendiente espera a que el acopiador ingrese con PIN
    y señal. Nada se pierde (sigue en Room).
-6. **401 ambiguo en el login.** "PIN incorrecto" y "celular no vinculado o desactivado" llegan con el
-   mismo `codigo: no_autorizado`; solo cambia el texto. La app muestra el mensaje del servidor y cuenta
-   el intento en el bloqueo local en ambos casos. Un `codigo` propio (p. ej. `celular_desvinculado`)
-   permitiría ofrecer "vincular de nuevo" sin depender del texto.
+6. **401 con códigos distintos.** `POST /auth/pin/login` devuelve `codigo: "pin_incorrecto"` cuando el
+   PIN no coincide (la app cuenta el intento en el bloqueo local y muestra el mensaje del servidor) y
+   `codigo: "dispositivo_no_vinculado"` cuando el celular fue desactivado (la app no cuenta el intento;
+   la pantalla puede ofrecer "vincular de nuevo"). Actualizado en la Fase 3B.
 7. **Revinculación y firmas pendientes.** Si el celular se vuelve a vincular, la app **reutiliza** la
    clave del Keystore: las recolecciones pendientes firmadas antes siguen validando. Si se reinstala la
    app, la clave y el `device_uuid` se pierden (y con ellos lo no sincronizado).

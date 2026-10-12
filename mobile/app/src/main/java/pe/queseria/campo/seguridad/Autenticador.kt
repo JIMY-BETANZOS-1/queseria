@@ -82,6 +82,9 @@ class Autenticador(
             guardarToken(t)
             pin.guardar(pinTexto)
             return abrir(UsuarioLocal(t.usuario.id, t.usuario.rol, t.usuario.nombreCompleto), conServidor = true)
+        } catch (e: ErrorApp.DispositivoNoVinculado) {
+            // El celular fue desvinculado: no es fallo de PIN, no acumular intentos
+            throw e
         } catch (e: ErrorApp.NoAutorizado) {
             pin.registrarFallo()
             throw e

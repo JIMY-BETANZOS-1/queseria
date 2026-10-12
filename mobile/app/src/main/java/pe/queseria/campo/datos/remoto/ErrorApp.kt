@@ -10,8 +10,11 @@ sealed class ErrorApp(mensaje: String) : Exception(mensaje) {
     /** Sin señal o el servidor no responde: se reintenta más tarde. */
     class SinRed : ErrorApp("Sin conexión con el servidor")
 
-    /** 401: PIN incorrecto, sesión vencida o celular desvinculado (el mensaje del servidor lo dice). */
+    /** 401 `pin_incorrecto`: el PIN no coincide; cuenta como intento fallido en el bloqueo local. */
     class NoAutorizado(mensaje: String) : ErrorApp(mensaje)
+
+    /** 401 `dispositivo_no_vinculado`: el celular fue desactivado o nunca vinculado; no es fallo de PIN. */
+    class DispositivoNoVinculado(mensaje: String) : ErrorApp(mensaje)
 
     /** 403: el rol no puede hacer esta operación. */
     class Prohibido(mensaje: String) : ErrorApp(mensaje)
@@ -54,15 +57,17 @@ suspend fun <T> llamar(bloque: suspend () -> T): T = try {
 }
 
 fun traducirHttp(codigo: Int, cuerpo: String?): ErrorApp {
-    val mensaje = cuerpo?.let {
-        try {
-            jsonError.decodeFromString(ErrorCuerpo.serializer(), it).mensaje
-        } catch (e: Exception) {
-            null
-        }
+    val errorBody = cuerpo?.let {
+        try { jsonError.decodeFromString(ErrorCuerpo.serializer(), it) } catch (e: Exception) { null }
     }
+    val mensaje = errorBody?.mensaje
+    val codigoError = errorBody?.codigo
     return when (codigo) {
-        401 -> ErrorApp.NoAutorizado(mensaje ?: "Debe ingresar con su PIN")
+        401 -> when (codigoError) {
+            "dispositivo_no_vinculado" ->
+                ErrorApp.DispositivoNoVinculado(mensaje ?: "Este celular no está vinculado o fue desactivado")
+            else -> ErrorApp.NoAutorizado(mensaje ?: "Debe ingresar con su PIN")
+        }
         403 -> ErrorApp.Prohibido(mensaje ?: "No tiene permiso para esta operación")
         409 -> ErrorApp.Conflicto(mensaje ?: "La operación no se pudo realizar")
         422 -> ErrorApp.Validacion(mensaje ?: "Datos inválidos")

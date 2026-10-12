@@ -25,7 +25,9 @@ def test_activacion_pin_y_cambio_de_pin(client, admin, db):
 
     r = client.post("/auth/pin/cambiar", json={"pin_actual": "4321", "pin_nuevo": "908172"}, headers=cab(token))
     assert r.status_code == 204, r.text
-    assert login_pin(client, device, "4321").status_code == 401
+    r = login_pin(client, device, "4321")
+    assert r.status_code == 401
+    assert r.json()["codigo"] == "pin_incorrecto"
     r = login_pin(client, device, "908172")
     assert r.status_code == 200
     assert r.json()["debe_cambiar_pin"] is False
@@ -58,6 +60,7 @@ def test_bloqueo_por_intentos_fallidos(client, admin, db):
     for i in range(1, 5):
         r = login_pin(client, device, "0000")
         assert r.status_code == 401
+        assert r.json()["codigo"] == "pin_incorrecto"
         assert r.json()["mensaje"] == f"PIN incorrecto. Le quedan {5 - i} intentos"
 
     r = login_pin(client, device, "0000")                # 5.º intento: bloquea 15 min
@@ -92,7 +95,9 @@ def test_un_solo_celular_activo_por_usuario(client, admin):
     activos = [d["device_uuid"] for d in r.json() if d["activo"]]
     assert activos == [nuevo]
 
-    assert login_pin(client, viejo, acop["pin"]).status_code == 401
+    r = login_pin(client, viejo, acop["pin"])
+    assert r.status_code == 401
+    assert r.json()["codigo"] == "dispositivo_no_vinculado"
     # El token del celular viejo deja de servir al instante
     r = client.post("/auth/pin/cambiar", json={"pin_actual": acop["pin"], "pin_nuevo": "1111"},
                     headers=cab(token_viejo))
@@ -113,4 +118,6 @@ def test_admin_desactiva_celular(client, admin):
     disp = client.get(f"/usuarios/{acop['id']}/dispositivos", headers=cab(admin)).json()[0]
     r = client.post(f"/dispositivos/{disp['id']}/desactivar", headers=cab(admin))
     assert r.status_code == 200 and r.json()["activo"] is False
-    assert login_pin(client, acop["device_uuid"], acop["pin"]).status_code == 401
+    r = login_pin(client, acop["device_uuid"], acop["pin"])
+    assert r.status_code == 401
+    assert r.json()["codigo"] == "dispositivo_no_vinculado"

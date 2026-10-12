@@ -1,6 +1,8 @@
-﻿# Levanta la API en modo desarrollo (recarga automática) en http://localhost:8000  (docs en /docs)
-# Uso: .\backend\scripts\dev.ps1 [-Puerto 8000]
-param([int]$Puerto = 8000)
+﻿# Levanta la API en modo desarrollo (recarga automática).
+# Uso: .\backend\scripts\dev.ps1 [-Puerto 8000] [-Lan]
+#   -Lan  escucha en todas las interfaces (0.0.0.0) para que el celular en la red local pueda conectarse.
+#         Sin -Lan solo acepta conexiones desde la misma PC (127.0.0.1).
+param([int]$Puerto = 8000, [switch]$Lan)
 
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\_venv.ps1"
@@ -15,9 +17,12 @@ if (-not (Select-String -Path $archivoEnv -Pattern '^\s*JWT_SECRET\s*=\s*\S{16,}
     exit 1
 }
 
+$host_bind = if ($Lan) { '0.0.0.0' } else { '127.0.0.1' }
+if ($Lan) { Write-Host "Escuchando en red local ($host_bind:$Puerto) — visible para otros equipos" }
+
 Push-Location $script:Backend
 try {
-    & $script:Python -m uvicorn app.main:app --reload --host 0.0.0.0 --port $Puerto
+    & $script:Python -m uvicorn app.main:app --reload --host $host_bind --port $Puerto
 } finally {
     Pop-Location
 }

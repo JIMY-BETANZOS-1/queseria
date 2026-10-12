@@ -118,7 +118,7 @@ def _error_fallo_pin(fallo: dict) -> ErrorApi:
     if fallo["bloqueado"]:
         return ErrorApi(423, "bloqueado", f"Demasiados intentos. PIN bloqueado hasta las {fallo['hasta']}")
     quedan = config().pin_max_intentos - fallo["pin_intentos_fallidos"]
-    return no_autorizado(f"PIN incorrecto. Le quedan {quedan} intentos")
+    return ErrorApi(401, "pin_incorrecto", f"PIN incorrecto. Le quedan {quedan} intentos")
 
 
 @router.post("/pin/login", response_model=TokenMovil)
@@ -137,7 +137,7 @@ def login_pin(datos: LoginPin):
                FOR UPDATE OF u
         """, (datos.device_uuid,))
         if fila is None:
-            raise no_autorizado("Este celular no está vinculado o fue desactivado")
+            raise ErrorApi(401, "dispositivo_no_vinculado", "Este celular no está vinculado o fue desactivado")
         db.fijar_usuario(conn, fila["id"])
         if fila["bloqueado"]:
             error = ErrorApi(423, "bloqueado", f"PIN bloqueado hasta las {fila['hasta']}")
