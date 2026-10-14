@@ -76,9 +76,9 @@ class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
                 autenticador.ingresar(pin)
                 // Autenticador emite EstadoSesion.Abierta; MainActivity detecta el cambio
             } catch (e: ErrorApp.PinBloqueado) {
-                val hasta = autenticador.bloqueadoHasta()
-                    ?: (System.currentTimeMillis() + 15 * 60_000L)
-                _estado.value = EstadoPin.Bloqueado(hasta)
+                // Sin bloqueo local no se inventa una cuenta atrás: se muestra lo que dijo el servidor
+                _estado.value = autenticador.bloqueadoHasta()?.let { EstadoPin.Bloqueado(it) }
+                    ?: EstadoPin.Ingresando(error = e.message)
             } catch (e: ErrorApp.DispositivoNoVinculado) {
                 _estado.value = EstadoPin.Ingresando(error = e.message)
             } catch (e: ErrorApp.NoAutorizado) {
@@ -116,8 +116,9 @@ class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
                         // Autenticador emite Abierta(debeCambiarPin=false); MainActivity detecta el cambio
                     } catch (e: ErrorApp.PinBloqueado) {
                         pinActualTemp = ""; pinNuevoTemp = ""
-                        _estado.value = EstadoPin.Bloqueado(
-                            autenticador.bloqueadoHasta() ?: (System.currentTimeMillis() + 15 * 60_000L))
+                        autenticador.bloqueadoHasta()
+                            ?.let { _estado.value = EstadoPin.Bloqueado(it) }
+                            ?: run { _etapaCambio.value = EtapaCambio.PinActual(error = e.message) }
                     } catch (e: ErrorApp.NoAutorizado) {
                         pinActualTemp = ""; pinNuevoTemp = ""
                         _etapaCambio.value = EtapaCambio.PinActual(

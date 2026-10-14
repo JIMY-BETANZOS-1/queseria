@@ -35,8 +35,12 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val sesion by contenedor.autenticador.estado.collectAsStateWithLifecycle()
                     when (val s = sesion) {
-                        EstadoSesion.SinVincular ->
-                            ActivarPantalla(contenedor.autenticador)
+                        is EstadoSesion.SinVincular -> {
+                            // Lo sin sincronizar sobrevive al desvinculado: se avisa, no se borra
+                            val pendientes by contenedor.base.syncDao().observarPendientes()
+                                .collectAsStateWithLifecycle(initialValue = 0)
+                            ActivarPantalla(contenedor.autenticador, s.motivo, pendientes)
+                        }
 
                         is EstadoSesion.Cerrada ->
                             PinPantalla(contenedor.autenticador, debeCambiarPin = false)

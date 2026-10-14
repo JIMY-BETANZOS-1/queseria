@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.seguridad.Autenticador
 import pe.queseria.campo.ui.componentes.BtnPrimario
+import pe.queseria.campo.ui.componentes.MensajeAviso
 import pe.queseria.campo.ui.componentes.MensajeError
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
@@ -74,8 +75,12 @@ class ActivarViewModel(private val autenticador: Autenticador) : ViewModel() {
 
 // ─── Pantalla ─────────────────────────────────────────────────────────────────
 
+/**
+ * @param motivo por qué se volvió a esta pantalla (el admin desvinculó el celular); null la primera vez.
+ * @param pendientes recolecciones guardadas sin enviar; se conservan para la próxima vinculación.
+ */
 @Composable
-fun ActivarPantalla(autenticador: Autenticador) {
+fun ActivarPantalla(autenticador: Autenticador, motivo: String? = null, pendientes: Int = 0) {
     val vm: ActivarViewModel = viewModel(factory = ActivarViewModel.factory(autenticador))
     val estado by vm.estado.collectAsStateWithLifecycle()
     var codigo by remember { mutableStateOf("") }
@@ -87,6 +92,16 @@ fun ActivarPantalla(autenticador: Autenticador) {
         Text("Quesería Campo", style = MaterialTheme.typography.titleSmall,
              color = MaterialTheme.colorScheme.primary)
         Text("Vincular celular", style = MaterialTheme.typography.headlineMedium)
+
+        motivo?.let { MensajeError(it) }
+        if (pendientes > 0) {
+            MensajeAviso(
+                "Quedan $pendientes " +
+                    (if (pendientes == 1) "recolección" else "recolecciones") +
+                    " sin enviar. No se borraron: se enviarán al vincular el celular otra vez.",
+            )
+        }
+
         Text(
             "Ingrese el código de 8 caracteres que le entregó el administrador.",
             style = MaterialTheme.typography.bodyLarge,

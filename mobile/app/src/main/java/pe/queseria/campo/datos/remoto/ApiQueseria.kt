@@ -1,6 +1,7 @@
 package pe.queseria.campo.datos.remoto
 
 import kotlinx.serialization.json.Json
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Response
@@ -35,6 +36,10 @@ interface ApiQueseria {
 }
 
 object Red {
+    /** El acopiador espera de pie frente al productor: el login con PIN cae pronto al PIN local. */
+    const val TIMEOUT_LOGIN_PIN_S = 4L
+    private const val RUTA_LOGIN_PIN = "auth/pin/login"
+
     val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -49,6 +54,7 @@ object Red {
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(::acortarTimeoutLoginPin)
             .build()
         return Retrofit.Builder()
             .baseUrl(baseUrl)
@@ -56,5 +62,21 @@ object Red {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(ApiQueseria::class.java)
+    }
+
+    /**
+     * Recorta la espera de [RUTA_LOGIN_PIN] a [TIMEOUT_LOGIN_PIN_S]: si el servidor no contesta,
+     * el [pe.queseria.campo.seguridad.Autenticador] valida el PIN con el verificador local.
+     * Solo vale como interceptor de aplicación (OkHttp no deja ajustar timeouts en los de red).
+     */
+    private fun acortarTimeoutLoginPin(cadena: Interceptor.Chain): okhttp3.Response {
+        val peticion = cadena.request()
+        if (!peticion.url.encodedPath.endsWith(RUTA_LOGIN_PIN)) return cadena.proceed(peticion)
+        val s = TIMEOUT_LOGIN_PIN_S.toInt()
+        return cadena
+            .withConnectTimeout(s, TimeUnit.SECONDS)
+            .withReadTimeout(s, TimeUnit.SECONDS)
+            .withWriteTimeout(s, TimeUnit.SECONDS)
+            .proceed(peticion)
     }
 }

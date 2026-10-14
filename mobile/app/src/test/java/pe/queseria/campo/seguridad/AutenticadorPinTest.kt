@@ -1,0 +1,328 @@
+package pe.queseria.campo.seguridad
+
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import pe.queseria.campo.datos.remoto.ActivarDto
+import pe.queseria.campo.datos.remoto.ApiQueseria
+import pe.queseria.campo.datos.remoto.CambiarPinDto
+import pe.queseria.campo.datos.remoto.DispositivoActivadoDto
+import pe.queseria.campo.datos.remoto.ErrorApp
+import pe.queseria.campo.datos.remoto.LotePushDto
+import pe.queseria.campo.datos.remoto.LoginPinDto
+import pe.queseria.campo.datos.remoto.MiDiaDto
+import pe.queseria.campo.datos.remoto.PullAcopiadorDto
+import pe.queseria.campo.datos.remoto.RespuestaPushDto
+import pe.queseria.campo.datos.remoto.TokenMovilDto
+import pe.queseria.campo.datos.remoto.UsuarioSesionDto
+import retrofit2.Response
+import java.io.IOException
+import java.net.SocketTimeoutException
+
+/**
+ * Ingreso con PIN del acopiador: con señal manda el servidor, sin señal manda [PinLocal].
+ *
+ * Regresión que cubren estos casos (celular Realme C11, fase 3B): un bloqueo local arrastrado de
+ * pruebas anteriores vetaba la llamada al servidor, así que nunca se obtenía token, y sin token
+ * nunca se guardaba el verificador — el celular quedaba sin poder entrar nunca más.
+ */
+class AutenticadorPinTest {
+
+    private val usuario = UsuarioSesionDto(id = 7, rol = "acopiador", nombreCompleto = "Juan Mamani")
+
+    /** Almacén en memoria que sobrevive entre instancias, como las preferencias del celular. */
+    private class Memoria : AlmacenClaves {
+        val datos = mutableMapOf<String, String>()
+        override fun leer(clave: String) = datos[clave]
+        override fun guardar(clave: String, valor: String?) {
+            if (valor == null) datos.remove(clave) else datos[clave] = valor
+        }
+    }
+
+    private class ApiFalsa(private val usuario: UsuarioSesionDto) : ApiQueseria {
+        /** false simula estar en el campo sin señal (Retrofit lanza IOException). */
+        var conRed = true
+
+        /** false = el admin desactivó el celular (POST /dispositivos/{id}/desactivar). */
+        var dispositivoActivo = true
+        var pinDelServidor = "1234"
+        var loginsPedidos = 0
+
+        /** Qué falla de red simular: sin señal, o el servidor que no contesta en 4 s. */
+        var fallaDeRed: () -> IOException = { IOException("sin señal") }
+
+        override suspend fun activar(cuerpo: ActivarDto): DispositivoActivadoDto {
+            if (!conRed) throw fallaDeRed()
+            return DispositivoActivadoDto(dispositivoId = 3, activadoEn = "2026-10-13T08:00:00", usuario = usuario)
+        }
+
+        override suspend fun loginPin(cuerpo: LoginPinDto): TokenMovilDto {
+            loginsPedidos++
+            if (!conRed) throw fallaDeRed()
+            // El backend comprueba el celular antes del PIN (backend/app/routers/auth.py:140)
+            if (!dispositivoActivo) {
+                throw ErrorApp.DispositivoNoVinculado("Este celular no está vinculado o fue desactivado")
+            }
+            if (cuerpo.pin != pinDelServidor) throw ErrorApp.NoAutorizado("PIN incorrecto")
+            return TokenMovilDto(
+                accessToken = "jwt-de-prueba",
+                expiraEnMin = 60,
+                dispositivoId = 3,
+                debeCambiarPin = false,
+                usuario = usuario,
+            )
+        }
+
+        override suspend fun cambiarPin(bearer: String, cuerpo: CambiarPinDto): Response<Unit> =
+            error("no se usa en estas pruebas")
+
+        override suspend fun push(bearer: String, lote: LotePushDto): RespuestaPushDto =
+            error("no se usa en estas pruebas")
+
+        override suspend fun pull(bearer: String, desde: String?): PullAcopiadorDto =
+            error("no se usa en estas pruebas")
+
+        override suspend fun miDia(bearer: String): MiDiaDto =
+            error("no se usa en estas pruebas")
+    }
+
+    private val almacen = Memoria()
+    private val api = ApiFalsa(usuario)
+    private var ahora = 1_700_000_000_000L
+    private val pinLocal = PinLocal(almacen) { ahora }
+    private val auth = Autenticador(
+        api = api,
+        almacen = almacen,
+        clavePublica = { "clave-publica-de-prueba" },
+        pin = pinLocal,
+        modelo = "realme RMX3231",
+        reloj = { ahora },
+    )
+
+    /** Deja el celular vinculado y con un ingreso online correcto: el estado normal en campo. */
+    private suspend fun vincularEIngresarConSenal() {
+        auth.activar("ABC123")
+        auth.ingresar("1234")
+    }
+
+    private suspend inline fun <reified E : Throwable> capturar(bloque: () -> Unit): E {
+        try {
+            bloque()
+        } catch (e: Throwable) {
+            if (e is E) return e
+            throw AssertionError("Se esperaba ${E::class.simpleName} y vino ${e::class.simpleName}: ${e.message}")
+        }
+        throw AssertionError("Se esperaba ${E::class.simpleName} y no hubo ninguna excepción")
+    }
+
+    @Test
+    fun `el ingreso online guarda el verificador local`() = runTest {
+        auth.activar("ABC123")
+        assertFalse("Recién vinculado no debe haber verificador", pinLocal.tieneVerificador())
+
+        auth.ingresar("1234")
+
+        assertTrue("Tras aceptar el PIN el servidor, debe quedar el hash local", pinLocal.tieneVerificador())
+        assertNotNull("Debe quedar token para sincronizar", auth.tokenVigente())
+        assertTrue("El PIN no se guarda en claro", almacen.datos.values.none { it.contains("1234") })
+    }
+
+    @Test
+    fun `el PIN correcto entra sin red`() = runTest {
+        vincularEIngresarConSenal()
+
+        api.conRed = false
+        val abierta = auth.ingresar("1234")
+
+        assertEquals(7L, abierta.usuario.id)
+        assertEquals("acopiador", abierta.usuario.rol)
+        assertFalse("Sin red la sesión se abre con el verificador local", abierta.conServidor)
+    }
+
+    @Test
+    fun `sin red cuatro fallos no bloquean y el quinto si`() = runTest {
+        vincularEIngresarConSenal()
+        api.conRed = false
+
+        repeat(4) { intento ->
+            val e = capturar<ErrorApp.NoAutorizado> { auth.ingresar("0000") }
+            assertTrue(
+                "El intento ${intento + 1} debe avisar cuántos quedan, no bloquear: ${e.message}",
+                e.message!!.contains("PIN incorrecto"),
+            )
+            assertNull("No debe haber bloqueo en el intento ${intento + 1}", auth.bloqueadoHasta())
+        }
+
+        capturar<ErrorApp.PinBloqueado> { auth.ingresar("0000") }
+        assertEquals(ahora + PinLocal.BLOQUEO_MS, auth.bloqueadoHasta())
+    }
+
+    @Test
+    fun `un error de red nunca cuenta como intento fallido`() = runTest {
+        vincularEIngresarConSenal()
+        api.conRed = false
+
+        // Muchos más ingresos correctos que el máximo de intentos: la falta de señal no acumula fallos
+        repeat(PinLocal.MAX_INTENTOS + 3) {
+            assertFalse(auth.ingresar("1234").conServidor)
+            assertNull("Un error de red no puede bloquear el PIN", auth.bloqueadoHasta())
+        }
+    }
+
+    @Test
+    fun `sin verificador y sin red los reintentos no bloquean`() = runTest {
+        // Vinculado pero sin ningún ingreso online: no hay con qué validar sin señal
+        auth.activar("ABC123")
+        api.conRed = false
+
+        repeat(PinLocal.MAX_INTENTOS + 2) {
+            val e = capturar<ErrorApp.Local> { auth.ingresar("1234") }
+            assertTrue(e.message!!.contains("necesita señal"))
+            assertNull("Pedir señal no es un intento fallido", auth.bloqueadoHasta())
+        }
+    }
+
+    @Test
+    fun `un ingreso correcto reinicia el contador de fallos`() = runTest {
+        vincularEIngresarConSenal()
+        api.conRed = false
+
+        repeat(4) { capturar<ErrorApp.NoAutorizado> { auth.ingresar("0000") } }
+        assertFalse(auth.ingresar("1234").conServidor)
+
+        // Si el contador no se hubiera reiniciado, este fallo sería el quinto y bloquearía
+        val e = capturar<ErrorApp.NoAutorizado> { auth.ingresar("0000") }
+        assertTrue("Debe volver a contar desde cero: ${e.message}", e.message!!.contains("4 intentos"))
+        assertNull(auth.bloqueadoHasta())
+    }
+
+    @Test
+    fun `un bloqueo local viejo no impide entrar con senal`() = runTest {
+        vincularEIngresarConSenal()
+
+        // Bloqueo arrastrado de pruebas anteriores (lo que tenía el Realme en pin_bloqueado_hasta)
+        pinLocal.bloquear()
+        assertNotNull(auth.bloqueadoHasta())
+
+        // Con señal manda el servidor: acepta el PIN, abre sesión y limpia el bloqueo del celular
+        val abierta = auth.ingresar("1234")
+
+        assertTrue("Con señal el servidor es la autoridad", abierta.conServidor)
+        assertNull("Un ingreso aceptado limpia el bloqueo local", auth.bloqueadoHasta())
+    }
+
+    @Test
+    fun `con bloqueo local y sin red no deja entrar`() = runTest {
+        vincularEIngresarConSenal()
+        pinLocal.bloquear()
+        api.conRed = false
+
+        // Sin servidor que decida, el bloqueo local sí manda: ni el PIN correcto entra
+        capturar<ErrorApp.PinBloqueado> { auth.ingresar("1234") }
+
+        ahora += PinLocal.BLOQUEO_MS + 1
+        assertFalse("Al vencer el bloqueo vuelve a entrar sin red", auth.ingresar("1234").conServidor)
+    }
+
+    // ─── 1. Con red siempre se consulta al servidor ───────────────────────────
+
+    @Test
+    fun `con red el ingreso consulta al servidor antes del verificador local`() = runTest {
+        vincularEIngresarConSenal()
+        val antes = api.loginsPedidos
+
+        auth.ingresar("1234")
+
+        assertEquals("Cada ingreso con red debe llamar a /auth/pin/login", antes + 1, api.loginsPedidos)
+    }
+
+    @Test
+    fun `con red un celular desactivado no entra aunque el PIN local sea correcto`() = runTest {
+        vincularEIngresarConSenal()
+        assertTrue("El verificador local aceptaría este PIN", pinLocal.tieneVerificador())
+
+        // El admin lo desactiva mientras el celular tiene wifi
+        api.dispositivoActivo = false
+        capturar<ErrorApp.DispositivoNoVinculado> { auth.ingresar("1234") }
+
+        // Y tampoco entra al reintentar: ya no queda con qué validar sin red
+        capturar<ErrorApp.Local> { auth.ingresar("1234") }
+    }
+
+    // ─── 2. dispositivo_no_vinculado deja el celular listo para revincular ────
+
+    @Test
+    fun `desvincular borra token y verificador y pide codigo nuevo`() = runTest {
+        vincularEIngresarConSenal()
+        api.dispositivoActivo = false
+
+        val e = capturar<ErrorApp.DispositivoNoVinculado> { auth.ingresar("1234") }
+
+        assertEquals(Autenticador.MSG_DESVINCULADO, e.message)
+        assertFalse("El verificador local debe desaparecer", pinLocal.tieneVerificador())
+        assertNull("El token debe desaparecer", auth.tokenVigente())
+        assertEquals(
+            "La app debe volver a la pantalla de vincular, con el motivo",
+            EstadoSesion.SinVincular(Autenticador.MSG_DESVINCULADO),
+            auth.estado.value,
+        )
+        // El device_uuid identifica al aparato: se conserva para la nueva activación
+        assertTrue(almacen.datos.containsKey("device_uuid"))
+        assertFalse(almacen.datos.containsKey("usuario_id"))
+    }
+
+    @Test
+    fun `tras desvincular se puede volver a vincular y entrar`() = runTest {
+        vincularEIngresarConSenal()
+        val device = auth.deviceUuid()
+        api.dispositivoActivo = false
+        capturar<ErrorApp.DispositivoNoVinculado> { auth.ingresar("1234") }
+
+        // El admin genera un código nuevo y el acopiador vuelve a vincular el mismo celular
+        api.dispositivoActivo = true
+        auth.activar("NUEVO123")
+        assertEquals("El mismo aparato, no uno nuevo", device, auth.deviceUuid())
+
+        assertTrue(auth.ingresar("1234").conServidor)
+        assertTrue("Y vuelve a quedar listo para el campo", pinLocal.tieneVerificador())
+    }
+
+    // ─── 3. Sin red o con timeout manda el verificador local ─────────────────
+
+    @Test
+    fun `si el servidor no contesta en el timeout se valida localmente`() = runTest {
+        vincularEIngresarConSenal()
+
+        // El timeout corto de /auth/pin/login llega a Retrofit como SocketTimeoutException
+        api.conRed = false
+        api.fallaDeRed = { SocketTimeoutException("timeout") }
+
+        repeat(PinLocal.MAX_INTENTOS + 2) {
+            assertFalse("Debe entrar con el PIN local", auth.ingresar("1234").conServidor)
+            assertNull("Un timeout no es un PIN incorrecto", auth.bloqueadoHasta())
+        }
+    }
+
+    // ─── 4. El PIN incorrecto del servidor cuenta como intento fallido ───────
+
+    @Test
+    fun `el PIN rechazado por el servidor cuenta como intento fallido`() = runTest {
+        vincularEIngresarConSenal()
+
+        repeat(4) { intento ->
+            capturar<ErrorApp.NoAutorizado> { auth.ingresar("0000") }
+            assertNull("El fallo ${intento + 1} del servidor aún no bloquea", auth.bloqueadoHasta())
+        }
+        capturar<ErrorApp.NoAutorizado> { auth.ingresar("0000") }
+
+        assertEquals(
+            "Cinco rechazos del servidor bloquean igual que cinco locales",
+            ahora + PinLocal.BLOQUEO_MS,
+            auth.bloqueadoHasta(),
+        )
+    }
+}

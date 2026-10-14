@@ -30,6 +30,22 @@ fun MensajeError(texto: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** Aviso informativo (no es un error): por ejemplo que quedan recolecciones sin enviar. */
+@Composable
+fun MensajeAviso(texto: String, modifier: Modifier = Modifier) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Text(
+            texto,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(12.dp),
+        )
+    }
+}
+
 @Composable
 fun BtnPrimario(
     texto: String,
