@@ -4,20 +4,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.queseria.campo.seguridad.EstadoSesion
+import pe.queseria.campo.ui.AppAcopiador
 import pe.queseria.campo.ui.activar.ActivarPantalla
 import pe.queseria.campo.ui.pin.PinPantalla
 import pe.queseria.campo.ui.tema.TemaCampo
@@ -49,20 +44,7 @@ class MainActivity : ComponentActivity() {
                             if (s.debeCambiarPin) {
                                 PinPantalla(contenedor.autenticador, debeCambiarPin = true)
                             } else {
-                                // Placeholder hasta que se apruebe la fase 3B completa
-                                Column(Modifier.padding(24.dp)) {
-                                    Text("Bienvenido, ${s.usuario.nombre}",
-                                         style = MaterialTheme.typography.headlineMedium)
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("Pantallas del acopiador próximamente",
-                                         style = MaterialTheme.typography.bodyLarge)
-                                    if (!s.conServidor) {
-                                        Spacer(Modifier.height(8.dp))
-                                        Text("⚠ Sin señal — ingresaste sin conexión",
-                                             style = MaterialTheme.typography.bodyMedium,
-                                             color = MaterialTheme.colorScheme.error)
-                                    }
-                                }
+                                AppAcopiador(contenedor, s)
                             }
                     }
                 }

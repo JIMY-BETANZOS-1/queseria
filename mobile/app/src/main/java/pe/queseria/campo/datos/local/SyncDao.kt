@@ -103,6 +103,87 @@ abstract class SyncDao {
         purgarSincronizadas(purgarAntesDeMs)
     }
 
+    // ------------------------------------------------------------- mis productores (B3 / B4)
+    /**
+     * Productores que este celular tiene bajados (el pull ya dejó solo los de sus rutas vigentes) más
+     * las altas de campo pendientes, con el estado de sanción y lo registrado hoy.
+     * El emparejamiento de las recolecciones va por `servidor_id` o por `uuid_cliente`, porque una
+     * alta de campo todavía no tiene id del servidor.
+     */
+    @Query(
+        """
+        SELECT p.clave                      AS clave,
+               p.servidor_id                AS servidor_id,
+               p.uuid_cliente               AS uuid_cliente,
+               p.codigo                     AS codigo,
+               p.nombre                     AS nombre,
+               p.ruta_id                    AS ruta_id,
+               r.nombre                     AS ruta_nombre,
+               p.aprobado                   AS aprobado,
+               p.estado_sync                AS estado_sync,
+               COALESCE(e.sancionado, 0)    AS sancionado,
+               COALESCE(e.bloqueado, 0)     AS bloqueado,
+               e.sancion_hasta              AS sancion_hasta,
+               (SELECT COUNT(*) FROM recoleccion rec
+                 WHERE rec.estado_sync <> 'RECHAZADO'
+                   AND rec.registrada_en_ms >= :desdeMs AND rec.registrada_en_ms < :hastaMs
+                   AND ((p.servidor_id  IS NOT NULL AND rec.productor_id = p.servidor_id)
+                     OR (p.uuid_cliente IS NOT NULL AND rec.productor_uuid_cliente = p.uuid_cliente))
+               )                            AS n_hoy,
+               (SELECT COALESCE(SUM(CAST(rec.litros AS REAL)), 0) FROM recoleccion rec
+                 WHERE rec.estado_sync <> 'RECHAZADO'
+                   AND rec.registrada_en_ms >= :desdeMs AND rec.registrada_en_ms < :hastaMs
+                   AND ((p.servidor_id  IS NOT NULL AND rec.productor_id = p.servidor_id)
+                     OR (p.uuid_cliente IS NOT NULL AND rec.productor_uuid_cliente = p.uuid_cliente))
+               )                            AS litros_hoy
+          FROM productor p
+          LEFT JOIN ruta             r ON r.id = p.ruta_id
+          LEFT JOIN estado_productor e ON e.productor_id = p.servidor_id
+         WHERE p.estado_sync <> 'RECHAZADO'
+         ORDER BY p.nombre COLLATE NOCASE
+        """,
+    )
+    abstract fun observarProductores(desdeMs: Long, hastaMs: Long): Flow<List<ProductorFila>>
+
+    /** El mismo productor de [observarProductores], para B4: el aviso de bloqueo sigue al pull. */
+    @Query(
+        """
+        SELECT p.clave                      AS clave,
+               p.servidor_id                AS servidor_id,
+               p.uuid_cliente               AS uuid_cliente,
+               p.codigo                     AS codigo,
+               p.nombre                     AS nombre,
+               p.ruta_id                    AS ruta_id,
+               r.nombre                     AS ruta_nombre,
+               p.aprobado                   AS aprobado,
+               p.estado_sync                AS estado_sync,
+               COALESCE(e.sancionado, 0)    AS sancionado,
+               COALESCE(e.bloqueado, 0)     AS bloqueado,
+               e.sancion_hasta              AS sancion_hasta,
+               (SELECT COUNT(*) FROM recoleccion rec
+                 WHERE rec.estado_sync <> 'RECHAZADO'
+                   AND rec.registrada_en_ms >= :desdeMs AND rec.registrada_en_ms < :hastaMs
+                   AND ((p.servidor_id  IS NOT NULL AND rec.productor_id = p.servidor_id)
+                     OR (p.uuid_cliente IS NOT NULL AND rec.productor_uuid_cliente = p.uuid_cliente))
+               )                            AS n_hoy,
+               (SELECT COALESCE(SUM(CAST(rec.litros AS REAL)), 0) FROM recoleccion rec
+                 WHERE rec.estado_sync <> 'RECHAZADO'
+                   AND rec.registrada_en_ms >= :desdeMs AND rec.registrada_en_ms < :hastaMs
+                   AND ((p.servidor_id  IS NOT NULL AND rec.productor_id = p.servidor_id)
+                     OR (p.uuid_cliente IS NOT NULL AND rec.productor_uuid_cliente = p.uuid_cliente))
+               )                            AS litros_hoy
+          FROM productor p
+          LEFT JOIN ruta             r ON r.id = p.ruta_id
+          LEFT JOIN estado_productor e ON e.productor_id = p.servidor_id
+         WHERE p.clave = :clave
+        """,
+    )
+    abstract fun observarProductor(clave: String, desdeMs: Long, hastaMs: Long): Flow<ProductorFila?>
+
+    /** Rutas vigentes del acopiador (las deja el pull). La usa el alta de productor en campo (B5). */
+    @Query("SELECT * FROM ruta ORDER BY nombre COLLATE NOCASE")
+    abstract fun observarRutas(): Flow<List<RutaEntidad>>
+
     // ------------------------------------------------------------- mi día
     @Query("SELECT * FROM recoleccion WHERE registrada_en_ms >= :desdeMs AND registrada_en_ms < :hastaMs ORDER BY registrada_en_ms")
     abstract suspend fun recoleccionesEntre(desdeMs: Long, hastaMs: Long): List<RecoleccionEntidad>

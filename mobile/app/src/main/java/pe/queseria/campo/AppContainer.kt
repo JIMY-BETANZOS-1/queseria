@@ -15,6 +15,7 @@ import pe.queseria.campo.seguridad.PinLocal
 import pe.queseria.campo.sync.MiDia
 import pe.queseria.campo.sync.MotorSync
 import pe.queseria.campo.sync.RemotoApi
+import pe.queseria.campo.ubicacion.Ubicador
 
 /** Dependencias de la app (sin Hilt). Se crea una vez en [QueseriaApp]. */
 class AppContainer(context: Context) {
@@ -35,6 +36,7 @@ class AppContainer(context: Context) {
     )
 
     val registrador = Registrador(base, claveDispositivo)
+    val ubicador = Ubicador(context.applicationContext)
     val motorSync = MotorSync(RemotoApi(::api, autenticador::bearer), base.syncDao())
     val miDia = MiDia(::api, autenticador::bearer, base.syncDao())
 }

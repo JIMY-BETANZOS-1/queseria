@@ -13,6 +13,7 @@ import pe.queseria.campo.datos.local.EstadoSync
 import pe.queseria.campo.datos.local.Meta
 import pe.queseria.campo.datos.local.MetaEntidad
 import pe.queseria.campo.datos.local.ProductorEntidad
+import pe.queseria.campo.datos.local.ProductorFila
 import pe.queseria.campo.datos.local.RecoleccionEntidad
 import pe.queseria.campo.datos.local.RutaEntidad
 import pe.queseria.campo.datos.local.SyncDao
@@ -87,6 +88,11 @@ class MotorSyncTest {
         }
         override suspend fun recoleccionesEntre(desdeMs: Long, hastaMs: Long) =
             recolecciones.values.filter { it.registradaEnMs in desdeMs until hastaMs }
+        // Las consultas de pantalla no las usa el motor (se prueban en BaseLocalTest, con Room real)
+        override fun observarProductores(desdeMs: Long, hastaMs: Long): Flow<List<ProductorFila>> = flowOf(emptyList())
+        override fun observarProductor(clave: String, desdeMs: Long, hastaMs: Long): Flow<ProductorFila?> =
+            flowOf<ProductorFila?>(null)
+        override fun observarRutas(): Flow<List<RutaEntidad>> = flowOf(rutas.values.toList())
         override suspend fun meta(clave: String) = metas[clave]
         override suspend fun guardarMeta(m: MetaEntidad) { metas[m.clave] = m.valor }
         override fun observarMeta(clave: String): Flow<String?> = flowOf(metas[clave])
