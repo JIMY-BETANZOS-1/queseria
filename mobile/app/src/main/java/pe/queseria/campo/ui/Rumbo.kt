@@ -21,6 +21,9 @@ sealed class Destino {
 
     /** B4 para el productor [claveProductor]. */
     data class Registrar(val claveProductor: String) : Destino()
+
+    /** B5: alta de productor en el campo. */
+    data object NuevoProductor : Destino()
 }
 
 /**
@@ -57,6 +60,12 @@ object Rumbo {
     fun alTocarProductor(fila: ProductorFila): Destino =
         if (ResumenProductor.pideConfirmarOtraEntrega(fila)) Destino.Inicio(confirmar = fila.clave)
         else Destino.Registrar(fila.clave)
+
+    /**
+     * B5 guardó el productor: se abre B4 con él. El acopiador lo dio de alta porque tiene el tarro
+     * delante, así que pasar por B3 para buscarlo solo añade un paso en el que olvidar la leche.
+     */
+    fun alCrearProductor(claveProductor: String): Destino = Destino.Registrar(claveProductor)
 
     /** "Sí, otra entrega": abre B4 con el productor del aviso. Una sola escritura de estado. */
     fun alConfirmarOtraEntrega(destino: Destino): Destino =
@@ -96,6 +105,7 @@ object Rumbo {
     fun atras(destino: Destino): Destino? = when {
         destino is Destino.Inicio && destino.confirmar != null -> destino.copy(confirmar = null)
         destino is Destino.Registrar -> Destino.Inicio()
+        destino is Destino.NuevoProductor -> Destino.Inicio()
         else -> null
     }
 }

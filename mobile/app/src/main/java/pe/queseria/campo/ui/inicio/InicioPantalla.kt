@@ -173,6 +173,7 @@ fun InicioPantalla(
     onTocarProductor: (ProductorFila) -> Unit,
     onConfirmarOtraEntrega: () -> Unit,
     onCancelarConfirmacion: () -> Unit,
+    onNuevoProductor: () -> Unit,
 ) {
     val vm: InicioViewModel = viewModel(factory = InicioViewModel.factory(dao, miDia))
     val todas by vm.todas.collectAsStateWithLifecycle()
@@ -200,6 +201,8 @@ fun InicioPantalla(
             pendientes = pendientes,
             onSincronizar = { SyncWorker.sincronizarAhora(context) },
         )
+
+        Acciones(onNuevoProductor = onNuevoProductor)
 
         // Primero el del PIN: es lo único que el acopiador tiene que recordar hacer al recuperar señal
         avisoPinPendiente?.let { MensajeAviso(it) }
@@ -286,6 +289,25 @@ private fun PanelOtraEntrega(texto: String, onSi: () -> Unit, onCancelar: () -> 
                     modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                 ) { Text("Sí, otra entrega") }
             }
+        }
+    }
+}
+
+/**
+ * Accesos a las pantallas que no son la lista. Botones anchos y altos: se usan de pie, en el campo,
+ * a veces con guantes. Mi día y Sincronización se añaden aquí cuando entren sus pantallas.
+ */
+@Composable
+private fun Acciones(onNuevoProductor: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        OutlinedButton(
+            onClick = onNuevoProductor,
+            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+        ) {
+            Text("+ Productor", style = MaterialTheme.typography.titleMedium)
         }
     }
 }

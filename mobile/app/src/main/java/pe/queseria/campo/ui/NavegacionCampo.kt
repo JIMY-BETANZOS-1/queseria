@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import pe.queseria.campo.AppContainer
 import pe.queseria.campo.seguridad.EstadoSesion
 import pe.queseria.campo.ui.inicio.InicioPantalla
+import pe.queseria.campo.ui.productor.NuevoProductorPantalla
 import pe.queseria.campo.ui.registro.RegistrarPantalla
 
 private const val K_DESTINO = "destino"
@@ -22,11 +23,13 @@ private val SAVER = mapSaver(
         when (d) {
             is Destino.Inicio -> mapOf(K_DESTINO to "inicio", K_AVISO to d.aviso, K_CONFIRMAR to d.confirmar)
             is Destino.Registrar -> mapOf(K_DESTINO to "registrar", K_CLAVE to d.claveProductor)
+            Destino.NuevoProductor -> mapOf(K_DESTINO to "nuevo")
         }
     },
     restore = { m ->
         when (m[K_DESTINO]) {
             "registrar" -> Destino.Registrar(m[K_CLAVE] as String)
+            "nuevo" -> Destino.NuevoProductor
             else -> Destino.Inicio(m[K_AVISO] as String?, m[K_CONFIRMAR] as String?)
         }
     },
@@ -49,6 +52,7 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             onTocarProductor = { destino = Rumbo.alTocarProductor(it) },
             onConfirmarOtraEntrega = { destino = Rumbo.alConfirmarOtraEntrega(destino) },
             onCancelarConfirmacion = { destino = Rumbo.alCancelarConfirmacion(destino) },
+            onNuevoProductor = { destino = Destino.NuevoProductor },
         )
 
         is Destino.Registrar -> RegistrarPantalla(
@@ -59,6 +63,15 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             onGuardado = { litros, productor ->
                 destino = Rumbo.alGuardar(destino, d.claveProductor, "✓ Registrado: $litros L · $productor")
             },
+            onCancelar = { destino = Destino.Inicio() },
+        )
+
+        Destino.NuevoProductor -> NuevoProductorPantalla(
+            dao = dao,
+            registrador = contenedor.registrador,
+            // Recién creado: B4 directo, que es para lo que el acopiador lo dio de alta
+            onCreado = { clave -> destino = Rumbo.alCrearProductor(clave) },
+            onUsarExistente = { clave -> destino = Rumbo.alCrearProductor(clave) },
             onCancelar = { destino = Destino.Inicio() },
         )
     }

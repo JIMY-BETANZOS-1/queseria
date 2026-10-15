@@ -31,6 +31,9 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
 
+/** Motivo literal del backend cuando la recolección apunta a un productor que no existe. */
+private const val MSG_SIN_PRODUCTOR = "El productor no está registrado (súbalo antes que sus recolecciones)"
+
 /** Cola de envío y motor de sincronización contra una base y un servidor falsos (en memoria). */
 class MotorSyncTest {
 
@@ -95,6 +98,8 @@ class MotorSyncTest {
         override fun observarIdsRecolecciones(desdeMs: Long, hastaMs: Long): Flow<List<String>> =
             flowOf(recolecciones.values.filter { it.registradaEnMs in desdeMs until hastaMs }.map { it.id })
         override fun observarRutas(): Flow<List<RutaEntidad>> = flowOf(rutas.values.toList())
+        override fun observarProductoresLocales(): Flow<List<ProductorEntidad>> =
+            flowOf(productores.values.filter { it.estadoSync != EstadoSync.RECHAZADO })
         override suspend fun meta(clave: String) = metas[clave]
         override suspend fun guardarMeta(m: MetaEntidad) { metas[m.clave] = m.valor }
         override fun observarMeta(clave: String): Flow<String?> = flowOf(metas[clave])
@@ -107,6 +112,7 @@ class MotorSyncTest {
         val lotes = mutableListOf<LotePushDto>()
         val cursores = mutableListOf<String?>()
         var rechazar: (String) -> String? = { null }          // id → motivo de rechazo
+        var rechazarProductor: (String) -> String? = { null } // uuid_cliente → motivo de rechazo
         var cortarRespuesta = false                           // guarda pero la respuesta no llega
         var fallo: ErrorApp? = null
         var pull = PullAcopiadorDto(rol = "acopiador", servidorAhora = "t0", siguienteDesde = "c1")
@@ -115,14 +121,22 @@ class MotorSyncTest {
             fallo?.let { throw it }
             lotes += lote
             val rp = lote.productores.mapIndexed { i, p ->
-                val nuevo = p.uuidCliente !in productores
-                val id = productores.getOrPut(p.uuidCliente) { 100L + productores.size }
-                ResultadoProductorDto(i, p.uuidCliente, if (nuevo) "creado" else "duplicado", null, id, "P-%04d".format(id))
+                val motivo = rechazarProductor(p.uuidCliente)
+                if (motivo != null) {
+                    ResultadoProductorDto(i, p.uuidCliente, "rechazado", motivo)
+                } else {
+                    val nuevo = p.uuidCliente !in productores
+                    val id = productores.getOrPut(p.uuidCliente) { 100L + productores.size }
+                    ResultadoProductorDto(i, p.uuidCliente, if (nuevo) "creado" else "duplicado", null, id, "P-%04d".format(id))
+                }
             }
             val rr = lote.recolecciones.mapIndexed { i, r ->
                 val motivo = rechazar(r.id)
                 when {
                     motivo != null -> ResultadoRecoleccionDto(i, r.id, "rechazado", motivo)
+                    // Como el backend: sin productor no hay recolección (routers/sync.py)
+                    r.productorUuidCliente != null && r.productorUuidCliente !in productores ->
+                        ResultadoRecoleccionDto(i, r.id, "rechazado", MSG_SIN_PRODUCTOR)
                     r.id in recibidas -> ResultadoRecoleccionDto(i, r.id, "duplicado", alertas = listOf("sin_ubicacion"))
                     else -> {
                         recibidas[r.id] = r.firma!!
@@ -222,6 +236,8 @@ class MotorSyncTest {
         val lote = servidor.lotes.single()
         assertEquals(uuid, lote.productores.single().uuidCliente)
         assertEquals(uuid, lote.recolecciones.single().productorUuidCliente)
+        // El contrato exige uno de los dos, nunca ambos (RecoleccionPush._un_productor)
+        assertNull(lote.recolecciones.single().productorId)
         val p = dao.productores.getValue(uuid)
         assertEquals(EstadoSync.SINCRONIZADO, p.estadoSync)
         assertEquals(100L, p.servidorId)
@@ -229,6 +245,51 @@ class MotorSyncTest {
         assertEquals(EstadoSync.SINCRONIZADO, estado(r.id))
         // Lo firmado no cambia: sigue enviándose por uuid aunque ya tenga id
         assertEquals(uuid, dao.recolecciones.getValue(r.id).productorUuidCliente)
+    }
+
+    /**
+     * Partir en lotes no puede dejar la leche antes que su productor: el servidor rechaza una
+     * recolección cuyo productor todavía no existe, y esa leche ya no se puede reasignar (pendiente (H)).
+     */
+    @Test
+    fun `con varios lotes el alta de campo viaja en el primero, antes que su leche`() = runTest {
+        val uuid = "8f0c0000-aaaa-4bbb-8ccc-000000000003"
+        dao.insertarProductor(ProductorEntidad(uuid, null, uuid, null, "Rosa Quispe", null, null, 3,
+            null, null, false, null, EstadoSync.PENDIENTE, null, reloj))
+        val rs = registrar(600, productorId = null, uuid = uuid)
+        servidor.pull = servidor.pull.copy(rutaIdsVigentes = listOf(3), productorIdsVigentes = listOf(100))
+
+        val resumen = motor.sincronizar()
+
+        assertEquals(listOf(500, 100), servidor.lotes.map { it.recolecciones.size })
+        assertEquals("el productor va en el primer lote", 1, servidor.lotes[0].productores.size)
+        assertEquals("y no se repite en el segundo", 0, servidor.lotes[1].productores.size)
+        assertEquals(600, resumen.recoleccionesConfirmadas)
+        assertEquals("ninguna leche se rechazó por falta de productor", 0, resumen.rechazados)
+        rs.forEach { assertEquals(EstadoSync.SINCRONIZADO, estado(it.id)) }
+    }
+
+    @Test
+    fun `un alta de productor rechazada no tumba el resto del lote`() = runTest {
+        val uuid = "8f0c0000-aaaa-4bbb-8ccc-000000000004"
+        dao.insertarProductor(ProductorEntidad(uuid, null, uuid, null, "Rosa Quispe", "41234567", null, 3,
+            null, null, false, null, EstadoSync.PENDIENTE, null, reloj))
+        // Leche de productores que sí existen en el servidor, en el mismo lote que el alta rechazada
+        val otras = registrar(2, productorId = 7)
+        servidor.rechazarProductor = { "Ya existe un productor con ese documento" }
+
+        val resumen = motor.sincronizar()
+
+        val p = dao.productores.getValue(uuid)
+        assertEquals(EstadoSync.RECHAZADO, p.estadoSync)
+        assertEquals("Ya existe un productor con ese documento", p.motivo)
+        otras.forEach { assertEquals("lo demás del lote sigue su curso", EstadoSync.SINCRONIZADO, estado(it.id)) }
+        assertEquals(2, resumen.recoleccionesConfirmadas)
+        assertEquals(1, resumen.rechazados)
+
+        // Y no se reintenta: el alta rechazada se conserva con su motivo
+        motor.sincronizar()
+        assertEquals(1, servidor.lotes.size)
     }
 
     @Test

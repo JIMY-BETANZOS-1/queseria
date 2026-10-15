@@ -137,6 +137,23 @@ class RumboTest {
         assertEquals(Destino.Registrar("uuid-de-campo"), destino)
     }
 
+    // ─── B5: alta de productor en el campo ───────────────────────────────────
+
+    @Test
+    fun `tras crear el productor se abre B4 con el, y atras vuelve a B3`() {
+        // La clave de un alta de campo es su uuid_cliente: todavía no tiene id del servidor
+        assertEquals(Destino.Registrar("uuid-de-campo"), Rumbo.alCrearProductor("uuid-de-campo"))
+        assertEquals(Destino.Inicio(), Rumbo.atras(Destino.NuevoProductor))
+    }
+
+    @Test
+    fun `un aviso de guardado no puede sacar de B5`() {
+        assertEquals(Destino.NuevoProductor, Rumbo.alGuardar(Destino.NuevoProductor, "id:7", AVISO))
+        assertEquals(Destino.NuevoProductor, Rumbo.alLimpiarAviso(Destino.NuevoProductor))
+        assertEquals(Destino.NuevoProductor, Rumbo.alConfirmarOtraEntrega(Destino.NuevoProductor))
+        assertEquals(Destino.NuevoProductor, Rumbo.alCancelarConfirmacion(Destino.NuevoProductor))
+    }
+
     // ─── Cambio de PIN obligatorio (opción C): con red se exige, sin red se avisa ──
 
     private fun sesion(debeCambiarPin: Boolean, conServidor: Boolean) = EstadoSesion.Abierta(

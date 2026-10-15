@@ -198,6 +198,13 @@ abstract class SyncDao {
     @Query("SELECT * FROM ruta ORDER BY nombre COLLATE NOCASE")
     abstract fun observarRutas(): Flow<List<RutaEntidad>>
 
+    /**
+     * Productores que este celular conoce, para avisar en B5 de un posible duplicado antes de crear
+     * otro: el `documento` es UNIQUE en la base, así que repetirlo acaba en un alta rechazada.
+     */
+    @Query("SELECT * FROM productor WHERE estado_sync <> 'RECHAZADO' ORDER BY nombre COLLATE NOCASE")
+    abstract fun observarProductoresLocales(): Flow<List<ProductorEntidad>>
+
     // ------------------------------------------------------------- mi día
     @Query("SELECT * FROM recoleccion WHERE registrada_en_ms >= :desdeMs AND registrada_en_ms < :hastaMs ORDER BY registrada_en_ms")
     abstract suspend fun recoleccionesEntre(desdeMs: Long, hastaMs: Long): List<RecoleccionEntidad>
