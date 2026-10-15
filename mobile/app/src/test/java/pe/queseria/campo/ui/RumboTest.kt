@@ -147,11 +147,18 @@ class RumboTest {
     }
 
     @Test
-    fun `un aviso de guardado no puede sacar de B5`() {
-        assertEquals(Destino.NuevoProductor, Rumbo.alGuardar(Destino.NuevoProductor, "id:7", AVISO))
-        assertEquals(Destino.NuevoProductor, Rumbo.alLimpiarAviso(Destino.NuevoProductor))
-        assertEquals(Destino.NuevoProductor, Rumbo.alConfirmarOtraEntrega(Destino.NuevoProductor))
-        assertEquals(Destino.NuevoProductor, Rumbo.alCancelarConfirmacion(Destino.NuevoProductor))
+    fun `ningun aviso que llegue tarde saca de B5 ni de B6`() {
+        for (destino in listOf(Destino.NuevoProductor, Destino.MiDia)) {
+            assertEquals(destino, Rumbo.alGuardar(destino, "id:7", AVISO))
+            assertEquals(destino, Rumbo.alLimpiarAviso(destino))
+            assertEquals(destino, Rumbo.alConfirmarOtraEntrega(destino))
+            assertEquals(destino, Rumbo.alCancelarConfirmacion(destino))
+        }
+    }
+
+    @Test
+    fun `desde B6 el atras vuelve a B3`() {
+        assertEquals(Destino.Inicio(), Rumbo.atras(Destino.MiDia))
     }
 
     // ─── Cambio de PIN obligatorio (opción C): con red se exige, sin red se avisa ──

@@ -9,6 +9,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import pe.queseria.campo.AppContainer
 import pe.queseria.campo.seguridad.EstadoSesion
+import pe.queseria.campo.ui.dia.MiDiaPantalla
 import pe.queseria.campo.ui.inicio.InicioPantalla
 import pe.queseria.campo.ui.productor.NuevoProductorPantalla
 import pe.queseria.campo.ui.registro.RegistrarPantalla
@@ -24,12 +25,14 @@ private val SAVER = mapSaver(
             is Destino.Inicio -> mapOf(K_DESTINO to "inicio", K_AVISO to d.aviso, K_CONFIRMAR to d.confirmar)
             is Destino.Registrar -> mapOf(K_DESTINO to "registrar", K_CLAVE to d.claveProductor)
             Destino.NuevoProductor -> mapOf(K_DESTINO to "nuevo")
+            Destino.MiDia -> mapOf(K_DESTINO to "midia")
         }
     },
     restore = { m ->
         when (m[K_DESTINO]) {
             "registrar" -> Destino.Registrar(m[K_CLAVE] as String)
             "nuevo" -> Destino.NuevoProductor
+            "midia" -> Destino.MiDia
             else -> Destino.Inicio(m[K_AVISO] as String?, m[K_CONFIRMAR] as String?)
         }
     },
@@ -53,6 +56,7 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             onConfirmarOtraEntrega = { destino = Rumbo.alConfirmarOtraEntrega(destino) },
             onCancelarConfirmacion = { destino = Rumbo.alCancelarConfirmacion(destino) },
             onNuevoProductor = { destino = Destino.NuevoProductor },
+            onMiDia = { destino = Destino.MiDia },
         )
 
         is Destino.Registrar -> RegistrarPantalla(
@@ -73,6 +77,11 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             onCreado = { clave -> destino = Rumbo.alCrearProductor(clave) },
             onUsarExistente = { clave -> destino = Rumbo.alCrearProductor(clave) },
             onCancelar = { destino = Destino.Inicio() },
+        )
+
+        Destino.MiDia -> MiDiaPantalla(
+            miDia = contenedor.miDia,
+            onVolver = { destino = Destino.Inicio() },
         )
     }
 

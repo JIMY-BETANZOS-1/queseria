@@ -24,6 +24,9 @@ sealed class Destino {
 
     /** B5: alta de productor en el campo. */
     data object NuevoProductor : Destino()
+
+    /** B6: mi día. */
+    data object MiDia : Destino()
 }
 
 /**
@@ -106,6 +109,7 @@ object Rumbo {
         destino is Destino.Inicio && destino.confirmar != null -> destino.copy(confirmar = null)
         destino is Destino.Registrar -> Destino.Inicio()
         destino is Destino.NuevoProductor -> Destino.Inicio()
+        destino is Destino.MiDia -> Destino.Inicio()
         else -> null
     }
 }

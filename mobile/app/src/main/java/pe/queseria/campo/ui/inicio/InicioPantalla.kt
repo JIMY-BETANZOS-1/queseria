@@ -174,6 +174,7 @@ fun InicioPantalla(
     onConfirmarOtraEntrega: () -> Unit,
     onCancelarConfirmacion: () -> Unit,
     onNuevoProductor: () -> Unit,
+    onMiDia: () -> Unit,
 ) {
     val vm: InicioViewModel = viewModel(factory = InicioViewModel.factory(dao, miDia))
     val todas by vm.todas.collectAsStateWithLifecycle()
@@ -202,7 +203,7 @@ fun InicioPantalla(
             onSincronizar = { SyncWorker.sincronizarAhora(context) },
         )
 
-        Acciones(onNuevoProductor = onNuevoProductor)
+        Acciones(onNuevoProductor = onNuevoProductor, onMiDia = onMiDia)
 
         // Primero el del PIN: es lo único que el acopiador tiene que recordar hacer al recuperar señal
         avisoPinPendiente?.let { MensajeAviso(it) }
@@ -295,10 +296,10 @@ private fun PanelOtraEntrega(texto: String, onSi: () -> Unit, onCancelar: () -> 
 
 /**
  * Accesos a las pantallas que no son la lista. Botones anchos y altos: se usan de pie, en el campo,
- * a veces con guantes. Mi día y Sincronización se añaden aquí cuando entren sus pantallas.
+ * a veces con guantes. Sincronización se añade aquí cuando entre su pantalla.
  */
 @Composable
-private fun Acciones(onNuevoProductor: () -> Unit) {
+private fun Acciones(onNuevoProductor: () -> Unit, onMiDia: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -308,6 +309,12 @@ private fun Acciones(onNuevoProductor: () -> Unit) {
             modifier = Modifier.weight(1f).heightIn(min = 56.dp),
         ) {
             Text("+ Productor", style = MaterialTheme.typography.titleMedium)
+        }
+        OutlinedButton(
+            onClick = onMiDia,
+            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+        ) {
+            Text("Mi día", style = MaterialTheme.typography.titleMedium)
         }
     }
 }
