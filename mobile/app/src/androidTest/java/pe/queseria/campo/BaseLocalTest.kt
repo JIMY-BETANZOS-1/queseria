@@ -102,8 +102,9 @@ class BaseLocalTest {
         dao.insertarEstados(listOf(EstadoProductorEntidad(7, sancionado = true, bloqueado = true,
             sancionHasta = "2026-10-21")))
 
-        dao.insertarRecoleccion(recoleccion(1_000, litros = "12.3"))                    // Juana, cuenta
-        dao.insertarRecoleccion(recoleccion(2_000, litros = "10.2"))                    // Juana, cuenta
+        // Dos entregas de Juana el mismo día: las dos cuentan y se suman (varias por día están permitidas)
+        dao.insertarRecoleccion(recoleccion(1_000, litros = "12.3"))
+        dao.insertarRecoleccion(recoleccion(2_000, litros = "10.2"))
         val rechazada = recoleccion(3_000, litros = "99")
         dao.insertarRecoleccion(rechazada)
         dao.recoleccionRechazada(rechazada.id, "motivo")                                // no cuenta
@@ -118,7 +119,7 @@ class BaseLocalTest {
         assertTrue(juana.sancionado)
         assertTrue(juana.bloqueado)
         assertEquals("2026-10-21", juana.sancionHasta)
-        assertEquals("no cuenta la rechazada ni la de otro día", 2, juana.nHoy)
+        assertEquals("suma las 2 entregas del día; no cuenta la rechazada ni la de otro día", 2, juana.nHoy)
         assertEquals(22.5, juana.litrosHoy, 0.001)
 
         val alta = filas.single { it.clave == campo }

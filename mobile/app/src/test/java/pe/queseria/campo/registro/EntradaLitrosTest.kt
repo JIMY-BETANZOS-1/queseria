@@ -52,6 +52,16 @@ class EntradaLitrosTest {
     }
 
     @Test
+    fun `los topes son por entrega, no por el total del dia`() {
+        // Un productor puede entregar varias veces el mismo día: cada entrega se teclea y se valida
+        // sola, así que el tope de 4 enteros no se gasta con lo ya registrado hoy.
+        assertEquals(BigDecimal("12.3"), EntradaLitros.valor(teclear('1', '2', '.', '3')))
+        assertEquals("la segunda entrega empieza en blanco", "8", teclear('8'))
+        assertEquals(BigDecimal("8"), EntradaLitros.valor("8"))
+        assertEquals(BigDecimal("1234"), EntradaLitros.valor(teclear('1', '2', '3', '4')))
+    }
+
+    @Test
     fun `solo es valido un valor mayor que cero`() {
         assertNull("vacío", EntradaLitros.valor(""))
         assertNull("cero", EntradaLitros.valor("0"))

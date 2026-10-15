@@ -30,9 +30,30 @@ object ResumenProductor {
     /** Nombre en rojo cuando hay sanción o bloqueo (docs/pantallas.md, B3). */
     fun enRojo(fila: ProductorFila): Boolean = fila.bloqueado || fila.sancionado
 
-    /** Lo registrado hoy en este celular: "Pendiente" o "✓ 23.50 L hoy". */
+    /**
+     * Lo registrado hoy en este celular: "Pendiente" o "✓ 23.50 L hoy · 2 entregas".
+     *
+     * Un productor puede entregar varias veces el mismo día (ni `db/schema.sql` ni el contrato lo
+     * limitan), así que se muestra el total del día y cuántas entregas lo componen.
+     */
     fun estadoDelDia(fila: ProductorFila): String =
-        if (fila.nHoy == 0) "Pendiente" else "✓ ${litros(fila.litrosHoy)} L hoy"
+        if (fila.nHoy == 0) "Pendiente" else "✓ ${litros(fila.litrosHoy)} L hoy · ${entregas(fila.nHoy)}"
+
+    /** "1 entrega" / "2 entregas". */
+    fun entregas(n: Int): String = if (n == 1) "1 entrega" else "$n entregas"
+
+    /** Si ya entregó hoy, se pregunta antes de abrir B4 para que no se registre de más por descuido. */
+    fun pideConfirmarOtraEntrega(fila: ProductorFila): Boolean = fila.nHoy > 0
+
+    /** Aviso de B3 antes de la segunda entrega del día. */
+    fun textoOtraEntrega(fila: ProductorFila): String =
+        "${fila.nombre} ya tiene ${entregas(fila.nHoy)} hoy por ${litros(fila.litrosHoy)} L. " +
+            "¿Registrar otra entrega?"
+
+    /** Recordatorio en B4 de lo que ya se le registró hoy, o null si es su primera entrega. */
+    fun yaEntregoHoy(fila: ProductorFila): String? =
+        if (fila.nHoy == 0) null
+        else "Ya registró ${litros(fila.litrosHoy)} L hoy en ${entregas(fila.nHoy)}. Esta es otra entrega."
 
     /** Alta de campo que el admin aún no aprobó: su leche se recibe, pero el pago queda retenido. */
     fun noAprobado(fila: ProductorFila): Boolean = !fila.aprobado

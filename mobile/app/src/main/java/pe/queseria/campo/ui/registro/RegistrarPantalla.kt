@@ -59,6 +59,7 @@ import pe.queseria.campo.ui.componentes.BtnPrimario
 import pe.queseria.campo.ui.componentes.MensajeAviso
 import pe.queseria.campo.ui.componentes.MensajeError
 import pe.queseria.campo.ui.componentes.TecladoNumerico
+import pe.queseria.campo.ui.inicio.ResumenProductor
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -76,7 +77,9 @@ sealed class EstadoRegistro {
  *
  * Antidoble-toque: [registrar] descarta la llamada si el estado ya no es [EstadoRegistro.Editando].
  * Hace falta porque cada llamada a [Registrador.registrar] genera su propio UUID: dos toques
- * crearían dos recolecciones distintas y los litros se sumarían dos veces.
+ * crearían dos recolecciones distintas y los litros se sumarían dos veces. Y como un productor sí
+ * puede entregar varias veces el mismo día, nadie aguas abajo (ni la base) puede distinguir un
+ * doble toque de una segunda entrega legítima: esta guarda es la única protección.
  */
 class RegistrarViewModel(
     claveProductor: String,
@@ -245,6 +248,8 @@ fun RegistrarPantalla(
         if (fila?.aprobado == false) {
             MensajeAviso("Productor no aprobado: el pago queda retenido hasta que el administrador lo apruebe.")
         }
+        // Varias entregas por día están permitidas; se recuerda lo ya registrado para no repetirlo
+        fila?.let { ResumenProductor.yaEntregoHoy(it) }?.let { MensajeAviso(it) }
 
         VisorLitros(litros)
 

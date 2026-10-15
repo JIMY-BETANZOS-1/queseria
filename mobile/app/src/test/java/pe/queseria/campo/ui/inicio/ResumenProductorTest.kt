@@ -46,10 +46,43 @@ class ResumenProductorTest {
     }
 
     @Test
-    fun `estado del dia pendiente o con los litros ya registrados`() {
+    fun `estado del dia pendiente o con el total y las entregas del dia`() {
         assertEquals("Pendiente", ResumenProductor.estadoDelDia(fila()))
-        assertEquals("✓ 22.50 L hoy", ResumenProductor.estadoDelDia(fila(nHoy = 2, litrosHoy = 22.5)))
-        assertEquals("✓ 8.00 L hoy", ResumenProductor.estadoDelDia(fila(nHoy = 1, litrosHoy = 8.0)))
+        assertEquals("✓ 23.50 L hoy · 2 entregas",
+            ResumenProductor.estadoDelDia(fila(nHoy = 2, litrosHoy = 23.5)))
+        assertEquals("✓ 8.00 L hoy · 1 entrega",
+            ResumenProductor.estadoDelDia(fila(nHoy = 1, litrosHoy = 8.0)))
+        assertEquals("✓ 40.00 L hoy · 3 entregas",
+            ResumenProductor.estadoDelDia(fila(nHoy = 3, litrosHoy = 40.0)))
+    }
+
+    @Test
+    fun `varias entregas por dia estan permitidas y se confirman antes de abrir B4`() {
+        val primera = fila()
+        assertFalse("la primera entrega del día se abre de una", ResumenProductor.pideConfirmarOtraEntrega(primera))
+        assertNull(ResumenProductor.yaEntregoHoy(primera))
+
+        val yaEntrego = fila(nHoy = 2, litrosHoy = 23.5)
+        assertTrue(ResumenProductor.pideConfirmarOtraEntrega(yaEntrego))
+        assertEquals(
+            "Juana Mamani ya tiene 2 entregas hoy por 23.50 L. ¿Registrar otra entrega?",
+            ResumenProductor.textoOtraEntrega(yaEntrego),
+        )
+        assertEquals(
+            "Ya registró 23.50 L hoy en 2 entregas. Esta es otra entrega.",
+            ResumenProductor.yaEntregoHoy(yaEntrego),
+        )
+        assertEquals(
+            "Juana Mamani ya tiene 1 entrega hoy por 8.00 L. ¿Registrar otra entrega?",
+            ResumenProductor.textoOtraEntrega(fila(nHoy = 1, litrosHoy = 8.0)),
+        )
+    }
+
+    @Test
+    fun `singular y plural de las entregas`() {
+        assertEquals("1 entrega", ResumenProductor.entregas(1))
+        assertEquals("2 entregas", ResumenProductor.entregas(2))
+        assertEquals("12 entregas", ResumenProductor.entregas(12))
     }
 
     @Test
