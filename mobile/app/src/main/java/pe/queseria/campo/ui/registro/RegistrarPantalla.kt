@@ -156,6 +156,18 @@ class RegistrarViewModel(
         }
     }
 
+    /**
+     * El guardado ya se le informó a la pantalla: vuelve a [EstadoRegistro.Editando].
+     *
+     * `Guardado` es un **evento de un solo uso**, no un estado para quedarse. Este ViewModel lo
+     * guarda la actividad con `key = clave del productor`, así que al volver a B4 con el MISMO
+     * productor se reutiliza la misma instancia: si se quedara en `Guardado`, el aviso se dispararía
+     * otra vez en el primer fotograma y devolvería a B3 sin dejar registrar la segunda entrega.
+     */
+    fun guardadoAvisado() {
+        if (_estado.value is EstadoRegistro.Guardado) _estado.value = EstadoRegistro.Editando()
+    }
+
     override fun onCleared() {
         detenerUbicacion()
     }
@@ -207,9 +219,11 @@ fun RegistrarPantalla(
     }
     DisposableEffect(Unit) { onDispose { vm.detenerUbicacion() } }
 
-    // Guardado: se sincroniza y se vuelve a B3 una sola vez
+    // Guardado: se sincroniza y se vuelve a B3 una sola vez. El evento se consume ANTES de navegar,
+    // porque este ViewModel sobrevive a la pantalla y se reutiliza en la siguiente entrega.
     LaunchedEffect(estado) {
         (estado as? EstadoRegistro.Guardado)?.let {
+            vm.guardadoAvisado()
             SyncWorker.sincronizarAhora(context)
             onGuardado(it.litros, it.productor)
         }

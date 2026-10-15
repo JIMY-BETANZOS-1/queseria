@@ -9,6 +9,8 @@ import pe.queseria.campo.datos.local.ProductorFila
 /** Paso de B3 a B4, incluido el aviso de "otra entrega" que antes dejaba la navegación a medias. */
 class RumboTest {
 
+    private val AVISO = "✓ Registrado: 23.50 L · Juana Mamani"
+
     private fun fila(clave: String = "id:7", nHoy: Int = 0, litrosHoy: Double = 0.0) = ProductorFila(
         clave = clave, servidorId = 7, uuidCliente = null, codigo = "P-0007", nombre = "Juana Mamani",
         rutaId = 3, rutaNombre = "Huata Norte", aprobado = true, estadoSync = EstadoSync.SINCRONIZADO,
@@ -62,6 +64,67 @@ class RumboTest {
         val b4 = Destino.Registrar("id:7")
         assertEquals(b4, Rumbo.alConfirmarOtraEntrega(b4))
         assertEquals(b4, Rumbo.alCancelarConfirmacion(b4))
+    }
+
+    /**
+     * El caso del fallo: registrar y volver a tocar al MISMO productor en seguida.
+     * Antes, el ViewModel de B4 seguía en `Guardado` y al reabrir la pantalla el aviso se disparaba
+     * otra vez, devolviendo a B3 cuando B4 ya estaba entrando.
+     */
+    @Test
+    fun `guardar y registrar otra entrega del mismo productor en seguida`() {
+        var destino: Destino = Destino.Inicio()
+
+        // 1.ª entrega: la fila está en "Pendiente", así que abre B4 directo
+        destino = Rumbo.alTocarProductor(fila())
+        assertEquals(Destino.Registrar("id:7"), destino)
+
+        // Se guarda: vuelve a B3 con la confirmación
+        destino = Rumbo.alGuardar(destino, "id:7", AVISO)
+        assertEquals(Destino.Inicio(aviso = AVISO), destino)
+
+        // Se toca el mismo productor, que ya tiene 1 entrega: aviso y confirmación
+        destino = Rumbo.alTocarProductor(fila(nHoy = 1, litrosHoy = 23.5))
+        assertEquals(Destino.Inicio(confirmar = "id:7"), destino)
+        destino = Rumbo.alConfirmarOtraEntrega(destino)
+        assertEquals("tiene que quedarse en B4", Destino.Registrar("id:7"), destino)
+
+        // Nada que llegue tarde puede sacarlo de B4
+        assertEquals("limpiar el aviso", destino, Rumbo.alLimpiarAviso(destino))
+        assertEquals("aviso de otro productor", destino, Rumbo.alGuardar(destino, "id:9", AVISO))
+        assertEquals("cancelar una confirmación que ya no está", destino, Rumbo.alCancelarConfirmacion(destino))
+        assertEquals("confirmar de nuevo", destino, Rumbo.alConfirmarOtraEntrega(destino))
+
+        // Lo que Rumbo NO puede distinguir: un aviso repetido del MISMO productor es idéntico al
+        // guardado legítimo de esta segunda entrega, así que aquí sí vuelve a B3. Por eso el arreglo
+        // de verdad está en RegistrarViewModel.guardadoAvisado(), que consume el evento y hace que
+        // ese aviso repetido no llegue a existir.
+        assertEquals(Destino.Inicio(aviso = AVISO), Rumbo.alGuardar(destino, "id:7", AVISO))
+    }
+
+    @Test
+    fun `un aviso de guardado que llega tarde no mueve nada`() {
+        // Ya se volvió a B3 (o se canceló): el aviso de B4 no debe reescribir el destino
+        val enB3 = Destino.Inicio(confirmar = "id:7")
+        assertEquals(enB3, Rumbo.alGuardar(enB3, "id:7", AVISO))
+        val limpio = Destino.Inicio()
+        assertEquals(limpio, Rumbo.alGuardar(limpio, "id:7", AVISO))
+
+        // Y el B4 de otro productor tampoco se interrumpe
+        val otroB4 = Destino.Registrar("id:9")
+        assertEquals(otroB4, Rumbo.alGuardar(otroB4, "id:7", AVISO))
+    }
+
+    @Test
+    fun `la limpieza del aviso solo actua en B3`() {
+        assertEquals(Destino.Inicio(), Rumbo.alLimpiarAviso(Destino.Inicio(aviso = AVISO)))
+        assertEquals(
+            "se respeta la confirmación abierta",
+            Destino.Inicio(confirmar = "id:7"),
+            Rumbo.alLimpiarAviso(Destino.Inicio(aviso = AVISO, confirmar = "id:7")),
+        )
+        val enB4 = Destino.Registrar("id:7")
+        assertEquals(enB4, Rumbo.alLimpiarAviso(enB4))
     }
 
     @Test

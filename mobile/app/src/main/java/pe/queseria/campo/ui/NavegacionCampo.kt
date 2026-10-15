@@ -56,7 +56,7 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             registrador = contenedor.registrador,
             ubicador = contenedor.ubicador,
             onGuardado = { litros, productor ->
-                destino = Destino.Inicio("✓ Registrado: $litros L · $productor")
+                destino = Rumbo.alGuardar(destino, d.claveProductor, "✓ Registrado: $litros L · $productor")
             },
             onCancelar = { destino = Destino.Inicio() },
         )

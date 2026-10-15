@@ -42,6 +42,25 @@ object Rumbo {
     fun alConfirmarOtraEntrega(destino: Destino): Destino =
         (destino as? Destino.Inicio)?.confirmar?.let { Destino.Registrar(it) } ?: destino
 
+    /**
+     * B4 informa que guardó: se vuelve a B3 con la confirmación.
+     *
+     * Solo surte efecto si seguimos en el B4 **de ese** productor. Un aviso que llegue tarde —de una
+     * visita anterior a B4, o de otro productor— no puede sacar al acopiador de donde está: el
+     * ViewModel de B4 lo guarda la actividad y se reutiliza entre entregas, así que un `Guardado`
+     * sin consumir se volvía a disparar al reabrir la pantalla (ver `guardadoAvisado`).
+     */
+    fun alGuardar(destino: Destino, claveProductor: String, aviso: String): Destino =
+        if (destino is Destino.Registrar && destino.claveProductor == claveProductor) {
+            Destino.Inicio(aviso)
+        } else {
+            destino
+        }
+
+    /** Limpieza del aviso "✓ Registrado" de B3: nunca puede sacar de B4. */
+    fun alLimpiarAviso(destino: Destino): Destino =
+        (destino as? Destino.Inicio)?.copy(aviso = null) ?: destino
+
     /** "Cancelar" en el aviso: se queda en B3 y se cierra el aviso. */
     fun alCancelarConfirmacion(destino: Destino): Destino =
         (destino as? Destino.Inicio)?.copy(confirmar = null) ?: destino
