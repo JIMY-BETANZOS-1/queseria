@@ -3,6 +3,7 @@ package pe.queseria.campo.ui.inicio
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -301,28 +303,39 @@ private fun PanelOtraEntrega(texto: String, onSi: () -> Unit, onCancelar: () -> 
  */
 @Composable
 private fun Acciones(onNuevoProductor: () -> Unit, onMiDia: () -> Unit, onSincronizar: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    // Dos filas, no tres botones en una. En 360 dp de ancho (los 720 px del Realme) cada botón de una
+    // fila de tres se queda con ~104 dp, y el relleno propio del OutlinedButton (24 dp por lado) deja
+    // ~56 dp para el texto: "Sincronizar" necesita unos 95 dp y se partía en varias líneas. Así las
+    // etiquetas van completas y la letra no se encoge, que en campo es lo que importa.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            BotonAccion("+ Productor", onNuevoProductor, Modifier.weight(1f))
+            BotonAccion("Mi día", onMiDia, Modifier.weight(1f))
+        }
+        BotonAccion("Sincronizar", onSincronizar, Modifier.fillMaxWidth())
+    }
+}
+
+/**
+ * Botón de campo: 56 dp de alto, texto en una sola línea y menos relleno lateral que el de serie, para
+ * que la palabra entera quepa aunque el celular tenga la letra del sistema agrandada.
+ */
+@Composable
+private fun BotonAccion(texto: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 56.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        OutlinedButton(
-            onClick = onNuevoProductor,
-            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-        ) {
-            Text("+ Productor", style = MaterialTheme.typography.titleMedium)
-        }
-        OutlinedButton(
-            onClick = onMiDia,
-            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-        ) {
-            Text("Mi día", style = MaterialTheme.typography.titleMedium)
-        }
-        OutlinedButton(
-            onClick = onSincronizar,
-            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
-        ) {
-            Text("Sincronizar", style = MaterialTheme.typography.titleMedium)
-        }
+        Text(
+            texto,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
