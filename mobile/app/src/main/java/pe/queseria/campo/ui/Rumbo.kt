@@ -1,6 +1,7 @@
 package pe.queseria.campo.ui
 
 import pe.queseria.campo.datos.local.ProductorFila
+import pe.queseria.campo.seguridad.EstadoSesion
 import pe.queseria.campo.ui.inicio.ResumenProductor
 
 /**
@@ -32,6 +33,25 @@ sealed class Destino {
  * terminara de entrar.
  */
 object Rumbo {
+
+    /** Aviso fijo de B3 cuando el cambio de PIN quedó pendiente por falta de señal. */
+    const val MSG_PIN_PENDIENTE = "Debe cambiar su PIN: hágalo cuando tenga señal"
+
+    /**
+     * ¿Hay que llevar al acopiador a B2b en lugar de dejarlo trabajar?
+     *
+     * Solo con red. `Autenticador.cambiarPin` necesita token y servidor (`POST /auth/pin/cambiar`), así
+     * que exigirlo sin señal dejaba al acopiador encerrado en B2b sin poder registrar leche, y la app
+     * nunca debe impedir el registro. Sin red se entra a B3 con [MSG_PIN_PENDIENTE] y el flag sigue
+     * guardado en la caja fuerte: el próximo ingreso con señal lo vuelve a exigir. Tampoco se fuerza a
+     * mitad de sesión si la señal vuelve, para no interrumpir una ruta en curso.
+     */
+    fun exigeCambioDePin(sesion: EstadoSesion.Abierta): Boolean =
+        sesion.debeCambiarPin && sesion.conServidor
+
+    /** Texto del aviso de B3 mientras el cambio de PIN espera señal; null si no hay nada pendiente. */
+    fun avisoPinPendiente(sesion: EstadoSesion.Abierta): String? =
+        if (sesion.debeCambiarPin && !sesion.conServidor) MSG_PIN_PENDIENTE else null
 
     /** Toque en una fila de B3: si ya entregó hoy se confirma primero; si no, se abre B4 directo. */
     fun alTocarProductor(fila: ProductorFila): Destino =

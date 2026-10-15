@@ -52,6 +52,9 @@ class AutenticadorPinTest {
         var pinDelServidor = "1234"
         var loginsPedidos = 0
 
+        /** Lo que responde /auth/pin/login: el backend lo calcula con pin_actualizado_en IS NULL. */
+        var debeCambiarPin = false
+
         /** Qué falla de red simular: sin señal, o el servidor que no contesta en 4 s. */
         var fallaDeRed: () -> IOException = { IOException("sin señal") }
 
@@ -72,13 +75,19 @@ class AutenticadorPinTest {
                 accessToken = "jwt-de-prueba",
                 expiraEnMin = 60,
                 dispositivoId = 3,
-                debeCambiarPin = false,
+                debeCambiarPin = debeCambiarPin,
                 usuario = usuario,
             )
         }
 
-        override suspend fun cambiarPin(bearer: String, cuerpo: CambiarPinDto): Response<Unit> =
-            error("no se usa en estas pruebas")
+        /** 204 sin cuerpo si el PIN actual coincide; un PIN actual equivocado es un 401. */
+        override suspend fun cambiarPin(bearer: String, cuerpo: CambiarPinDto): Response<Unit> {
+            if (!conRed) throw fallaDeRed()
+            if (cuerpo.pinActual != pinDelServidor) throw ErrorApp.NoAutorizado("PIN incorrecto")
+            pinDelServidor = cuerpo.pinNuevo
+            debeCambiarPin = false      // el backend pone pin_actualizado_en = now()
+            return Response.success(Unit)
+        }
 
         override suspend fun push(bearer: String, lote: LotePushDto): RespuestaPushDto =
             error("no se usa en estas pruebas")
@@ -324,5 +333,90 @@ class AutenticadorPinTest {
             ahora + PinLocal.BLOQUEO_MS,
             auth.bloqueadoHasta(),
         )
+    }
+
+    // ─── 5. debe_cambiar_pin: el flag vive en la caja fuerte (opción C) ───────
+
+    /** Otra instancia sobre el mismo almacén: lo que ve la app al reabrirse. */
+    private fun autenticadorReabierto() = Autenticador(
+        api = api,
+        almacen = almacen,
+        clavePublica = { "clave-publica-de-prueba" },
+        pin = pinLocal,
+        modelo = "realme RMX3231",
+        reloj = { ahora },
+    )
+
+    private fun abierta(estado: EstadoSesion) =
+        estado as? EstadoSesion.Abierta ?: throw AssertionError("Se esperaba una sesión abierta: $estado")
+
+    @Test
+    fun `con red el servidor avisa que hay que cambiar el PIN`() = runTest {
+        api.debeCambiarPin = true
+        auth.activar("ABC123")
+
+        val s = auth.ingresar("1234")
+
+        assertTrue("El flag del servidor tiene que llegar a la sesión", s.debeCambiarPin)
+        assertTrue(s.conServidor)
+        assertEquals("1", almacen.datos["debe_cambiar_pin"])
+    }
+
+    /**
+     * El fallo que arregla la opción C: el flag se guarda en la caja fuerte, así que el ingreso sin red
+     * lo arrastra. Antes eso mandaba a B2b, donde `cambiarPin` no puede funcionar sin servidor y el
+     * acopiador quedaba sin poder registrar leche.
+     */
+    @Test
+    fun `el PIN pendiente sobrevive al ingreso sin red y a reabrir la app`() = runTest {
+        api.debeCambiarPin = true
+        auth.activar("ABC123")
+        auth.ingresar("1234")
+
+        api.conRed = false
+        val s = abierta(autenticadorReabierto().ingresar("1234"))
+
+        assertTrue("El cambio sigue pendiente", s.debeCambiarPin)
+        assertFalse("Pero esta sesión no pasó por el servidor", s.conServidor)
+    }
+
+    /**
+     * Señal débil: el servidor no contesta dentro de `Red.TIMEOUT_LOGIN_PIN_S` (4 s), se entra con el
+     * PIN local, y el cambio se vuelve a exigir en el siguiente ingreso que sí llegue al servidor.
+     */
+    @Test
+    fun `con senal debil se entra sin cambiar el PIN y se exige al recuperar la senal`() = runTest {
+        api.debeCambiarPin = true
+        auth.activar("ABC123")
+        auth.ingresar("1234")
+
+        api.conRed = false
+        api.fallaDeRed = { SocketTimeoutException("agotado") }
+        val sinSenal = auth.ingresar("1234")
+        assertTrue("El pendiente no se pierde por un timeout", sinSenal.debeCambiarPin)
+        assertFalse("Un timeout no es una sesión validada por el servidor", sinSenal.conServidor)
+
+        api.conRed = true
+        val conSenal = auth.ingresar("1234")
+        assertTrue(conSenal.debeCambiarPin)
+        assertTrue("Con señal el cambio vuelve a ser ineludible", conSenal.conServidor)
+    }
+
+    @Test
+    fun `cambiar el PIN limpia el pendiente y no vuelve sin red`() = runTest {
+        api.debeCambiarPin = true
+        auth.activar("ABC123")
+        auth.ingresar("1234")
+
+        auth.cambiarPin("1234", "8765")
+
+        assertFalse("La sesión abierta se actualiza en el momento", abierta(auth.estado.value).debeCambiarPin)
+        assertFalse("Y no queda rastro en la caja fuerte", almacen.datos.containsKey("debe_cambiar_pin"))
+
+        // El PIN nuevo es el que vale, también sin señal, y el pendiente no reaparece
+        api.conRed = false
+        val s = abierta(autenticadorReabierto().ingresar("8765"))
+        assertFalse(s.debeCambiarPin)
+        capturar<ErrorApp.NoAutorizado> { auth.ingresar("1234") }
     }
 }

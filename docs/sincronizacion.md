@@ -294,3 +294,64 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
     "Depuración USB (ajustes de seguridad)", así que **queda pendiente**. Mientras tanto, el SQL está
     validado por KSP en cada compilación (Room comprueba las consultas y sus columnas) y la lógica de
     las pantallas por las 49 pruebas unitarias. Pendiente: correrlo con el celular habilitado.
+
+## Pendientes antes de producción
+
+Lo que falta antes de entregar celulares a los acopiadores de verdad. Nada de esto bloquea la Fase 3:
+son decisiones del cliente o cambios de `backend/` y `db/` que necesitan su aprobación.
+
+**(C) Cambio de PIN obligatorio sin señal — RESUELTO en la Fase 3C (opción C).** `POST /auth/pin/cambiar`
+necesita token y servidor, así que exigir el cambio sin red encerraba al acopiador en B2b sin poder
+registrar leche. Ahora: con red el cambio es obligatorio e ineludible; sin red se entra a B3 con el aviso
+fijo "Debe cambiar su PIN: hágalo cuando tenga señal" y el flag se queda en la caja fuerte, de modo que el
+próximo ingreso con señal lo vuelve a exigir (`Rumbo.exigeCambioDePin` / `Rumbo.avisoPinPendiente`).
+
+**(A) Lista negra de PIN triviales, validada en el backend.** Hoy la única regla es
+`PATRON_PIN = r"^[0-9]{4,6}$"` (`backend/app/esquemas/__init__.py`), así que `1234`, `0000`, `111111` o
+`123456` son PIN válidos. La lista negra debe vivir en el backend para que valga en los tres sitios por
+los que entra un PIN: `POST /auth/pin/cambiar`, `POST /usuarios/{id}/pin` y el `pin_inicial` del alta de
+usuario. La app puede avisar antes de enviar, pero el servidor es el que manda.
+
+**(B) `pin_nuevo` distinto de `pin_actual`.** `cambiar_pin` (`backend/app/routers/auth.py:163`) no lo
+comprueba: re-hashea el mismo PIN, pone `pin_actualizado_en = now()` y responde 204, de modo que
+`debe_cambiar_pin` pasa a `false` sin que nada haya cambiado — el cambio obligatorio se puede esquivar
+repitiendo el PIN que el admin ya conoce. Validar en el backend. La app además puede avisarlo en B2b sin
+gastar un intento.
+
+**(D) Seed que ejercite el cambio de PIN, con PIN menos obvios.** `db/seed.sql` da el PIN `1234` a los
+tres usuarios móviles y pone `pin_actualizado_en = now()`, con lo que el login devuelve
+`debe_cambiar_pin = false` y **el flujo del cambio obligatorio nunca se prueba con el seed**. Hace falta
+al menos un acopiador con `pin_actualizado_en = NULL` y un PIN que no esté en la lista negra de (A), para
+poder probar B2b y la opción C sin tocar la base a mano.
+
+**(E) PIN inicial aleatorio por usuario, generado por el panel admin y mostrado una sola vez.** Hoy el
+admin escribe `pin_inicial` a mano al crear el acopiador (`UsuarioMovilNuevo`), y el seed repite `1234`
+para todos. El panel debería generarlo al azar (fuera de la lista negra), mostrarlo una vez y no volver a
+mostrarlo. El patrón ya existe en el repo: `POST /usuarios/{id}/codigo-activacion` devuelve el código una
+sola vez y en la base deja solo su HMAC.
+
+**(F) Límites 2 y 3 de la rehidratación de B3** (ver el ítem 10 de este documento). Además de necesitar
+red en ese momento: **(2) solo cubre HOY** — un celular reinstalado no recupera el estado de días
+anteriores, que solo vive en el servidor; y **(3) solo lo que registró ESE acopiador** — si a un productor
+le recibió leche otro acopiador (ruta reasignada a mitad del día), B3 lo seguirá mostrando como
+pendiente y puede recibirle leche dos veces el mismo día sin aviso. De ahí sale también que una
+recolección anulada en el servidor que este celular registró siga sumando en B3 hasta el día siguiente.
+Si alguno de los dos molesta en campo, lo correcto es ampliar `GET /acopiador/mi-dia` (un parámetro de
+fecha, o incluir lo de toda la ruta y no solo lo propio), no parchearlo en el celular.
+
+**(G) Celular con fecha y hora automáticas en producción.** `hora_automatica` se firma y viaja en cada
+recolección, pero **nunca bloquea el registro**. Con la hora puesta a mano y mal, la recolección cae en
+otra jornada: B3 y B6 muestran totales que no son los del día y la liquidación semanal puede cargar la
+leche a la semana equivocada. El servidor solo lo delata con la alerta `hora_inconsistente`, que el admin
+tiene que revisar. Procedimiento de entrega del celular: activar "Fecha y hora automáticas" y "Zona
+horaria automática" (America/Lima), y dejarlo verificado por escrito.
+
+**(H) Reasignar la leche de un alta de productor rechazada.** Si el servidor rechaza el alta hecha en el
+campo (por ejemplo, DNI repetido), sus recolecciones se rechazan también —el push responde "El productor
+no está registrado"— y hoy **no hay forma de apuntarlas al productor correcto**: el productor es el campo
+3 de la cadena canónica firmada (`uuid:<productor_uuid_cliente>`), así que cambiarlo invalida la firma y,
+al refirmar, rompe el `hash_anterior` de los registros siguientes de ese celular. La app 0.4.0 hace lo
+único seguro: dejarlas a la vista en B7 bajo "Entrega retenida: su productor fue rechazado", con litros,
+hora y motivo, para que el acopiador lo reporte y el admin lo registre. La solución de fondo exige
+decidir dónde vive la reasignación (el admin web sobre la recolección rechazada, o un alta corregida
+reenviada con el mismo `uuid_cliente`) y toca backend y esquema.

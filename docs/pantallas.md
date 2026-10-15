@@ -36,7 +36,7 @@ Convención: **lee** = consulta; **escribe** = inserta/actualiza (las reglas las
 | # | Pantalla | Qué muestra / permite | Objetos de la base |
 |---|----------|-----------------------|--------------------|
 | B1 | Vincular celular | Ingresar el código que generó el admin (una sola vez); registra el dispositivo y su clave pública. | lee/escribe `codigo_activacion` (`usado_en`); escribe `dispositivo` |
-| B2 | Ingreso con PIN | Teclado con dígitos mezclados; bloqueo tras intentos fallidos; cambiar PIN. | lee/escribe `usuario` (`pin_hash`, `pin_intentos_fallidos`, `bloqueado_hasta`, `pin_actualizado_en`) |
+| B2 | Ingreso con PIN | Teclado con dígitos mezclados; bloqueo tras intentos fallidos; cambiar PIN. Si el PIN hay que cambiarlo (`debe_cambiar_pin`), **con red el cambio es obligatorio e ineludible** (B2b, sin salida); **sin red se entra a B3** con el aviso fijo "Debe cambiar su PIN: hágalo cuando tenga señal", porque `POST /auth/pin/cambiar` necesita servidor y la app nunca debe impedir el registro de leche: el pendiente queda guardado y se vuelve a exigir en el próximo ingreso con señal. | lee/escribe `usuario` (`pin_hash`, `pin_intentos_fallidos`, `bloqueado_hasta`, `pin_actualizado_en`) |
 | B3 | Mis productores | Productores de SUS rutas vigentes; nombre en rojo si está sancionado o bloqueado. Por productor, el total del día y cuántas entregas lo componen ("✓ 23.50 L hoy · 2 entregas") o "Pendiente"; el total junta lo de este celular con lo que el servidor ya tiene de hoy (`GET /acopiador/mi-dia`), así un celular reinstalado no muestra "Pendiente" a quien ya entregó. Si ya entregó hoy, al tocarlo se avisa con los litros ya registrados y se pide confirmación ("Sí, otra entrega" / "Cancelar") antes de abrir B4. | lee `productor`, `ruta`, `ruta_acopiador`, `v_productor_estado_hoy` (pull por `actualizado_en`) |
 | B4 | Registrar recolección | Litros con el teclado propio de la app **en orden fijo** (1-2-3 arriba; el barajado es solo del PIN en B2) + observación; GPS, precisión, ubicación simulada, hora GPS, hora automática, firma y `hash_anterior`. Se guarda sin GPS (`origen_ubicacion='ninguna'`). Si el productor está bloqueado: aviso rojo "Productor bloqueado, no debe entregar leche"; si el acopiador confirma que la recibió, se registra igual (la base crea la alerta `productor_bloqueado` y retiene el pago). Un productor puede tener VARIAS recolecciones el mismo día (la base no lo limita): cada una lleva su propio UUID de cliente y suma al total del día; si ya entregó hoy se recuerda cuánto. Un toque = una recolección: GUARDAR se deshabilita al instante, porque un doble toque sería indistinguible de una segunda entrega real. | escribe `recoleccion` (UUID del celular); lee `v_productor_estado_hoy` |
 | B5 | Alta de productor en campo | Crear productor de ruta sin internet (nace no aprobado). | escribe `productor` (`uuid_cliente`, `creado_por`) |
@@ -75,6 +75,9 @@ Convención: **lee** = consulta; **escribe** = inserta/actualiza (las reglas las
   incremental leyendo `recoleccion.actualizado_en` (Fase 2, ver `docs/sincronizacion.md`).
 
 ### Pendientes (no bloquean; se revisan en la fase indicada)
+0. **Antes de entregar celulares**: PIN triviales, `pin_nuevo` ≠ `pin_actual`, seed y PIN inicial del
+   admin, límites de la rehidratación de B3, hora automática del celular y la leche de un alta rechazada.
+   Lista completa en `docs/sincronizacion.md`, sección "Pendientes antes de producción".
 1. **Observaciones del esquema** (Fase 2): el acopiador puede registrar productores de rutas que no son suyas
    y se puede anular una recolección ya liquidada. Detalle en `docs/sincronizacion.md`.
 2. **`productor`** (tabla): el mapa solo lista `v_productor_resumen`, pero Proveedores (A4) escribe en `productor`.

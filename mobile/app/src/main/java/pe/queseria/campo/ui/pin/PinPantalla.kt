@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -252,11 +250,14 @@ private fun CambiarPinPantalla(vm: PinViewModel) {
         )
 
         if (etapa is EtapaCambio.PinNuevo || etapa is EtapaCambio.PinConfirmar) {
+            // No hay salida: con la opción C esta pantalla solo se alcanza CON red, y ahí el cambio es
+            // obligatorio. El botón solo vuelve a la primera etapa (antes decía "Volver al inicio",
+            // que prometía un B3 al que no llevaba).
             OutlinedButton(
                 onClick = { vm.reiniciarCambio(); pin = "" },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
-                Text("Volver al inicio")
+                Text("Empezar de nuevo")
             }
         }
     }
