@@ -102,8 +102,8 @@ class MotorSyncTest {
         override fun observarIdsRecolecciones(desdeMs: Long, hastaMs: Long): Flow<List<String>> =
             flowOf(recolecciones.values.filter { it.registradaEnMs in desdeMs until hastaMs }.map { it.id })
         override fun observarRutas(): Flow<List<RutaEntidad>> = flowOf(rutas.values.toList())
-        override fun observarProductoresLocales(): Flow<List<ProductorEntidad>> =
-            flowOf(productores.values.filter { it.estadoSync != EstadoSync.RECHAZADO })
+        override suspend fun productoresLocales(): List<ProductorEntidad> =
+            productores.values.filter { it.estadoSync != EstadoSync.RECHAZADO }
         override fun observarProductoresRechazados(): Flow<List<ProductorEntidad>> =
             flowOf(productores.values.filter { it.estadoSync == EstadoSync.RECHAZADO })
         override fun observarEntregasRetenidas(): Flow<List<EntregaRetenidaFila>> = flowOf(

@@ -233,9 +233,13 @@ abstract class SyncDao {
     /**
      * Productores que este celular conoce, para avisar en B5 de un posible duplicado antes de crear
      * otro: el `documento` es UNIQUE en la base, así que repetirlo acaba en un alta rechazada.
+     *
+     * Consulta puntual y no un Flow a propósito: la comprobación se hace al guardar, una vez, y leerla
+     * en ese momento evita depender de que algo esté suscrito a un flujo (era el fallo que dejaba la
+     * lista vacía y el aviso sin activarse nunca).
      */
     @Query("SELECT * FROM productor WHERE estado_sync <> 'RECHAZADO' ORDER BY nombre COLLATE NOCASE")
-    abstract fun observarProductoresLocales(): Flow<List<ProductorEntidad>>
+    abstract suspend fun productoresLocales(): List<ProductorEntidad>
 
     // ------------------------------------------------------------- mi día
     @Query("SELECT * FROM recoleccion WHERE registrada_en_ms >= :desdeMs AND registrada_en_ms < :hastaMs ORDER BY registrada_en_ms")

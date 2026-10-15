@@ -28,6 +28,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -55,9 +56,15 @@ data class Formulario(
     val duplicado: Duplicado? = null,
 )
 
+/**
+ * B5. Recibe los dos colaboradores como funciones y no como [SyncDao] / [Registrador] porque el
+ * Registrador necesita Room y el Keystore: así el aviso de duplicado se puede probar en la JVM, que es
+ * justo donde estaba el fallo (la lista contra la que se comparaba llegaba vacía).
+ */
 class NuevoProductorViewModel(
-    private val dao: SyncDao,
-    private val registrador: Registrador,
+    rutas: Flow<List<RutaEntidad>>,
+    private val leerLocales: suspend () -> List<ProductorEntidad>,
+    private val crear: suspend (String, String?, String?, Long) -> ProductorEntidad,
 ) : ViewModel() {
 
     private val _formulario = MutableStateFlow(Formulario())
@@ -66,12 +73,9 @@ class NuevoProductorViewModel(
     private val _guardando = MutableStateFlow(false)
     val guardando: StateFlow<Boolean> = _guardando.asStateFlow()
 
+    /** La pantalla sí se suscribe a esto, y `prepararRuta` corre desde su LaunchedEffect. */
     val rutas: StateFlow<List<RutaEntidad>> =
-        dao.observarRutas().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    private val locales: StateFlow<List<ProductorEntidad>> =
-        dao.observarProductoresLocales()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        rutas.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Con una sola ruta no se pregunta nada: se elige sola. */
     fun prepararRuta() {
@@ -99,22 +103,21 @@ class NuevoProductorViewModel(
             _formulario.value = f.copy(error = error, duplicado = null)
             return
         }
-        if (!forzar) {
-            AltaProductor.posibleDuplicado(f.nombre, f.documento, locales.value)?.let { d ->
-                _formulario.value = f.copy(duplicado = d, error = null)
-                return
-            }
-        }
         if (_guardando.value) return
         _guardando.value = true
         viewModelScope.launch {
             try {
-                val p = registrador.crearProductorCampo(
-                    nombre = f.nombre,
-                    documento = f.documento,
-                    celular = f.celular,
-                    rutaId = requireNotNull(f.rutaId),
-                )
+                // La lista se lee aquí, en el momento de decidir, y no de un StateFlow: uno sin
+                // suscriptor se queda en su valor inicial y el aviso no se activaba nunca.
+                val duplicado =
+                    if (forzar) null
+                    else AltaProductor.posibleDuplicado(f.nombre, f.documento, leerLocales())
+
+                if (duplicado != null) {
+                    _formulario.value = _formulario.value.copy(duplicado = duplicado, error = null)
+                    return@launch
+                }
+                val p = crear(f.nombre, f.documento, f.celular, requireNotNull(f.rutaId))
                 onCreado(p.clave)
             } catch (e: Exception) {
                 _formulario.value = _formulario.value.copy(
@@ -129,8 +132,11 @@ class NuevoProductorViewModel(
     companion object {
         fun factory(dao: SyncDao, registrador: Registrador) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>) =
-                NuevoProductorViewModel(dao, registrador) as T
+            override fun <T : ViewModel> create(modelClass: Class<T>) = NuevoProductorViewModel(
+                rutas = dao.observarRutas(),
+                leerLocales = dao::productoresLocales,
+                crear = registrador::crearProductorCampo,
+            ) as T
         }
     }
 }
