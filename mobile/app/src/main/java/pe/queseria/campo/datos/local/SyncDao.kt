@@ -51,6 +51,31 @@ abstract class SyncDao {
     @Query("SELECT * FROM recoleccion WHERE estado_sync = 'RECHAZADO' ORDER BY registrada_en_ms DESC")
     abstract fun observarRechazadas(): Flow<List<RecoleccionEntidad>>
 
+    /** Altas de campo que el servidor rechazó, con su motivo: las muestra B7. */
+    @Query("SELECT * FROM productor WHERE estado_sync = 'RECHAZADO' ORDER BY creado_en_ms DESC")
+    abstract fun observarProductoresRechazados(): Flow<List<ProductorEntidad>>
+
+    /**
+     * Entregas rechazadas por arrastre: su productor también fue rechazado, así que el servidor
+     * respondió "El productor no está registrado". Ese motivo engaña (sí se subió, en el mismo lote),
+     * por eso se trae el del productor. La leche ya se recibió y no se puede reapuntar a otro productor
+     * sin romper la firma, así que B7 la deja a la vista para reportarla (pendiente (H)).
+     */
+    @Query(
+        """
+        SELECT rec.id                AS id,
+               rec.litros            AS litros,
+               rec.registrada_en_ms  AS registrada_en_ms,
+               p.nombre              AS productor,
+               p.motivo              AS motivo_productor
+          FROM recoleccion rec
+          JOIN productor p ON p.uuid_cliente = rec.productor_uuid_cliente
+         WHERE rec.estado_sync = 'RECHAZADO' AND p.estado_sync = 'RECHAZADO'
+         ORDER BY rec.registrada_en_ms DESC
+        """,
+    )
+    abstract fun observarEntregasRetenidas(): Flow<List<EntregaRetenidaFila>>
+
     // ------------------------------------------------------------- pull
     @Upsert
     abstract suspend fun upsertRutas(rutas: List<RutaEntidad>)

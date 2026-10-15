@@ -22,7 +22,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
@@ -47,7 +46,6 @@ import pe.queseria.campo.datos.local.Meta
 import pe.queseria.campo.datos.local.ProductorFila
 import pe.queseria.campo.datos.local.SyncDao
 import pe.queseria.campo.sync.MiDia
-import pe.queseria.campo.sync.SyncWorker
 import pe.queseria.campo.ui.componentes.MensajeAviso
 import java.time.LocalDate
 import java.time.ZoneId
@@ -175,6 +173,7 @@ fun InicioPantalla(
     onCancelarConfirmacion: () -> Unit,
     onNuevoProductor: () -> Unit,
     onMiDia: () -> Unit,
+    onSincronizar: () -> Unit,
 ) {
     val vm: InicioViewModel = viewModel(factory = InicioViewModel.factory(dao, miDia))
     val todas by vm.todas.collectAsStateWithLifecycle()
@@ -183,7 +182,6 @@ fun InicioPantalla(
     val yaSincronizo by vm.yaSincronizo.collectAsStateWithLifecycle()
     val puedeFaltarLoDeHoy by vm.puedeFaltarLoDeHoy.collectAsStateWithLifecycle()
     val busqueda by vm.busqueda.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     // Se busca en la lista completa: el aviso no debe desaparecer si se escribe en el buscador
     val porConfirmar = confirmar?.let { c -> todas.firstOrNull { it.clave == c } }
@@ -197,13 +195,13 @@ fun InicioPantalla(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Barra(
-            nombreAcopiador = nombreAcopiador,
-            pendientes = pendientes,
-            onSincronizar = { SyncWorker.sincronizarAhora(context) },
-        )
+        Barra(nombreAcopiador = nombreAcopiador, pendientes = pendientes)
 
-        Acciones(onNuevoProductor = onNuevoProductor, onMiDia = onMiDia)
+        Acciones(
+            onNuevoProductor = onNuevoProductor,
+            onMiDia = onMiDia,
+            onSincronizar = onSincronizar,
+        )
 
         // Primero el del PIN: es lo único que el acopiador tiene que recordar hacer al recuperar señal
         avisoPinPendiente?.let { MensajeAviso(it) }
@@ -296,10 +294,13 @@ private fun PanelOtraEntrega(texto: String, onSi: () -> Unit, onCancelar: () -> 
 
 /**
  * Accesos a las pantallas que no son la lista. Botones anchos y altos: se usan de pie, en el campo,
- * a veces con guantes. Sincronización se añade aquí cuando entre su pantalla.
+ * a veces con guantes.
+ *
+ * "Sincronizar" abre B7 en lugar de disparar el worker desde aquí: así el acopiador ve qué se envió y
+ * qué se rechazó, en vez de tocar un botón que no contesta nada.
  */
 @Composable
-private fun Acciones(onNuevoProductor: () -> Unit, onMiDia: () -> Unit) {
+private fun Acciones(onNuevoProductor: () -> Unit, onMiDia: () -> Unit, onSincronizar: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -316,28 +317,25 @@ private fun Acciones(onNuevoProductor: () -> Unit, onMiDia: () -> Unit) {
         ) {
             Text("Mi día", style = MaterialTheme.typography.titleMedium)
         }
+        OutlinedButton(
+            onClick = onSincronizar,
+            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+        ) {
+            Text("Sincronizar", style = MaterialTheme.typography.titleMedium)
+        }
     }
 }
 
 @Composable
-private fun Barra(nombreAcopiador: String, pendientes: Int, onSincronizar: () -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text("Mis productores", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                if (pendientes == 0) nombreAcopiador else "$nombreAcopiador · $pendientes sin enviar",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (pendientes == 0) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.primary,
-            )
-        }
-        OutlinedButton(onClick = onSincronizar, modifier = Modifier.heightIn(min = 48.dp)) {
-            Text("Sincronizar")
-        }
+private fun Barra(nombreAcopiador: String, pendientes: Int) {
+    Column(Modifier.fillMaxWidth()) {
+        Text("Mis productores", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            if (pendientes == 0) nombreAcopiador else "$nombreAcopiador · $pendientes sin enviar",
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (pendientes == 0) MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.primary,
+        )
     }
 }
 

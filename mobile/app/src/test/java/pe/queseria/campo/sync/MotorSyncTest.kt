@@ -1,6 +1,7 @@
 package pe.queseria.campo.sync
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -8,6 +9,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import pe.queseria.campo.datos.local.EntregaRetenidaFila
 import pe.queseria.campo.datos.local.EstadoProductorEntidad
 import pe.queseria.campo.datos.local.EstadoSync
 import pe.queseria.campo.datos.local.Meta
@@ -100,6 +102,17 @@ class MotorSyncTest {
         override fun observarRutas(): Flow<List<RutaEntidad>> = flowOf(rutas.values.toList())
         override fun observarProductoresLocales(): Flow<List<ProductorEntidad>> =
             flowOf(productores.values.filter { it.estadoSync != EstadoSync.RECHAZADO })
+        override fun observarProductoresRechazados(): Flow<List<ProductorEntidad>> =
+            flowOf(productores.values.filter { it.estadoSync == EstadoSync.RECHAZADO })
+        override fun observarEntregasRetenidas(): Flow<List<EntregaRetenidaFila>> = flowOf(
+            recolecciones.values.filter { it.estadoSync == EstadoSync.RECHAZADO }.mapNotNull { r ->
+                val p = productores.values.firstOrNull {
+                    it.uuidCliente != null && it.uuidCliente == r.productorUuidCliente &&
+                        it.estadoSync == EstadoSync.RECHAZADO
+                } ?: return@mapNotNull null
+                EntregaRetenidaFila(r.id, r.litros, r.registradaEnMs, p.nombre, p.motivo)
+            },
+        )
         override suspend fun meta(clave: String) = metas[clave]
         override suspend fun guardarMeta(m: MetaEntidad) { metas[m.clave] = m.valor }
         override fun observarMeta(clave: String): Flow<String?> = flowOf(metas[clave])
@@ -290,6 +303,33 @@ class MotorSyncTest {
         // Y no se reintenta: el alta rechazada se conserva con su motivo
         motor.sincronizar()
         assertEquals(1, servidor.lotes.size)
+    }
+
+    /**
+     * Si el alta se rechaza, su leche se rechaza por arrastre. No se pierde: queda en la base con sus
+     * litros y el motivo del productor, que es lo que B7 muestra como "entrega retenida" (pendiente (H)).
+     */
+    @Test
+    fun `la leche de un alta rechazada se conserva y se puede emparejar con su productor`() = runTest {
+        val uuid = "8f0c0000-aaaa-4bbb-8ccc-000000000005"
+        dao.insertarProductor(ProductorEntidad(uuid, null, uuid, null, "Rosa Quispe", "41234567", null, 3,
+            null, null, false, null, EstadoSync.PENDIENTE, null, reloj))
+        val suya = registrar(1, productorId = null, uuid = uuid).single()
+        servidor.rechazarProductor = { "Ya existe un productor con ese documento" }
+
+        motor.sincronizar()
+
+        val rechazada = dao.recolecciones.getValue(suya.id)
+        assertEquals("la leche no se borra", EstadoSync.RECHAZADO, rechazada.estadoSync)
+        assertEquals("10.50", rechazada.litros)
+        assertEquals(MSG_SIN_PRODUCTOR, rechazada.motivo)
+
+        // El motivo útil es el del productor: el de la recolección engaña (sí se subió, en el mismo lote)
+        val retenida = dao.observarEntregasRetenidas().first().single()
+        assertEquals(suya.id, retenida.id)
+        assertEquals("Rosa Quispe", retenida.productor)
+        assertEquals("10.50", retenida.litros)
+        assertEquals("Ya existe un productor con ese documento", retenida.motivoProductor)
     }
 
     @Test

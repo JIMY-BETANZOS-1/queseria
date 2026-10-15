@@ -147,8 +147,8 @@ class RumboTest {
     }
 
     @Test
-    fun `ningun aviso que llegue tarde saca de B5 ni de B6`() {
-        for (destino in listOf(Destino.NuevoProductor, Destino.MiDia)) {
+    fun `ningun aviso que llegue tarde saca de B5, B6 ni B7`() {
+        for (destino in listOf(Destino.NuevoProductor, Destino.MiDia, Destino.Sync)) {
             assertEquals(destino, Rumbo.alGuardar(destino, "id:7", AVISO))
             assertEquals(destino, Rumbo.alLimpiarAviso(destino))
             assertEquals(destino, Rumbo.alConfirmarOtraEntrega(destino))
@@ -157,8 +157,9 @@ class RumboTest {
     }
 
     @Test
-    fun `desde B6 el atras vuelve a B3`() {
+    fun `desde B6 y B7 el atras vuelve a B3`() {
         assertEquals(Destino.Inicio(), Rumbo.atras(Destino.MiDia))
+        assertEquals(Destino.Inicio(), Rumbo.atras(Destino.Sync))
     }
 
     // ─── Cambio de PIN obligatorio (opción C): con red se exige, sin red se avisa ──

@@ -13,6 +13,7 @@ import pe.queseria.campo.ui.dia.MiDiaPantalla
 import pe.queseria.campo.ui.inicio.InicioPantalla
 import pe.queseria.campo.ui.productor.NuevoProductorPantalla
 import pe.queseria.campo.ui.registro.RegistrarPantalla
+import pe.queseria.campo.ui.sync.SyncPantalla
 
 private const val K_DESTINO = "destino"
 private const val K_AVISO = "aviso"
@@ -26,6 +27,7 @@ private val SAVER = mapSaver(
             is Destino.Registrar -> mapOf(K_DESTINO to "registrar", K_CLAVE to d.claveProductor)
             Destino.NuevoProductor -> mapOf(K_DESTINO to "nuevo")
             Destino.MiDia -> mapOf(K_DESTINO to "midia")
+            Destino.Sync -> mapOf(K_DESTINO to "sync")
         }
     },
     restore = { m ->
@@ -33,6 +35,7 @@ private val SAVER = mapSaver(
             "registrar" -> Destino.Registrar(m[K_CLAVE] as String)
             "nuevo" -> Destino.NuevoProductor
             "midia" -> Destino.MiDia
+            "sync" -> Destino.Sync
             else -> Destino.Inicio(m[K_AVISO] as String?, m[K_CONFIRMAR] as String?)
         }
     },
@@ -57,6 +60,7 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             onCancelarConfirmacion = { destino = Rumbo.alCancelarConfirmacion(destino) },
             onNuevoProductor = { destino = Destino.NuevoProductor },
             onMiDia = { destino = Destino.MiDia },
+            onSincronizar = { destino = Destino.Sync },
         )
 
         is Destino.Registrar -> RegistrarPantalla(
@@ -81,6 +85,12 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
 
         Destino.MiDia -> MiDiaPantalla(
             miDia = contenedor.miDia,
+            onVolver = { destino = Destino.Inicio() },
+        )
+
+        Destino.Sync -> SyncPantalla(
+            dao = dao,
+            motor = contenedor.motorSync,
             onVolver = { destino = Destino.Inicio() },
         )
     }

@@ -15,6 +15,23 @@ val propiedadesLocales = Properties().apply {
 val apiBaseUrl: String = propiedadesLocales.getProperty("api.base.url", "").trim()
     .let { if (it.isEmpty() || it.endsWith("/")) it else "$it/" }
 
+// Commit corto para la línea "Versión · build · commit" de B7, que identifica el APK que tiene un
+// celular en el campo. El "+" avisa de que se armó con cambios sin commitear, así que ese sha no lo
+// reproduce. Sin git (o sin repo), queda "desconocido".
+fun gitSalida(vararg orden: String): String? = try {
+    providers.exec {
+        commandLine(*orden)
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim().takeIf { it.isNotEmpty() }
+} catch (e: Exception) {
+    null
+}
+
+val gitCommit: String = gitSalida("git", "rev-parse", "--short", "HEAD")
+    // --porcelain sale vacío con el árbol limpio y cuenta también los archivos sin seguir
+    ?.plus(if (gitSalida("git", "status", "--porcelain") != null) "+" else "")
+    ?: "desconocido"
+
 android {
     namespace = "pe.queseria.campo"
     compileSdk = 36
@@ -23,10 +40,11 @@ android {
         applicationId = "pe.queseria.campo"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.3.0"
+        versionCode = 2
+        versionName = "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
+        buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
     }
 
     buildTypes {

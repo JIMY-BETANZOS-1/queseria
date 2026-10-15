@@ -72,7 +72,7 @@ object LineasMiDia {
 
     private fun deLocal(r: RecoleccionEntidad, etiqueta: String, problema: Boolean, suma: Boolean) = LineaDia(
         id = r.id,
-        hora = hora(Instant.ofEpochMilli(r.registradaEnMs)),
+        hora = horaLima(r.registradaEnMs),
         productor = r.productorNombre,
         litros = litros(BigDecimal(r.litros)),
         etiqueta = etiqueta,
@@ -81,6 +81,9 @@ object LineasMiDia {
     )
 
     private fun litros(v: BigDecimal): String = v.setScale(2, RoundingMode.HALF_UP).toPlainString()
+
+    /** "07:05" en hora de Lima. La reusa B7 para las entregas retenidas. */
+    fun horaLima(ms: Long): String = hora(Instant.ofEpochMilli(ms))
 
     private fun hora(i: Instant?): String = i?.atZone(LIMA)
         ?.let { "%02d:%02d".format(it.hour, it.minute) }

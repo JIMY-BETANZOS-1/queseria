@@ -27,6 +27,9 @@ sealed class Destino {
 
     /** B6: mi día. */
     data object MiDia : Destino()
+
+    /** B7: sincronización. */
+    data object Sync : Destino()
 }
 
 /**
@@ -110,6 +113,7 @@ object Rumbo {
         destino is Destino.Registrar -> Destino.Inicio()
         destino is Destino.NuevoProductor -> Destino.Inicio()
         destino is Destino.MiDia -> Destino.Inicio()
+        destino is Destino.Sync -> Destino.Inicio()
         else -> null
     }
 }
