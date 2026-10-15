@@ -253,3 +253,16 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
    app, la clave y el `device_uuid` se pierden (y con ellos lo no sincronizado).
 8. **Rol analista.** El mismo APK lo puede activar un analista, pero las Fases 3A/3B solo implementan al
    acopiador: el pull del analista se rechaza en el celular con "Esta versión de la app es solo para acopiadores".
+9. **Varias recolecciones por productor y día (Fase 3B).** No hay límite: ni `db/schema.sql` (no existe
+   un UNIQUE por productor y fecha en `recoleccion`) ni este contrato lo imponen, y el push acepta
+   varias. Cada entrega lleva su propio UUID de cliente y suma al total del día. Consecuencia para la
+   app: como una segunda entrega es legítima, **nadie aguas abajo puede distinguir un doble toque de
+   una entrega real** (`ON CONFLICT DO NOTHING` solo deduplica por UUID, y dos toques generan dos UUID),
+   así que la protección contra el doble toque tiene que vivir en la pantalla B4.
+10. **`BaseLocalTest` (instrumentado) sin correr desde la Fase 3B.** Es el único test que ejercita la
+    consulta `observarProductores` contra SQLite real (junta productor + ruta + sanción + lo registrado
+    hoy, incluidas varias entregas del mismo día). El celular de pruebas es un Xiaomi con HyperOS que
+    rechaza la instalación por USB (`INSTALL_FAILED_USER_RESTRICTED`) mientras no se active
+    "Depuración USB (ajustes de seguridad)", así que **queda pendiente**. Mientras tanto, el SQL está
+    validado por KSP en cada compilación (Room comprueba las consultas y sus columnas) y la lógica de
+    las pantallas por las 49 pruebas unitarias. Pendiente: correrlo con el celular habilitado.
