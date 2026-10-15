@@ -259,7 +259,35 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
    app: como una segunda entrega es legítima, **nadie aguas abajo puede distinguir un doble toque de
    una entrega real** (`ON CONFLICT DO NOTHING` solo deduplica por UUID, y dos toques generan dos UUID),
    así que la protección contra el doble toque tiene que vivir en la pantalla B4.
-10. **`BaseLocalTest` (instrumentado) sin correr desde la Fase 3B.** Es el único test que ejercita la
+10. **Rehidratar el estado del día en un celular limpio (Fase 3B).** Tras reinstalar o revincular, Room
+    queda vacía y B3 muestra "Pendiente" para productores que sí entregaron hoy, porque el estado del
+    día se calcula solo con la base local. Qué ofrece el servidor hoy, sin cambiar nada:
+    - `GET /sync/pull` **no** devuelve recolecciones al acopiador: solo `rutas`, `productores`,
+      `ruta_ids_vigentes`, `productor_ids_vigentes`, `estados` y `precios`. El rol **analista** sí
+      recibe `recolecciones_hoy`; el acopiador no. Esa asimetría es la causa del hueco.
+    - `GET /acopiador/mi-dia` **sí** devuelve lo necesario: una fila por recolección de hoy con
+      `recoleccion_id` (el mismo UUID que generó el celular), `productor_id`, `productor`,
+      `productor_codigo`, `litros` y `anulada_en`, filtradas por `registrado_por = <acopiador>` y la
+      fecha de Lima. Agrupando por `productor_id` y descartando las anuladas se reconstruye
+      exactamente lo que B3 muestra (total del día y número de entregas).
+
+    Conclusión: **no hace falta tocar el backend**. Resuelto así en la app: B3 consulta mi-día al
+    abrirse y después de cada sincronización (cuando cambia `ultimo_sync_ms`), y fusiona en memoria lo
+    que devuelve con lo de Room, descartando por UUID las recolecciones que ya tiene y las anuladas
+    (`RehidratarDia.fusionar`). No se guarda nada nuevo: ninguna migración de Room. **B6 ya estaba
+    cubierta**: `MiDia.obtener()` llama a mi-día y le suma lo pendiente de Room.
+
+    Límites que quedan: necesita red en ese momento (si la app se cierra, se vuelve a preguntar al
+    abrir; en un celular limpio y sin señal no hay nada que rehidratar, y B3 avisa que puede faltar lo
+    de hoy); solo cubre HOY; y solo lo que registró ESE acopiador, así que si a un productor le
+    recibió leche otro acopiador (ruta reasignada a mitad del día) B3 lo seguirá mostrando como
+    pendiente. Tampoco se enteran las filas locales de una anulación hecha en el servidor: una
+    recolección anulada que este celular registró sigue sumando en B3 hasta el próximo día.
+
+    Lo que **no** conviene: volcar las filas de mi-dia en la tabla local `recoleccion`. Esa tabla es la
+    cola de envío y su parte firmada tiene columnas obligatorias que mi-dia no devuelve (`firma`,
+    `origen_ubicacion`); rellenarlas a mano ensuciaría la cadena de firmas (`ultima_firma`).
+11. **`BaseLocalTest` (instrumentado) sin correr desde la Fase 3B.** Es el único test que ejercita la
     consulta `observarProductores` contra SQLite real (junta productor + ruta + sanción + lo registrado
     hoy, incluidas varias entregas del mismo día). El celular de pruebas es un Xiaomi con HyperOS que
     rechaza la instalación por USB (`INSTALL_FAILED_USER_RESTRICTED`) mientras no se active

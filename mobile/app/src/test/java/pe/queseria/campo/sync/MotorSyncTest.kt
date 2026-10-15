@@ -92,6 +92,8 @@ class MotorSyncTest {
         override fun observarProductores(desdeMs: Long, hastaMs: Long): Flow<List<ProductorFila>> = flowOf(emptyList())
         override fun observarProductor(clave: String, desdeMs: Long, hastaMs: Long): Flow<ProductorFila?> =
             flowOf<ProductorFila?>(null)
+        override fun observarIdsRecolecciones(desdeMs: Long, hastaMs: Long): Flow<List<String>> =
+            flowOf(recolecciones.values.filter { it.registradaEnMs in desdeMs until hastaMs }.map { it.id })
         override fun observarRutas(): Flow<List<RutaEntidad>> = flowOf(rutas.values.toList())
         override suspend fun meta(clave: String) = metas[clave]
         override suspend fun guardarMeta(m: MetaEntidad) { metas[m.clave] = m.valor }

@@ -180,6 +180,20 @@ abstract class SyncDao {
     )
     abstract fun observarProductor(clave: String, desdeMs: Long, hastaMs: Long): Flow<ProductorFila?>
 
+    /**
+     * UUID de las recolecciones que este celular ya tiene del día. Sirve para no contar dos veces las
+     * que `GET /acopiador/mi-dia` también devuelve al rehidratar B3 en un celular reinstalado: el id de
+     * la recolección es el mismo a los dos lados (lo genera el celular).
+     */
+    @Query(
+        """
+        SELECT id FROM recoleccion
+         WHERE estado_sync <> 'RECHAZADO'
+           AND registrada_en_ms >= :desdeMs AND registrada_en_ms < :hastaMs
+        """,
+    )
+    abstract fun observarIdsRecolecciones(desdeMs: Long, hastaMs: Long): Flow<List<String>>
+
     /** Rutas vigentes del acopiador (las deja el pull). La usa el alta de productor en campo (B5). */
     @Query("SELECT * FROM ruta ORDER BY nombre COLLATE NOCASE")
     abstract fun observarRutas(): Flow<List<RutaEntidad>>

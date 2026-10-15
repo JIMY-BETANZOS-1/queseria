@@ -49,6 +49,7 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
     when (val d = destino) {
         is Destino.Inicio -> InicioPantalla(
             dao = dao,
+            miDia = contenedor.miDia,
             nombreAcopiador = sesion.usuario.nombre,
             conServidor = sesion.conServidor,
             aviso = d.aviso,

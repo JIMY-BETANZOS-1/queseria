@@ -34,6 +34,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,12 +42,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import pe.queseria.campo.datos.local.Meta
 import pe.queseria.campo.datos.local.ProductorFila
 import pe.queseria.campo.datos.local.SyncDao
+import pe.queseria.campo.sync.MiDia
 import pe.queseria.campo.sync.SyncWorker
 import pe.queseria.campo.ui.componentes.MensajeAviso
 import java.time.LocalDate
@@ -54,7 +58,14 @@ import java.time.ZoneId
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
 
-class InicioViewModel(private val dao: SyncDao) : ViewModel() {
+class InicioViewModel(private val dao: SyncDao, private val miDia: MiDia) : ViewModel() {
+
+    /** Lo que el servidor dice que se registró hoy; `null` mientras no se haya podido consultar. */
+    private sealed interface DelServidor {
+        data object NoConsultado : DelServidor
+        data object Fallo : DelServidor
+        data class Ok(val entregas: List<EntregaServidor>) : DelServidor
+    }
 
     /** El día de trabajo en hora de Lima; se revisa al volver a la pantalla (una ruta puede cruzar medianoche). */
     private val dia = MutableStateFlow(LocalDate.now(LIMA))
@@ -62,17 +73,26 @@ class InicioViewModel(private val dao: SyncDao) : ViewModel() {
     private val _busqueda = MutableStateFlow("")
     val busqueda: StateFlow<String> = _busqueda.asStateFlow()
 
+    private val _delServidor = MutableStateFlow<DelServidor>(DelServidor.NoConsultado)
+    private var consultando = false
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val filas: Flow<List<ProductorFila>> = dia.flatMapLatest { d ->
-        dao.observarProductores(
-            desdeMs = d.atStartOfDay(LIMA).toInstant().toEpochMilli(),
-            hastaMs = d.plusDays(1).atStartOfDay(LIMA).toInstant().toEpochMilli(),
-        )
+        dao.observarProductores(desdeMs = d.inicioMs(), hastaMs = d.finMs())
+    }
+
+    /** Ids de hoy que ya están en este celular: lo que el servidor repita no se cuenta dos veces. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val idsLocales: Flow<List<String>> = dia.flatMapLatest { d ->
+        dao.observarIdsRecolecciones(desdeMs = d.inicioMs(), hastaMs = d.finMs())
     }
 
     val productores: StateFlow<List<ProductorFila>> =
-        combine(filas, _busqueda) { fs, b -> fs.filter { ResumenProductor.coincide(it, b) } }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        combine(filas, idsLocales, _delServidor, _busqueda) { fs, ids, serv, b ->
+            val entregas = (serv as? DelServidor.Ok)?.entregas ?: emptyList()
+            RehidratarDia.fusionar(fs, entregas, ids.toSet())
+                .filter { ResumenProductor.coincide(it, b) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val pendientes: StateFlow<Int> =
         dao.observarPendientes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
@@ -81,6 +101,41 @@ class InicioViewModel(private val dao: SyncDao) : ViewModel() {
     val yaSincronizo: StateFlow<Boolean> =
         dao.observarMeta(Meta.CURSOR_PULL).map { it != null }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), true)
+
+    /**
+     * No se pudo preguntar al servidor y este celular no tiene nada de hoy: "Pendiente" en todas las
+     * filas puede estar mintiendo (celular reinstalado). Con algo registrado hoy no se avisa nada,
+     * para no repetir el aviso toda una jornada sin señal.
+     */
+    val puedeFaltarLoDeHoy: StateFlow<Boolean> =
+        combine(_delServidor, idsLocales) { serv, ids -> serv is DelServidor.Fallo && ids.isEmpty() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    init {
+        // Al abrir y después de cada sincronización (el botón y el worker mueven ULTIMO_SYNC_MS)
+        viewModelScope.launch {
+            dao.observarMeta(Meta.ULTIMO_SYNC_MS).distinctUntilChanged().collect { rehidratar() }
+        }
+    }
+
+    /** Pregunta al servidor qué se registró hoy. Sin red no pasa nada: se sigue con lo local. */
+    fun rehidratar() {
+        if (consultando) return
+        consultando = true
+        viewModelScope.launch {
+            _delServidor.value = try {
+                miDia.obtener().servidor
+                    ?.let { d -> DelServidor.Ok(d.recolecciones.map(EntregaServidor::de)) }
+                    ?: DelServidor.Fallo
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                DelServidor.Fallo
+            } finally {
+                consultando = false
+            }
+        }
+    }
 
     fun buscar(texto: String) { _busqueda.value = texto }
 
@@ -92,9 +147,12 @@ class InicioViewModel(private val dao: SyncDao) : ViewModel() {
     companion object {
         private val LIMA: ZoneId = ZoneId.of("America/Lima")
 
-        fun factory(dao: SyncDao) = object : ViewModelProvider.Factory {
+        private fun LocalDate.inicioMs() = atStartOfDay(LIMA).toInstant().toEpochMilli()
+        private fun LocalDate.finMs() = plusDays(1).atStartOfDay(LIMA).toInstant().toEpochMilli()
+
+        fun factory(dao: SyncDao, miDia: MiDia) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>) = InicioViewModel(dao) as T
+            override fun <T : ViewModel> create(modelClass: Class<T>) = InicioViewModel(dao, miDia) as T
         }
     }
 }
@@ -104,15 +162,17 @@ class InicioViewModel(private val dao: SyncDao) : ViewModel() {
 @Composable
 fun InicioPantalla(
     dao: SyncDao,
+    miDia: MiDia,
     nombreAcopiador: String,
     conServidor: Boolean,
     aviso: String?,
     onRegistrar: (ProductorFila) -> Unit,
 ) {
-    val vm: InicioViewModel = viewModel(factory = InicioViewModel.factory(dao))
+    val vm: InicioViewModel = viewModel(factory = InicioViewModel.factory(dao, miDia))
     val productores by vm.productores.collectAsStateWithLifecycle()
     val pendientes by vm.pendientes.collectAsStateWithLifecycle()
     val yaSincronizo by vm.yaSincronizo.collectAsStateWithLifecycle()
+    val puedeFaltarLoDeHoy by vm.puedeFaltarLoDeHoy.collectAsStateWithLifecycle()
     val busqueda by vm.busqueda.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -120,7 +180,10 @@ fun InicioPantalla(
     // el aviso (nada que perder): la fila se vuelve a tocar.
     var confirmarOtra by remember { mutableStateOf<ProductorFila?>(null) }
 
-    LaunchedEffect(Unit) { vm.revisarDia() }
+    LaunchedEffect(Unit) {
+        vm.revisarDia()
+        vm.rehidratar()   // por si la pantalla se reabre sin que haya habido una sincronización
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp),
@@ -134,6 +197,12 @@ fun InicioPantalla(
 
         if (!conServidor) {
             MensajeAviso("⚠ Sin señal — ingresaste sin conexión. Lo que registres se enviará solo.")
+        }
+        if (puedeFaltarLoDeHoy) {
+            MensajeAviso(
+                "Sin conexión con el servidor: si hoy ya se registró leche en otro celular, " +
+                    "todavía no se ve acá. Sincronice cuando tenga señal.",
+            )
         }
         aviso?.let { MensajeAviso(it) }
 
