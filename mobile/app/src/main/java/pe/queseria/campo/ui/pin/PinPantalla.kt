@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.seguridad.Autenticador
 import pe.queseria.campo.ui.componentes.MensajeError
+import pe.queseria.campo.ui.componentes.TecladoNumerico
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
 
@@ -65,9 +66,6 @@ class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
 
     private val _etapaCambio = MutableStateFlow<EtapaCambio>(EtapaCambio.PinActual())
     val etapaCambio: StateFlow<EtapaCambio> = _etapaCambio.asStateFlow()
-
-    /** Dígitos 0-9 mezclados para el teclado de ingreso (no cambian mientras dure la sesión). */
-    val digitosMezclados: List<Int> = (0..9).shuffled()
 
     fun ingresar(pin: String) {
         viewModelScope.launch {
@@ -183,11 +181,11 @@ private fun IngresoPin(vm: PinViewModel) {
 
         Spacer(Modifier.weight(1f))
 
-        TecladoPin(
-            digitos = vm.digitosMezclados,
-            habilitado = estado is EstadoPin.Ingresando,
-            onDigito = { if (pin.length < 6) pin += it.toString() },
+        TecladoNumerico(
+            onDigito = { if (pin.length < 6) pin += it },
             onBorrar = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
+            habilitado = estado is EstadoPin.Ingresando,
+            mezclar = true,     // solo el PIN se baraja (docs/pantallas.md, B2)
             onOk = { if (pin.length >= 4) vm.ingresar(pin) },
         )
     }
@@ -205,9 +203,6 @@ private fun CambiarPinPantalla(vm: PinViewModel) {
         IngresoPin(vm)
         return
     }
-
-    // Generar dígitos mezclados para cada etapa (se vuelven a mezclar al cambiar de etapa)
-    val digitosActual = remember(etapa) { (0..9).shuffled() }
 
     var pin by rememberSaveable(etapa) { mutableStateOf("") }
 
@@ -242,11 +237,12 @@ private fun CambiarPinPantalla(vm: PinViewModel) {
 
         Spacer(Modifier.weight(1f))
 
-        TecladoPin(
-            digitos = digitosActual,
-            habilitado = habilitado,
-            onDigito = { if (pin.length < 6) pin += it.toString() },
+        TecladoNumerico(
+            onDigito = { if (pin.length < 6) pin += it },
             onBorrar = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
+            habilitado = habilitado,
+            mezclar = true,
+            claveMezcla = etapa,    // se vuelve a barajar en cada etapa del cambio
             onOk = {
                 if (pin.length >= 4) {
                     vm.avanzarCambio(pin)
@@ -285,63 +281,6 @@ fun DotPin(cantidad: Int, maximo: Int = 6, modifier: Modifier = Modifier) {
                         else MaterialTheme.colorScheme.outlineVariant,
                     ),
             )
-        }
-    }
-}
-
-@Composable
-fun TecladoPin(
-    digitos: List<Int>,
-    onDigito: (Int) -> Unit,
-    onBorrar: () -> Unit,
-    onOk: () -> Unit,
-    habilitado: Boolean = true,
-) {
-    val filas = listOf(0 until 3, 3 until 6, 6 until 9)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        filas.forEach { rango ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                rango.forEach { i ->
-                    val d = digitos[i]
-                    FilledTonalButton(
-                        onClick = { onDigito(d) },
-                        enabled = habilitado,
-                        modifier = Modifier.weight(1f).height(60.dp),
-                    ) {
-                        Text(d.toString(), style = MaterialTheme.typography.headlineSmall)
-                    }
-                }
-            }
-        }
-        // Última fila: Borrar | dígito[9] | OK
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = onBorrar,
-                enabled = habilitado,
-                modifier = Modifier.weight(1f).height(60.dp),
-            ) {
-                Text("⌫", style = MaterialTheme.typography.headlineSmall)
-            }
-            FilledTonalButton(
-                onClick = { onDigito(digitos[9]) },
-                enabled = habilitado,
-                modifier = Modifier.weight(1f).height(60.dp),
-            ) {
-                Text(digitos[9].toString(), style = MaterialTheme.typography.headlineSmall)
-            }
-            Button(
-                onClick = onOk,
-                enabled = habilitado,
-                modifier = Modifier.weight(1f).height(60.dp),
-            ) {
-                Text("OK", style = MaterialTheme.typography.titleLarge)
-            }
         }
     }
 }

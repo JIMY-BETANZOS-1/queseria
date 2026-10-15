@@ -253,11 +253,12 @@ fun RegistrarPantalla(
 
         VisorLitros(litros)
 
+        // Orden fijo (1-2-3 arriba): el barajado es solo del teclado del PIN en B2
         TecladoNumerico(
             onDigito = { litros = EntradaLitros.agregarDigito(litros, it) },
-            onPunto = { litros = EntradaLitros.agregarPunto(litros) },
             onBorrar = { litros = EntradaLitros.borrar(litros) },
             habilitado = editando,
+            onPunto = { litros = EntradaLitros.agregarPunto(litros) },
         )
 
         if (mostrarObservacion) {

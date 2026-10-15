@@ -12,31 +12,22 @@ import pe.queseria.campo.seguridad.EstadoSesion
 import pe.queseria.campo.ui.inicio.InicioPantalla
 import pe.queseria.campo.ui.registro.RegistrarPantalla
 
-/**
- * Pantallas del acopiador una vez abierta la sesión. Son pocas y el paso entre ellas es lineal, así
- * que se resuelve con un estado guardado en lugar de añadir una librería de navegación.
- */
-sealed class Destino {
-    /** [aviso] = confirmación que deja B4 al volver ("✓ Registrado: 23.50 L · Juana Mamani"). */
-    data class Inicio(val aviso: String? = null) : Destino()
-    data class Registrar(val claveProductor: String) : Destino()
-}
-
 private const val K_DESTINO = "destino"
 private const val K_AVISO = "aviso"
+private const val K_CONFIRMAR = "confirmar"
 private const val K_CLAVE = "clave"
 
 private val SAVER = mapSaver(
     save = { d ->
         when (d) {
-            is Destino.Inicio -> mapOf(K_DESTINO to "inicio", K_AVISO to d.aviso)
+            is Destino.Inicio -> mapOf(K_DESTINO to "inicio", K_AVISO to d.aviso, K_CONFIRMAR to d.confirmar)
             is Destino.Registrar -> mapOf(K_DESTINO to "registrar", K_CLAVE to d.claveProductor)
         }
     },
     restore = { m ->
         when (m[K_DESTINO]) {
             "registrar" -> Destino.Registrar(m[K_CLAVE] as String)
-            else -> Destino.Inicio(m[K_AVISO] as String?)
+            else -> Destino.Inicio(m[K_AVISO] as String?, m[K_CONFIRMAR] as String?)
         }
     },
 )
@@ -53,7 +44,10 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             nombreAcopiador = sesion.usuario.nombre,
             conServidor = sesion.conServidor,
             aviso = d.aviso,
-            onRegistrar = { destino = Destino.Registrar(it.clave) },
+            confirmar = d.confirmar,
+            onTocarProductor = { destino = Rumbo.alTocarProductor(it) },
+            onConfirmarOtraEntrega = { destino = Rumbo.alConfirmarOtraEntrega(destino) },
+            onCancelarConfirmacion = { destino = Rumbo.alCancelarConfirmacion(destino) },
         )
 
         is Destino.Registrar -> RegistrarPantalla(
@@ -68,5 +62,8 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
         )
     }
 
-    BackHandler(enabled = destino !is Destino.Inicio) { destino = Destino.Inicio() }
+    // Habilitado también mientras está abierto el aviso de "otra entrega": así no hay salto
+    // deshabilitado → habilitado al entrar a B4 (ver Rumbo.atras).
+    val atras = Rumbo.atras(destino)
+    BackHandler(enabled = atras != null) { atras?.let { destino = it } }
 }

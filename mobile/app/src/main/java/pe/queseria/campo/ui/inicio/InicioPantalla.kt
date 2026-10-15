@@ -10,20 +10,16 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -87,12 +83,16 @@ class InicioViewModel(private val dao: SyncDao, private val miDia: MiDia) : View
         dao.observarIdsRecolecciones(desdeMs = d.inicioMs(), hastaMs = d.finMs())
     }
 
-    val productores: StateFlow<List<ProductorFila>> =
-        combine(filas, idsLocales, _delServidor, _busqueda) { fs, ids, serv, b ->
+    /** Todos los productores de sus rutas, ya con lo del servidor fusionado (sin filtrar por búsqueda). */
+    val todas: StateFlow<List<ProductorFila>> =
+        combine(filas, idsLocales, _delServidor) { fs, ids, serv ->
             val entregas = (serv as? DelServidor.Ok)?.entregas ?: emptyList()
             RehidratarDia.fusionar(fs, entregas, ids.toSet())
-                .filter { ResumenProductor.coincide(it, b) }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val productores: StateFlow<List<ProductorFila>> =
+        combine(todas, _busqueda) { ts, b -> ts.filter { ResumenProductor.coincide(it, b) } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val pendientes: StateFlow<Int> =
         dao.observarPendientes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
@@ -166,9 +166,14 @@ fun InicioPantalla(
     nombreAcopiador: String,
     conServidor: Boolean,
     aviso: String?,
-    onRegistrar: (ProductorFila) -> Unit,
+    /** Clave del productor que ya entregó hoy y espera el "¿Otra entrega?" (la trae el destino). */
+    confirmar: String?,
+    onTocarProductor: (ProductorFila) -> Unit,
+    onConfirmarOtraEntrega: () -> Unit,
+    onCancelarConfirmacion: () -> Unit,
 ) {
     val vm: InicioViewModel = viewModel(factory = InicioViewModel.factory(dao, miDia))
+    val todas by vm.todas.collectAsStateWithLifecycle()
     val productores by vm.productores.collectAsStateWithLifecycle()
     val pendientes by vm.pendientes.collectAsStateWithLifecycle()
     val yaSincronizo by vm.yaSincronizo.collectAsStateWithLifecycle()
@@ -176,9 +181,8 @@ fun InicioPantalla(
     val busqueda by vm.busqueda.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Productor que ya entregó hoy y espera confirmación de otra entrega. Al rotar solo se cierra
-    // el aviso (nada que perder): la fila se vuelve a tocar.
-    var confirmarOtra by remember { mutableStateOf<ProductorFila?>(null) }
+    // Se busca en la lista completa: el aviso no debe desaparecer si se escribe en el buscador
+    val porConfirmar = confirmar?.let { c -> todas.firstOrNull { it.clave == c } }
 
     LaunchedEffect(Unit) {
         vm.revisarDia()
@@ -206,6 +210,16 @@ fun InicioPantalla(
         }
         aviso?.let { MensajeAviso(it) }
 
+        // Panel en la propia pantalla, no un AlertDialog: una ventana de diálogo le devolvía el
+        // gesto atrás a la actividad al cerrarse y B4 se cancelaba al entrar (ver Rumbo).
+        porConfirmar?.let { fila ->
+            PanelOtraEntrega(
+                texto = ResumenProductor.textoOtraEntrega(fila),
+                onSi = onConfirmarOtraEntrega,
+                onCancelar = onCancelarConfirmacion,
+            )
+        }
+
         OutlinedTextField(
             value = busqueda,
             onValueChange = vm::buscar,
@@ -225,30 +239,49 @@ fun InicioPantalla(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(productores, key = { it.clave }) { fila ->
-                    FilaProductor(fila) {
-                        if (ResumenProductor.pideConfirmarOtraEntrega(fila)) confirmarOtra = fila
-                        else onRegistrar(fila)
-                    }
+                    FilaProductor(fila) { onTocarProductor(fila) }
                 }
             }
         }
     }
+}
 
-    confirmarOtra?.let { fila ->
-        AlertDialog(
-            onDismissRequest = { confirmarOtra = null },
-            title = { Text("¿Otra entrega?") },
-            text = { Text(ResumenProductor.textoOtraEntrega(fila)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmarOtra = null
-                    onRegistrar(fila)
-                }) { Text("Sí, otra entrega") }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmarOtra = null }) { Text("Cancelar") }
-            },
-        )
+/** Aviso de B3 antes de la segunda entrega del día: botones grandes, en la propia pantalla. */
+@Composable
+private fun PanelOtraEntrega(texto: String, onSi: () -> Unit, onCancelar: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                "¿Otra entrega?",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                texto,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onCancelar,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                ) { Text("Cancelar") }
+                Button(
+                    onClick = onSi,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                ) { Text("Sí, otra entrega") }
+            }
+        }
     }
 }
 
