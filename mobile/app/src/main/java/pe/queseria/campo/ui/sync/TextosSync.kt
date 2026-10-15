@@ -33,10 +33,19 @@ object TextosSync {
     /** Qué consiguió la última sincronización manual. */
     fun textoResumen(r: ResumenSync): String {
         val partes = buildList {
-            if (r.recoleccionesConfirmadas > 0) add("${r.recoleccionesConfirmadas} entregas enviadas")
-            if (r.productoresEnviados > 0) add("${r.productoresEnviados} productores")
+            if (r.recoleccionesConfirmadas > 0) {
+                add(
+                    if (r.recoleccionesConfirmadas == 1) "1 entrega enviada"
+                    else "${r.recoleccionesConfirmadas} entregas enviadas",
+                )
+            }
+            if (r.productoresEnviados > 0) {
+                add(if (r.productoresEnviados == 1) "1 productor" else "${r.productoresEnviados} productores")
+            }
             if (r.conAlertas > 0) add("${r.conAlertas} con alerta")
-            if (r.rechazados > 0) add("${r.rechazados} rechazadas")
+            if (r.rechazados > 0) {
+                add(if (r.rechazados == 1) "1 rechazada" else "${r.rechazados} rechazadas")
+            }
         }
         return if (partes.isEmpty()) "No había nada pendiente por enviar" else partes.joinToString(" · ")
     }

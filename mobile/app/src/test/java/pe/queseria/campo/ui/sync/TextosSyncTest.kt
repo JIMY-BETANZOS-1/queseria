@@ -57,9 +57,35 @@ class TextosSyncTest {
             TextosSync.textoResumen(ResumenSync(recoleccionesConfirmadas = 3, conAlertas = 1, lotes = 1)),
         )
         assertEquals(
-            "2 entregas enviadas · 1 productores · 1 rechazadas",
+            "2 entregas enviadas · 1 productor · 1 rechazada",
             TextosSync.textoResumen(
                 ResumenSync(productoresEnviados = 1, recoleccionesConfirmadas = 2, rechazados = 1, lotes = 1),
+            ),
+        )
+    }
+
+    @Test
+    fun `de a uno el resumen va en singular`() {
+        assertEquals(
+            "1 entrega enviada",
+            TextosSync.textoResumen(ResumenSync(recoleccionesConfirmadas = 1, lotes = 1)),
+        )
+        assertEquals(
+            "1 productor",
+            TextosSync.textoResumen(ResumenSync(productoresEnviados = 1, lotes = 1)),
+        )
+        assertEquals("1 rechazada", TextosSync.textoResumen(ResumenSync(rechazados = 1, lotes = 1)))
+    }
+
+    @Test
+    fun `de a varios el resumen va en plural`() {
+        assertEquals(
+            "2 entregas enviadas · 3 productores · 2 con alerta · 4 rechazadas",
+            TextosSync.textoResumen(
+                ResumenSync(
+                    productoresEnviados = 3, recoleccionesConfirmadas = 2, rechazados = 4,
+                    conAlertas = 2, lotes = 1,
+                ),
             ),
         )
     }

@@ -94,8 +94,10 @@ class InicioViewModel(private val dao: SyncDao, private val miDia: MiDia) : View
         combine(todas, _busqueda) { ts, b -> ts.filter { ResumenProductor.coincide(it, b) } }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /** Todo lo que falta subir: recolecciones y altas de productor hechas en el campo. */
     val pendientes: StateFlow<Int> =
-        dao.observarPendientes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+        combine(dao.observarPendientes(), dao.observarProductoresPendientes()) { r, p -> r + p }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     /** Sin un pull previo la lista está vacía porque nunca se bajó la ruta, no porque no haya productores. */
     val yaSincronizo: StateFlow<Boolean> =

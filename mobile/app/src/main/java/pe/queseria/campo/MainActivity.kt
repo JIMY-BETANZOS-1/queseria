@@ -32,10 +32,14 @@ class MainActivity : ComponentActivity() {
                     val sesion by contenedor.autenticador.estado.collectAsStateWithLifecycle()
                     when (val s = sesion) {
                         is EstadoSesion.SinVincular -> {
-                            // Lo sin sincronizar sobrevive al desvinculado: se avisa, no se borra
-                            val pendientes by contenedor.base.syncDao().observarPendientes()
+                            // Lo sin sincronizar sobrevive al desvinculado: se avisa, no se borra.
+                            // Las altas de productor cuentan igual que las entregas.
+                            val dao = contenedor.base.syncDao()
+                            val entregas by dao.observarPendientes()
                                 .collectAsStateWithLifecycle(initialValue = 0)
-                            ActivarPantalla(contenedor.autenticador, s.motivo, pendientes)
+                            val productores by dao.observarProductoresPendientes()
+                                .collectAsStateWithLifecycle(initialValue = 0)
+                            ActivarPantalla(contenedor.autenticador, s.motivo, entregas, productores)
                         }
 
                         is EstadoSesion.Cerrada ->

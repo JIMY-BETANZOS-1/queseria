@@ -48,6 +48,13 @@ abstract class SyncDao {
     @Query("SELECT COUNT(*) FROM recoleccion WHERE estado_sync = 'PENDIENTE'")
     abstract fun observarPendientes(): Flow<Int>
 
+    /**
+     * Altas de campo sin enviar. Cuentan como "sin enviar" igual que las recolecciones: si el celular
+     * se reinstala, un productor creado y no subido se pierde (y con él la leche que lo apunta).
+     */
+    @Query("SELECT COUNT(*) FROM productor WHERE estado_sync = 'PENDIENTE'")
+    abstract fun observarProductoresPendientes(): Flow<Int>
+
     @Query("SELECT * FROM recoleccion WHERE estado_sync = 'RECHAZADO' ORDER BY registrada_en_ms DESC")
     abstract fun observarRechazadas(): Flow<List<RecoleccionEntidad>>
 

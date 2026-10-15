@@ -76,6 +76,8 @@ class MotorSyncTest {
             ids.forEach { id -> recolecciones.computeIfPresent(id) { _, r -> r.copy(intentos = r.intentos + 1, ultimoError = error) } }
         }
         override fun observarPendientes(): Flow<Int> = flowOf(recolecciones.values.count { it.estadoSync == EstadoSync.PENDIENTE })
+        override fun observarProductoresPendientes(): Flow<Int> =
+            flowOf(productores.values.count { it.estadoSync == EstadoSync.PENDIENTE })
         override fun observarRechazadas(): Flow<List<RecoleccionEntidad>> = flowOf(emptyList())
         override suspend fun upsertRutas(rutas: List<RutaEntidad>) { rutas.forEach { this.rutas[it.id] = it } }
         override suspend fun upsertProductores(productores: List<ProductorEntidad>) { productores.forEach { this.productores[it.clave] = it } }

@@ -44,6 +44,7 @@ import pe.queseria.campo.ui.componentes.BtnPrimario
 import pe.queseria.campo.ui.componentes.BtnSecundario
 import pe.queseria.campo.ui.componentes.MensajeAviso
 import pe.queseria.campo.ui.componentes.MensajeError
+import pe.queseria.campo.ui.componentes.TextosPendientes
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
 
@@ -61,6 +62,9 @@ class SyncViewModel(private val dao: SyncDao, private val motor: MotorSync) : Vi
 
     val pendientes: StateFlow<Int> =
         dao.observarPendientes().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val productoresPendientes: StateFlow<Int> = dao.observarProductoresPendientes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     val ultimoSyncMs: StateFlow<Long?> = dao.observarMeta(Meta.ULTIMO_SYNC_MS)
         .map { it?.toLongOrNull() }
@@ -115,6 +119,7 @@ fun SyncPantalla(dao: SyncDao, motor: MotorSync, onVolver: () -> Unit) {
     val vm: SyncViewModel = viewModel(factory = SyncViewModel.factory(dao, motor))
     val estado by vm.estado.collectAsStateWithLifecycle()
     val pendientes by vm.pendientes.collectAsStateWithLifecycle()
+    val productoresPendientes by vm.productoresPendientes.collectAsStateWithLifecycle()
     val ultimoSyncMs by vm.ultimoSyncMs.collectAsStateWithLifecycle()
     val ultimoError by vm.ultimoError.collectAsStateWithLifecycle()
     val retenidas by vm.retenidas.collectAsStateWithLifecycle()
@@ -132,7 +137,8 @@ fun SyncPantalla(dao: SyncDao, motor: MotorSync, onVolver: () -> Unit) {
         Text("Sincronización", style = MaterialTheme.typography.headlineSmall)
 
         Estado(
-            pendientes = pendientes,
+            pendientes = TextosPendientes.estado(pendientes, productoresPendientes),
+            todoEnviado = pendientes == 0 && productoresPendientes == 0,
             ultimoSync = TextosSync.textoUltimoSync(ultimoSyncMs, System.currentTimeMillis()),
         )
 
@@ -205,7 +211,7 @@ fun SyncPantalla(dao: SyncDao, motor: MotorSync, onVolver: () -> Unit) {
 }
 
 @Composable
-private fun Estado(pendientes: Int, ultimoSync: String) {
+private fun Estado(pendientes: String, todoEnviado: Boolean, ultimoSync: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth(),
@@ -215,10 +221,10 @@ private fun Estado(pendientes: Int, ultimoSync: String) {
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                if (pendientes == 0) "Todo enviado" else "$pendientes sin enviar",
+                pendientes,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = if (pendientes == 0) MaterialTheme.colorScheme.primary
+                color = if (todoEnviado) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.error,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
