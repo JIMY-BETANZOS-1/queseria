@@ -106,8 +106,8 @@ def test_acopiadores_y_analistas(client, admin):
     assert r.status_code == 200
     assert r.json()["sueldo_base_mensual"] == 950 and r.json()["celular"] == "951234500"
 
-    r = client.post("/analistas", json={"nombre_completo": "Analista Prueba", "dni": dni(), "celular": celular(),
-                                        "pin_inicial": "2468"}, headers=h)
+    r = client.post("/analistas", json={"nombre_completo": "Analista Prueba", "dni": dni(), "celular": celular()},
+                    headers=h)
     assert r.status_code == 201, r.text
     analista = r.json()
     assert analista["rol"] == "analista" and analista["celular_vinculado"] is False

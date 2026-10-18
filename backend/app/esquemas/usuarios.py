@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from . import PATRON_PIN, Entrada
+from . import Entrada
 
 Vehiculo = Literal["moto_lineal", "motocarga", "vehiculo_mediano"]
 
@@ -12,7 +12,6 @@ class UsuarioMovilNuevo(Entrada):
     nombre_completo: str = Field(min_length=1)
     dni: str
     celular: str
-    pin_inicial: str = Field(pattern=PATRON_PIN)
 
 
 class UsuarioMovilCambios(Entrada):
@@ -50,6 +49,8 @@ class UsuarioMovil(BaseModel):
     celular: str
     activo: bool
     pin_bloqueado: bool
+    # true = todavía no creó su PIN (o tiene uno del sistema anterior): falta activar su celular
+    pin_pendiente: bool
     celular_vinculado: bool
 
 
@@ -59,10 +60,6 @@ class Acopiador(UsuarioMovil):
     sueldo_base_mensual: float
     comision_por_litro: float
     rutas: list[RutaVigente]
-
-
-class RestablecerPin(Entrada):
-    pin_nuevo: str = Field(pattern=PATRON_PIN)
 
 
 class CodigoActivacion(BaseModel):

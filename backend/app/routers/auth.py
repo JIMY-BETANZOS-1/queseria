@@ -61,15 +61,24 @@ def activar_dispositivo(datos: Activar, request: Request):
 
     with db.transaccion(None) as conn:
         codigo = db.uno(conn, """
-            SELECT c.id, u.id AS usuario_id, u.rol::text AS rol, u.nombre_completo, u.activo
+            SELECT c.id, u.id AS usuario_id, u.rol::text AS rol, u.nombre_completo, u.activo, u.dni, u.celular
               FROM codigo_activacion c JOIN usuario u ON u.id = c.usuario_id
              WHERE c.codigo_hash = %s AND c.usado_en IS NULL AND c.expira_en > now()
                FOR UPDATE OF c
         """, (seguridad.hash_codigo(datos.codigo),))
         if codigo is not None and codigo["activo"] and codigo["rol"] in ("acopiador", "analista"):
             uid = codigo["usuario_id"]
+            # PIN trivial: 422 y la transacción se deshace, así que el código sigue sin usar
+            validar_pin_nuevo(datos.pin, codigo["dni"], codigo["celular"])
             db.fijar_usuario(conn, uid)
             conn.execute("UPDATE codigo_activacion SET usado_en = now() WHERE id = %s", (codigo["id"],))
+            # El PIN lo crea el propio usuario: reemplaza el anterior y quita fallos y bloqueo
+            # (así se recupera un PIN olvidado: el admin genera un código nuevo y se reactiva)
+            conn.execute("""
+                UPDATE usuario SET pin_hash = %s, pin_actualizado_en = now(),
+                       pin_intentos_fallidos = 0, bloqueado_hasta = NULL
+                 WHERE id = %s
+            """, (seguridad.hashear(datos.pin), uid))
 
             existente = db.uno(conn, "SELECT id, usuario_id FROM dispositivo WHERE device_uuid = %s FOR UPDATE",
                                (datos.device_uuid,))
@@ -88,7 +97,10 @@ def activar_dispositivo(datos: Activar, request: Request):
                     INSERT INTO dispositivo (usuario_id, device_uuid, modelo, clave_publica)
                     VALUES (%s, %s, %s, %s) RETURNING id, activado_en
                 """, (uid, datos.device_uuid, datos.modelo, datos.clave_publica))
+            minutos = config().jwt_minutos_movil
             return DispositivoActivado(
+                access_token=seguridad.crear_token(uid, codigo["rol"], minutos, disp["id"]),
+                expira_en_min=minutos,
                 dispositivo_id=disp["id"], activado_en=disp["activado_en"],
                 usuario=UsuarioSesion(id=uid, rol=codigo["rol"], nombre_completo=codigo["nombre_completo"]),
             )
@@ -128,7 +140,7 @@ def login_pin(datos: LoginPin):
     with db.transaccion(None) as conn:
         fila = db.uno(conn, """
             SELECT u.id, u.rol::text AS rol, u.nombre_completo, u.pin_hash,
-                   (u.pin_actualizado_en IS NULL) AS debe_cambiar_pin,
+                   (u.pin_hash IS NULL OR u.pin_actualizado_en IS NULL) AS sin_pin_propio,
                    COALESCE(u.bloqueado_hasta > now(), false) AS bloqueado,
                    to_char(u.bloqueado_hasta AT TIME ZONE 'America/Lima', 'HH24:MI') AS hasta,
                    d.id AS dispositivo_id
@@ -139,7 +151,11 @@ def login_pin(datos: LoginPin):
         if fila is None:
             raise ErrorApi(401, "dispositivo_no_vinculado", "Este celular no está vinculado o fue desactivado")
         db.fijar_usuario(conn, fila["id"])
-        if fila["bloqueado"]:
+        if fila["sin_pin_propio"]:
+            # PIN puesto por el admin (sistema anterior al Bloque 6) o aún sin PIN: el usuario debe
+            # crear el suyo activando con un código nuevo. No es un intento fallido.
+            error = ErrorApi(401, "debe_reactivar", "Pida un código nuevo al administrador para crear su PIN")
+        elif fila["bloqueado"]:
             error = ErrorApi(423, "bloqueado", f"PIN bloqueado hasta las {fila['hasta']}")
         elif not seguridad.verificar(datos.pin, fila["pin_hash"]):
             error = _error_fallo_pin(_registrar_fallo_pin(conn, fila["id"]))
@@ -155,7 +171,6 @@ def login_pin(datos: LoginPin):
         access_token=seguridad.crear_token(fila["id"], fila["rol"], minutos, fila["dispositivo_id"]),
         expira_en_min=minutos,
         dispositivo_id=fila["dispositivo_id"],
-        debe_cambiar_pin=fila["debe_cambiar_pin"],
         usuario=UsuarioSesion(id=fila["id"], rol=fila["rol"], nombre_completo=fila["nombre_completo"]),
     )
 

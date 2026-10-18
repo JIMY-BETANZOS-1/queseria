@@ -51,7 +51,7 @@ def test_check_por_api_es_422(client, admin):
     assert r.json()["mensaje"].startswith("Un productor de ruta necesita ruta")
 
     r = client.post("/acopiadores", json={"nombre_completo": "X", "dni": "123", "celular": "951111111",
-                                          "pin_inicial": "1234", "color_hex": "#ABCDEF", "vehiculo": "motocarga"},
+                                          "color_hex": "#ABCDEF", "vehiculo": "motocarga"},
                     headers=cab(admin))
     assert r.status_code == 422
     assert r.json()["mensaje"] == "El DNI debe tener 8 dígitos"
@@ -62,7 +62,7 @@ def test_color_repetido_y_transaccion_completa(client, admin, db):
     a = crear_acopiador(client, admin)
     dni_b = "7" + uuid.uuid4().int.__str__()[:7]
     r = client.post("/acopiadores", json={"nombre_completo": "B", "dni": dni_b, "celular": "951111111",
-                                          "pin_inicial": "1234", "color_hex": a["color_hex"],
+                                          "color_hex": a["color_hex"],
                                           "vehiculo": "moto_lineal"}, headers=cab(admin))
     assert r.status_code == 409
     assert r.json()["mensaje"] == "Ese color ya lo usa otro acopiador"

@@ -7,7 +7,8 @@ import pytest
 
 from app.esquemas.sync import RecoleccionPush
 from app.firma import cadena_canonica, hash_de_firma
-from conftest import (cab, crear_productor, crear_ruta_asignada, item_recoleccion, movil_con_celular, push)
+from conftest import (activar, cab, crear_productor, crear_ruta_asignada, generar_codigo, item_recoleccion,
+                      movil_con_celular, nueva_clave, push)
 
 
 @pytest.fixture(scope="module")
@@ -110,6 +111,49 @@ def test_cadena_de_firmas_con_hash_anterior(client, admin, acop):
     res = push(client, acop, recolecciones=[primera, segunda])["recolecciones"]
     assert [r["estado"] for r in res] == ["creado", "creado"]
     assert all("firma_invalida" not in r["alertas"] for r in res)
+
+
+def _reactivar(client, admin, movil: dict, clave_publica: str, pin: str) -> dict:
+    """PIN olvidado: código nuevo y reactivación del MISMO celular (mismo device_uuid)."""
+    r = activar(client, generar_codigo(client, admin, movil["id"]), movil["device_uuid"], clave_publica, pin=pin)
+    assert r.status_code == 200, r.text
+    return {**movil, "token": r.json()["access_token"], "dispositivo_id": r.json()["dispositivo_id"]}
+
+
+def test_reactivar_con_la_misma_clave_no_invalida_lo_pendiente(client, admin, db):
+    """Lo firmado ANTES de reactivar (pendiente en el celular) se acepta después sin firma_invalida,
+    con el mismo dispositivo_id y la cadena hash_anterior intacta: el celular reutiliza su clave."""
+    movil = movil_con_celular(client, admin, "acopiador")
+    ruta = crear_ruta_asignada(client, admin, movil["id"])
+    prod = crear_productor(client, admin, ruta)
+    disp_antes = db.execute("SELECT id FROM dispositivo WHERE device_uuid = %s", (movil["device_uuid"],)).fetchone()["id"]
+    primera = item_recoleccion(movil, prod["id"], litros=10.0)
+    segunda = item_recoleccion(movil, prod["id"], litros=11.0, hash_anterior=hash_de_firma(primera["firma"]))
+
+    publica = db.execute("SELECT clave_publica FROM dispositivo WHERE id = %s", (disp_antes,)).fetchone()["clave_publica"]
+    reactivado = _reactivar(client, admin, movil, publica, pin="7319")
+    assert reactivado["dispositivo_id"] == disp_antes
+
+    res = push(client, reactivado, recolecciones=[primera, segunda])["recolecciones"]
+    assert [r["estado"] for r in res] == ["creado", "creado"]
+    assert all("firma_invalida" not in r["alertas"] for r in res)
+    filas = db.execute("SELECT dispositivo_id FROM recoleccion WHERE id IN (%s, %s)", (primera["id"], segunda["id"])).fetchall()
+    assert {f["dispositivo_id"] for f in filas} == {disp_antes}
+
+
+def test_reactivar_con_otra_clave_si_invalida_lo_pendiente(client, admin):
+    """Por esto el celular NO reactiva con pendientes si perdió su clave de firma ("Sincronice primero"):
+    el servidor verifica con la clave registrada al momento del push."""
+    movil = movil_con_celular(client, admin, "acopiador")
+    ruta = crear_ruta_asignada(client, admin, movil["id"])
+    prod = crear_productor(client, admin, ruta)
+    pendiente = item_recoleccion(movil, prod["id"], litros=10.0)
+
+    _, otra_publica = nueva_clave()
+    reactivado = _reactivar(client, admin, movil, otra_publica, pin="7319")
+    r = push(client, reactivado, recolecciones=[pendiente])["recolecciones"][0]
+    assert r["estado"] == "creado"            # se guarda igual (nunca se pierde leche)
+    assert "firma_invalida" in r["alertas"]   # pero queda con alerta y pago retenido
 
 
 def test_rol_incorrecto_se_rechaza_por_item(client, admin, acop):

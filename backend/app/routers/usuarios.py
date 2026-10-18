@@ -6,7 +6,7 @@ from ..config import config
 from ..deps import Usuario, solo_admin
 from ..errores import no_encontrado, validacion
 from ..esquemas.usuarios import (Acopiador, AcopiadorCambios, AcopiadorNuevo, CodigoActivacion, Dispositivo,
-                                 RestablecerPin, UsuarioMovil, UsuarioMovilCambios, UsuarioMovilNuevo)
+                                 UsuarioMovil, UsuarioMovilCambios, UsuarioMovilNuevo)
 
 router_acopiadores = APIRouter(prefix="/acopiadores", tags=["acopiadores"])
 router_analistas = APIRouter(prefix="/analistas", tags=["analistas"])
@@ -17,6 +17,7 @@ CAMPOS_USUARIO = {"nombre_completo", "dni", "celular", "activo"}
 SELECT_USUARIO = """
     SELECT u.id, u.rol::text AS rol, u.nombre_completo, u.dni, u.celular, u.activo,
            COALESCE(u.bloqueado_hasta > now(), false) AS pin_bloqueado,
+           (u.pin_hash IS NULL OR u.pin_actualizado_en IS NULL) AS pin_pendiente,
            EXISTS (SELECT 1 FROM dispositivo d WHERE d.usuario_id = u.id AND d.activo) AS celular_vinculado
       FROM usuario u
 """
@@ -24,6 +25,7 @@ SELECT_USUARIO = """
 SELECT_ACOPIADOR = """
     SELECT u.id, u.rol::text AS rol, u.nombre_completo, u.dni, u.celular, u.activo,
            COALESCE(u.bloqueado_hasta > now(), false) AS pin_bloqueado,
+           (u.pin_hash IS NULL OR u.pin_actualizado_en IS NULL) AS pin_pendiente,
            EXISTS (SELECT 1 FROM dispositivo d WHERE d.usuario_id = u.id AND d.activo) AS celular_vinculado,
            a.color_hex, a.vehiculo::text AS vehiculo, a.sueldo_base_mensual, a.comision_por_litro,
            COALESCE((SELECT json_agg(json_build_object('ruta_id', r.id, 'nombre', r.nombre,
@@ -35,11 +37,11 @@ SELECT_ACOPIADOR = """
 
 
 def _insertar_usuario(conn, rol: str, datos: UsuarioMovilNuevo) -> int:
-    # pin_actualizado_en queda NULL: el usuario debe cambiar el PIN inicial que le puso el admin
+    # Sin PIN (pin_hash NULL = pendiente de activar): el usuario crea el suyo al activar su celular
     return db.uno(conn, """
-        INSERT INTO usuario (rol, nombre_completo, dni, celular, pin_hash)
-        VALUES (%s, %s, %s, %s, %s) RETURNING id
-    """, (rol, datos.nombre_completo, datos.dni, datos.celular, seguridad.hashear(datos.pin_inicial)))["id"]
+        INSERT INTO usuario (rol, nombre_completo, dni, celular)
+        VALUES (%s, %s, %s, %s) RETURNING id
+    """, (rol, datos.nombre_completo, datos.dni, datos.celular))["id"]
 
 
 def _usuario_movil(conn, usuario_id: int, rol: str) -> dict:
@@ -129,7 +131,11 @@ def _exigir_usuario_movil(conn, usuario_id: int) -> None:
 
 @router_usuarios.post("/usuarios/{usuario_id}/codigo-activacion", response_model=CodigoActivacion, status_code=201)
 def generar_codigo(usuario_id: int, usuario: Usuario = Depends(solo_admin)):
-    """Genera el código para vincular el celular. Se muestra una sola vez; en la base solo queda su hash."""
+    """Genera el código para vincular el celular (un solo uso, CODIGO_ACTIVACION_MINUTOS de vida).
+
+    Se muestra una sola vez; en la base solo queda su hash. También es la forma de recuperar un PIN
+    olvidado: el usuario vuelve a activar con el código nuevo y crea otro PIN.
+    """
     codigo = seguridad.generar_codigo()
     with db.transaccion(usuario.id) as conn:
         _exigir_usuario_movil(conn, usuario_id)
@@ -137,21 +143,9 @@ def generar_codigo(usuario_id: int, usuario: Usuario = Depends(solo_admin)):
         conn.execute("DELETE FROM codigo_activacion WHERE usuario_id = %s AND usado_en IS NULL", (usuario_id,))
         fila = db.uno(conn, """
             INSERT INTO codigo_activacion (usuario_id, codigo_hash, creado_por, expira_en)
-            VALUES (%s, %s, %s, now() + make_interval(hours => %s)) RETURNING expira_en
-        """, (usuario_id, seguridad.hash_codigo(codigo), usuario.id, config().codigo_activacion_horas))
+            VALUES (%s, %s, %s, now() + make_interval(mins => %s)) RETURNING expira_en
+        """, (usuario_id, seguridad.hash_codigo(codigo), usuario.id, config().codigo_activacion_minutos))
     return CodigoActivacion(codigo=codigo, expira_en=fila["expira_en"])
-
-
-@router_usuarios.post("/usuarios/{usuario_id}/pin", status_code=204)
-def restablecer_pin(usuario_id: int, datos: RestablecerPin, usuario: Usuario = Depends(solo_admin)):
-    """PIN olvidado: el admin pone uno nuevo (el usuario deberá cambiarlo) y se quita el bloqueo."""
-    with db.transaccion(usuario.id) as conn:
-        _exigir_usuario_movil(conn, usuario_id)
-        conn.execute("""
-            UPDATE usuario SET pin_hash = %s, pin_actualizado_en = NULL,
-                   pin_intentos_fallidos = 0, bloqueado_hasta = NULL
-             WHERE id = %s
-        """, (seguridad.hashear(datos.pin_nuevo), usuario_id))
 
 
 @router_usuarios.get("/usuarios/{usuario_id}/dispositivos", response_model=list[Dispositivo])

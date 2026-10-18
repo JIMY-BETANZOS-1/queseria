@@ -40,10 +40,16 @@ Errores siempre con el formato `{"codigo": "...", "mensaje": "..."}` (los de val
 ## Endpoints
 **Autenticación**
 - `POST /auth/admin/login` — correo + contraseña → JWT (30 min).
-- `POST /auth/dispositivo/activar` — código + `device_uuid` + `clave_publica` → vincula el celular (desactiva el anterior).
-- `POST /auth/pin/login` — `device_uuid` + PIN → JWT (12 h). 5 PIN incorrectos → bloqueo de 15 min (423).
-  `debe_cambiar_pin` = el PIN lo puso el admin.
-- `POST /auth/pin/cambiar` — (móvil) PIN actual + nuevo.
+- `POST /auth/dispositivo/activar` — código + `device_uuid` + `clave_publica` + **`pin`** (el usuario crea su PIN
+  de 4 dígitos) → vincula el celular (desactiva el anterior) y devuelve el JWT: no hace falta otro login.
+  PIN mal formado o trivial (`pin_trivial`) → 422 y el código **no** se gasta. Reactivar el mismo celular
+  reutiliza su fila de `dispositivo` (mismo id) y reemplaza el PIN: así se recupera un PIN olvidado.
+- `POST /auth/pin/login` — `device_uuid` + PIN de 4 dígitos → JWT (12 h). 5 PIN incorrectos → bloqueo de 15 min (423).
+  Una entrada mal formada (422) no cuenta como intento. Sin PIN propio (puesto por el admin antes del Bloque 6)
+  → 401 `debe_reactivar`, tampoco cuenta. `debe_cambiar_pin` siempre es `false` (se mantiene por compatibilidad).
+- `POST /auth/pin/cambiar` — (móvil, sin pantalla en la app) PIN actual + nuevo; 422 `pin_repetido` / `pin_trivial`
+  antes de verificar el actual.
+- PIN trivial (`seguridad.pin_trivial`): todos iguales, secuencias, XYXY, XXYY y los últimos 4 del DNI o celular.
 
 **Móvil** (contrato completo y cadena firmada en [`docs/sincronizacion.md`](../docs/sincronizacion.md))
 - `POST /sync/push` — (acopiador, analista) productores de campo + recolecciones; resultado por ítem `creado|duplicado|rechazado`.
@@ -55,10 +61,12 @@ Errores siempre con el formato `{"codigo": "...", "mensaje": "..."}` (los de val
 **Admin** (todo requiere rol admin)
 - Rutas: `GET/POST /rutas`, `GET/PATCH /rutas/{id}`, `PUT/DELETE /rutas/{id}/acopiador`, `GET /rutas/{id}/asignaciones`.
   Reasignar cierra la asignación vigente (`vigente_hasta = desde`) y abre la nueva desde esa fecha.
-- Acopiadores: `GET/POST /acopiadores`, `GET/PATCH /acopiadores/{id}` (usuario + color, vehículo, sueldo, comisión; PIN inicial).
+- Acopiadores: `GET/POST /acopiadores`, `GET/PATCH /acopiadores/{id}` (usuario + color, vehículo, sueldo, comisión). Sin PIN:
+  nacen "pendientes de activar" (`pin_pendiente`).
 - Analistas: `GET/POST /analistas`, `GET/PATCH /analistas/{id}`.
-- Acceso móvil: `POST /usuarios/{id}/codigo-activacion` (el código se muestra una vez, vence en 24 h),
-  `POST /usuarios/{id}/pin` (restablecer y desbloquear), `GET /usuarios/{id}/dispositivos`, `POST /dispositivos/{id}/desactivar`.
+- Acceso móvil: `POST /usuarios/{id}/codigo-activacion` (un solo uso, se muestra una vez, vence en
+  `CODIGO_ACTIVACION_MINUTOS` = 60; también sirve para recuperar un PIN olvidado o bloqueado),
+  `GET /usuarios/{id}/dispositivos`, `POST /dispositivos/{id}/desactivar`.
 - Productores: `GET /productores` (`v_productor_resumen`; filtros `tipo`, `ruta_id`, `pendiente`, `q`, `incluir_inactivos`),
   `GET /productores/observados` (`v_productor_observado`), `POST /productores`, `GET/PATCH /productores/{id}`,
   `POST /productores/{id}/aprobar`, `GET /productores/{id}/recolecciones` (`v_recoleccion_detalle`).

@@ -57,21 +57,33 @@ def cab(token_o_cab) -> dict:
     return {"Authorization": f"Bearer {token_o_cab}"}
 
 
+# PIN de los usuarios de prueba: 4 dígitos y no trivial (seguridad.pin_trivial)
+PIN = "4821"
+
+
+def _sin_pin_al_final(generar) -> str:
+    # Un DNI o celular que termine en PIN lo volvería trivial y la activación daría 422
+    while (valor := generar()).endswith(PIN):
+        pass
+    return valor
+
+
 def dni() -> str:
-    return str(random.randint(10_000_000, 99_999_999))
+    return _sin_pin_al_final(lambda: str(random.randint(10_000_000, 99_999_999)))
 
 
 def celular() -> str:
-    return "9" + str(random.randint(10_000_000, 99_999_999))
+    return _sin_pin_al_final(lambda: "9" + str(random.randint(10_000_000, 99_999_999)))
 
 
 def color() -> str:
     return "#%06X" % random.randint(0, 0xFFFFFF)
 
 
-def crear_acopiador(client, admin, pin="4321", **extra) -> dict:
+def crear_acopiador(client, admin, **extra) -> dict:
+    """Acopiador nuevo, sin PIN: lo crea él mismo al activar su celular."""
     datos = {"nombre_completo": f"Acopiador Prueba {uuid.uuid4().hex[:6]}", "dni": dni(), "celular": celular(),
-             "pin_inicial": pin, "color_hex": color(), "vehiculo": "motocarga",
+             "color_hex": color(), "vehiculo": "motocarga",
              "sueldo_base_mensual": 850, "comision_por_litro": 0.05, **extra}
     r = client.post("/acopiadores", json=datos, headers=cab(admin))
     assert r.status_code == 201, r.text
@@ -85,21 +97,22 @@ def generar_codigo(client, admin, usuario_id: int) -> str:
 
 
 def activar(client, codigo: str, device_uuid: str | None = None,
-            clave_publica: str = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE-prueba"):
+            clave_publica: str = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE-prueba", pin: str = PIN):
     return client.post("/auth/dispositivo/activar", json={
         "codigo": codigo, "device_uuid": device_uuid or str(uuid.uuid4()),
-        "clave_publica": clave_publica, "modelo": "Prueba"})
+        "clave_publica": clave_publica, "modelo": "Prueba", "pin": pin})
 
 
 def login_pin(client, device_uuid: str, pin: str):
     return client.post("/auth/pin/login", json={"device_uuid": device_uuid, "pin": pin})
 
 
-def acopiador_con_celular(client, admin, pin="4321") -> dict:
-    """Acopiador nuevo con celular vinculado y sesión iniciada."""
-    acop = crear_acopiador(client, admin, pin=pin)
+def acopiador_con_celular(client, admin, pin=PIN) -> dict:
+    """Acopiador nuevo con celular vinculado (creó su PIN al activar) y sesión iniciada."""
+    acop = crear_acopiador(client, admin)
     device = str(uuid.uuid4())
-    assert activar(client, generar_codigo(client, admin, acop["id"]), device).status_code == 200
+    r = activar(client, generar_codigo(client, admin, acop["id"]), device, pin=pin)
+    assert r.status_code == 200, r.text
     r = login_pin(client, device, pin)
     assert r.status_code == 200, r.text
     return {**acop, "device_uuid": device, "token": r.json()["access_token"], "pin": pin}
@@ -129,19 +142,20 @@ def firmar(privada, item: dict) -> dict:
     return {**item, "firma": base64.b64encode(privada.sign(cadena.encode(), ec.ECDSA(hashes.SHA256()))).decode()}
 
 
-def movil_con_celular(client, admin, rol: str, pin="4321") -> dict:
+def movil_con_celular(client, admin, rol: str, pin=PIN) -> dict:
     """Acopiador o analista nuevo con celular vinculado (clave EC real) y sesión iniciada."""
     if rol == "acopiador":
-        usuario = crear_acopiador(client, admin, pin=pin)
+        usuario = crear_acopiador(client, admin)
     else:
         r = client.post("/analistas", json={"nombre_completo": f"Analista Prueba {uuid.uuid4().hex[:6]}",
-                                            "dni": dni(), "celular": celular(), "pin_inicial": pin},
+                                            "dni": dni(), "celular": celular()},
                         headers=cab(admin))
         assert r.status_code == 201, r.text
         usuario = r.json()
     privada, publica = nueva_clave()
     device = str(uuid.uuid4())
-    assert activar(client, generar_codigo(client, admin, usuario["id"]), device, publica).status_code == 200
+    r = activar(client, generar_codigo(client, admin, usuario["id"]), device, publica, pin=pin)
+    assert r.status_code == 200, r.text
     r = login_pin(client, device, pin)
     assert r.status_code == 200, r.text
     return {**usuario, "device_uuid": device, "token": r.json()["access_token"], "clave": privada}

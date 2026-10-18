@@ -15,6 +15,8 @@ class Activar(Entrada):
     device_uuid: str = Field(min_length=8, max_length=100)
     clave_publica: str = Field(min_length=1)
     modelo: str | None = None
+    # El usuario crea su propio PIN al activar (el admin ya no lo define)
+    pin: str = Field(pattern=PATRON_PIN)
 
 
 class LoginPin(Entrada):
@@ -42,10 +44,10 @@ class Token(BaseModel):
 
 class TokenMovil(Token):
     dispositivo_id: int
-    debe_cambiar_pin: bool
+    # Siempre false desde el Bloque 6 (el PIN lo crea el propio usuario); se mantiene por compatibilidad
+    debe_cambiar_pin: bool = False
 
 
-class DispositivoActivado(BaseModel):
-    dispositivo_id: int
+class DispositivoActivado(TokenMovil):
+    """Activar ya deja la sesión abierta: el usuario acaba de crear su PIN, no hace falta otro login."""
     activado_en: datetime
-    usuario: UsuarioSesion

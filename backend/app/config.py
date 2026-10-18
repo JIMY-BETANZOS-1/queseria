@@ -21,7 +21,8 @@ class Config(BaseSettings):
     jwt_minutos_admin: int = 30
     jwt_minutos_movil: int = 720
 
-    codigo_activacion_horas: int = 24
+    # Código de activación: un solo uso y corta vida (se dicta o entrega y se usa en el momento)
+    codigo_activacion_minutos: int = 60
     pin_max_intentos: int = 5
     pin_bloqueo_min: int = 15
 
