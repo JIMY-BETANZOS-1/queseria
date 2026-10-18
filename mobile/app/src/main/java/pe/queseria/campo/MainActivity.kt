@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.queseria.campo.seguridad.EstadoSesion
 import pe.queseria.campo.ui.AppAcopiador
-import pe.queseria.campo.ui.Rumbo
 import pe.queseria.campo.ui.activar.ActivarPantalla
 import pe.queseria.campo.ui.pin.PinPantalla
 import pe.queseria.campo.ui.tema.TemaCampo
@@ -45,17 +44,10 @@ class MainActivity : ComponentActivity() {
                             )
                         }
 
-                        is EstadoSesion.Cerrada ->
-                            PinPantalla(contenedor.autenticador, debeCambiarPin = false)
+                        is EstadoSesion.Cerrada -> PinPantalla(contenedor.autenticador)
 
-                        is EstadoSesion.Abierta ->
-                            // Con red el cambio de PIN es ineludible; sin red se entra a B3 con el
-                            // aviso (Rumbo.exigeCambioDePin), porque cambiarlo necesita servidor
-                            if (Rumbo.exigeCambioDePin(s)) {
-                                PinPantalla(contenedor.autenticador, debeCambiarPin = true)
-                            } else {
-                                AppAcopiador(contenedor, s)
-                            }
+                        // El PIN lo crea el propio usuario al activar: ya no hay cambio obligatorio (B2b)
+                        is EstadoSesion.Abierta -> AppAcopiador(contenedor, s)
                     }
                 }
             }

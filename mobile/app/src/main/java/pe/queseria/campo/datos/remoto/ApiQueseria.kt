@@ -4,7 +4,6 @@ import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.Body
@@ -21,9 +20,6 @@ interface ApiQueseria {
 
     @POST("auth/pin/login")
     suspend fun loginPin(@Body cuerpo: LoginPinDto): TokenMovilDto
-
-    @POST("auth/pin/cambiar")
-    suspend fun cambiarPin(@Header("Authorization") bearer: String, @Body cuerpo: CambiarPinDto): Response<Unit>
 
     @POST("sync/push")
     suspend fun push(@Header("Authorization") bearer: String, @Body lote: LotePushDto): RespuestaPushDto

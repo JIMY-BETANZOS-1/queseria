@@ -194,8 +194,6 @@ fun InicioPantalla(
     miDia: MiDia,
     nombreAcopiador: String,
     conServidor: Boolean,
-    /** Aviso fijo del cambio de PIN que espera señal: no se cierra ni se consume. */
-    avisoPinPendiente: String?,
     aviso: String?,
     /** Clave del productor que ya entregó hoy y espera el "¿Otra entrega?" (la trae el destino). */
     confirmar: String?,
@@ -264,9 +262,6 @@ fun InicioPantalla(
                     BotonAccion("+ Productor", onNuevoProductor, Modifier.weight(1f))
                     BotonAccion("Sincronizar", onSincronizar, Modifier.weight(1f))
                 }
-
-                // Primero el del PIN: es lo único que el acopiador tiene que recordar hacer al recuperar señal
-                avisoPinPendiente?.let { MensajeAviso(it) }
 
                 if (!conServidor) {
                     MensajeAviso("⚠ Sin señal — ingresó sin conexión. Lo que registre se enviará solo.")

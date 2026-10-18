@@ -62,9 +62,6 @@ data class ActivarDto(
 data class LoginPinDto(@SerialName("device_uuid") val deviceUuid: String, val pin: String)
 
 @Serializable
-data class CambiarPinDto(@SerialName("pin_actual") val pinActual: String, @SerialName("pin_nuevo") val pinNuevo: String)
-
-@Serializable
 data class UsuarioSesionDto(val id: Long, val rol: String, @SerialName("nombre_completo") val nombreCompleto: String)
 
 @Serializable
@@ -82,7 +79,6 @@ data class TokenMovilDto(
     @SerialName("access_token") val accessToken: String,
     @SerialName("expira_en_min") val expiraEnMin: Int,
     @SerialName("dispositivo_id") val dispositivoId: Long,
-    @SerialName("debe_cambiar_pin") val debeCambiarPin: Boolean,
     val usuario: UsuarioSesionDto,
 )
 

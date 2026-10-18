@@ -9,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import pe.queseria.campo.datos.remoto.ActivarDto
 import pe.queseria.campo.datos.remoto.ApiQueseria
-import pe.queseria.campo.datos.remoto.CambiarPinDto
 import pe.queseria.campo.datos.remoto.DispositivoActivadoDto
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.datos.remoto.LotePushDto
@@ -19,7 +18,6 @@ import pe.queseria.campo.datos.remoto.PullAcopiadorDto
 import pe.queseria.campo.datos.remoto.RespuestaPushDto
 import pe.queseria.campo.datos.remoto.TokenMovilDto
 import pe.queseria.campo.datos.remoto.UsuarioSesionDto
-import retrofit2.Response
 import java.io.IOException
 import java.net.SocketTimeoutException
 
@@ -51,9 +49,6 @@ class AutenticadorPinTest {
         var dispositivoActivo = true
         var pinDelServidor = "1234"
         var loginsPedidos = 0
-
-        /** Lo que responde /auth/pin/login: el backend lo calcula con pin_actualizado_en IS NULL. */
-        var debeCambiarPin = false
 
         /** true = PIN puesto por el admin antes del Bloque 6: el backend responde 401 debe_reactivar. */
         var debeReactivar = false
@@ -95,18 +90,8 @@ class AutenticadorPinTest {
                 accessToken = "jwt-de-prueba",
                 expiraEnMin = 60,
                 dispositivoId = 3,
-                debeCambiarPin = debeCambiarPin,
                 usuario = usuario,
             )
-        }
-
-        /** 204 sin cuerpo si el PIN actual coincide; un PIN actual equivocado es un 401. */
-        override suspend fun cambiarPin(bearer: String, cuerpo: CambiarPinDto): Response<Unit> {
-            if (!conRed) throw fallaDeRed()
-            if (cuerpo.pinActual != pinDelServidor) throw ErrorApp.NoAutorizado("PIN incorrecto")
-            pinDelServidor = cuerpo.pinNuevo
-            debeCambiarPin = false      // el backend pone pin_actualizado_en = now()
-            return Response.success(Unit)
         }
 
         override suspend fun push(bearer: String, lote: LotePushDto): RespuestaPushDto =
@@ -371,89 +356,21 @@ class AutenticadorPinTest {
         )
     }
 
-    // ─── 5. debe_cambiar_pin: el flag vive en la caja fuerte (opción C) ───────
+    // ─── 5. Sin cambio de PIN obligatorio (B2b y opción C se quitaron en el Bloque 6) ──
 
-    /** Otra instancia sobre el mismo almacén: lo que ve la app al reabrirse. */
-    private fun autenticadorReabierto() = Autenticador(
-        api = api,
-        almacen = almacen,
-        clavePublica = { "clave-publica-de-prueba" },
-        pin = pinLocal,
-        modelo = "realme RMX3231",
-        reloj = { ahora },
-    )
-
-    private fun abierta(estado: EstadoSesion) =
-        estado as? EstadoSesion.Abierta ?: throw AssertionError("Se esperaba una sesión abierta: $estado")
-
+    /**
+     * Un celular que venía de la 0.5.0 con el cambio de PIN pendiente guardado: ya no se exige nada
+     * (el PIN lo crea el propio usuario al activar) y el dato viejo se limpia en el primer ingreso.
+     */
     @Test
-    fun `con red el servidor avisa que hay que cambiar el PIN`() = runTest {
-        api.debeCambiarPin = true
-        auth.activar("ABC123", "1234")
+    fun `el pendiente de cambio de PIN de una version anterior se ignora y se limpia`() = runTest {
+        vincularEIngresarConSenal()
+        almacen.guardar("debe_cambiar_pin", "1")
 
         val s = auth.ingresar("1234")
 
-        assertTrue("El flag del servidor tiene que llegar a la sesión", s.debeCambiarPin)
-        assertTrue(s.conServidor)
-        assertEquals("1", almacen.datos["debe_cambiar_pin"])
-    }
-
-    /**
-     * El fallo que arregla la opción C: el flag se guarda en la caja fuerte, así que el ingreso sin red
-     * lo arrastra. Antes eso mandaba a B2b, donde `cambiarPin` no puede funcionar sin servidor y el
-     * acopiador quedaba sin poder registrar leche.
-     */
-    @Test
-    fun `el PIN pendiente sobrevive al ingreso sin red y a reabrir la app`() = runTest {
-        api.debeCambiarPin = true
-        auth.activar("ABC123", "1234")
-        auth.ingresar("1234")
-
-        api.conRed = false
-        val s = abierta(autenticadorReabierto().ingresar("1234"))
-
-        assertTrue("El cambio sigue pendiente", s.debeCambiarPin)
-        assertFalse("Pero esta sesión no pasó por el servidor", s.conServidor)
-    }
-
-    /**
-     * Señal débil: el servidor no contesta dentro de `Red.TIMEOUT_LOGIN_PIN_S` (4 s), se entra con el
-     * PIN local, y el cambio se vuelve a exigir en el siguiente ingreso que sí llegue al servidor.
-     */
-    @Test
-    fun `con senal debil se entra sin cambiar el PIN y se exige al recuperar la senal`() = runTest {
-        api.debeCambiarPin = true
-        auth.activar("ABC123", "1234")
-        auth.ingresar("1234")
-
-        api.conRed = false
-        api.fallaDeRed = { SocketTimeoutException("agotado") }
-        val sinSenal = auth.ingresar("1234")
-        assertTrue("El pendiente no se pierde por un timeout", sinSenal.debeCambiarPin)
-        assertFalse("Un timeout no es una sesión validada por el servidor", sinSenal.conServidor)
-
-        api.conRed = true
-        val conSenal = auth.ingresar("1234")
-        assertTrue(conSenal.debeCambiarPin)
-        assertTrue("Con señal el cambio vuelve a ser ineludible", conSenal.conServidor)
-    }
-
-    @Test
-    fun `cambiar el PIN limpia el pendiente y no vuelve sin red`() = runTest {
-        api.debeCambiarPin = true
-        auth.activar("ABC123", "1234")
-        auth.ingresar("1234")
-
-        auth.cambiarPin("1234", "8765")
-
-        assertFalse("La sesión abierta se actualiza en el momento", abierta(auth.estado.value).debeCambiarPin)
-        assertFalse("Y no queda rastro en la caja fuerte", almacen.datos.containsKey("debe_cambiar_pin"))
-
-        // El PIN nuevo es el que vale, también sin señal, y el pendiente no reaparece
-        api.conRed = false
-        val s = abierta(autenticadorReabierto().ingresar("8765"))
-        assertFalse(s.debeCambiarPin)
-        capturar<ErrorApp.NoAutorizado> { auth.ingresar("1234") }
+        assertTrue("Entra directo a trabajar", s.conServidor)
+        assertFalse(almacen.datos.containsKey("debe_cambiar_pin"))
     }
 
     // ─── Bloque 6: PIN de 4 dígitos, debe_reactivar y "¿Olvidó su PIN?" ──────

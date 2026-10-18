@@ -52,7 +52,6 @@ fun AppAcopiador(contenedor: AppContainer, sesion: EstadoSesion.Abierta) {
             miDia = contenedor.miDia,
             nombreAcopiador = sesion.usuario.nombre,
             conServidor = sesion.conServidor,
-            avisoPinPendiente = Rumbo.avisoPinPendiente(sesion),
             aviso = d.aviso,
             confirmar = d.confirmar,
             onTocarProductor = { destino = Rumbo.alTocarProductor(it) },

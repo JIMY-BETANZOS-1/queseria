@@ -40,8 +40,8 @@ android {
         applicationId = "pe.queseria.campo"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.5.0"
+        versionCode = 4
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")

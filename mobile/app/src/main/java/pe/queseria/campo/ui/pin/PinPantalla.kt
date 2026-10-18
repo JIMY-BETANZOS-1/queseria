@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,20 +52,10 @@ sealed class EstadoPin {
     data class Bloqueado(val hastaMs: Long) : EstadoPin()
 }
 
-sealed class EtapaCambio {
-    data class PinActual(val error: String? = null) : EtapaCambio()
-    data object PinNuevo : EtapaCambio()
-    data class PinConfirmar(val error: String? = null) : EtapaCambio()
-    data object Cargando : EtapaCambio()
-}
-
 class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
 
     private val _estado = MutableStateFlow<EstadoPin>(EstadoPin.Ingresando())
     val estado: StateFlow<EstadoPin> = _estado.asStateFlow()
-
-    private val _etapaCambio = MutableStateFlow<EtapaCambio>(EtapaCambio.PinActual())
-    val etapaCambio: StateFlow<EtapaCambio> = _etapaCambio.asStateFlow()
 
     /** "¿Olvidó su PIN?": va a Vincular sin borrar nada; desde ahí se puede volver al PIN. */
     fun olvidePin() = autenticador.irAActivar()
@@ -94,50 +83,6 @@ class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
         }
     }
 
-    // PIN actual (en memoria solo durante el flujo de cambio, se borra al terminar)
-    private var pinActualTemp = ""
-    private var pinNuevoTemp = ""
-
-    fun reiniciarCambio() {
-        pinActualTemp = ""; pinNuevoTemp = ""
-        _etapaCambio.value = EtapaCambio.PinActual()
-    }
-
-    fun avanzarCambio(pin: String) {
-        when (val etapa = _etapaCambio.value) {
-            is EtapaCambio.PinActual -> { pinActualTemp = pin; _etapaCambio.value = EtapaCambio.PinNuevo }
-            is EtapaCambio.PinNuevo -> { pinNuevoTemp = pin; _etapaCambio.value = EtapaCambio.PinConfirmar() }
-            is EtapaCambio.PinConfirmar -> {
-                if (pin != pinNuevoTemp) {
-                    _etapaCambio.value = EtapaCambio.PinConfirmar(
-                        error = "Los PINs no coinciden. Vuelva a intentarlo")
-                    return
-                }
-                viewModelScope.launch {
-                    _etapaCambio.value = EtapaCambio.Cargando
-                    try {
-                        autenticador.cambiarPin(pinActualTemp, pinNuevoTemp)
-                        pinActualTemp = ""; pinNuevoTemp = ""
-                        // Autenticador emite Abierta(debeCambiarPin=false); MainActivity detecta el cambio
-                    } catch (e: ErrorApp.PinBloqueado) {
-                        pinActualTemp = ""; pinNuevoTemp = ""
-                        autenticador.bloqueadoHasta()
-                            ?.let { _estado.value = EstadoPin.Bloqueado(it) }
-                            ?: run { _etapaCambio.value = EtapaCambio.PinActual(error = e.message) }
-                    } catch (e: ErrorApp.NoAutorizado) {
-                        pinActualTemp = ""; pinNuevoTemp = ""
-                        _etapaCambio.value = EtapaCambio.PinActual(
-                            error = "PIN actual incorrecto: ${e.message}")
-                    } catch (e: ErrorApp) {
-                        pinActualTemp = ""; pinNuevoTemp = ""
-                        _etapaCambio.value = EtapaCambio.PinActual(error = e.message)
-                    }
-                }
-            }
-            EtapaCambio.Cargando -> { /* ignorar */ }
-        }
-    }
-
     companion object {
         fun factory(autenticador: Autenticador) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -150,9 +95,9 @@ class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 
 @Composable
-fun PinPantalla(autenticador: Autenticador, debeCambiarPin: Boolean) {
+fun PinPantalla(autenticador: Autenticador) {
     val vm: PinViewModel = viewModel(factory = PinViewModel.factory(autenticador))
-    if (debeCambiarPin) CambiarPinPantalla(vm) else IngresoPin(vm)
+    IngresoPin(vm)
 }
 
 // ─── B2: ingreso con PIN ──────────────────────────────────────────────────────
@@ -208,80 +153,6 @@ private fun IngresoPin(vm: PinViewModel) {
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
         ) {
             Text("¿Olvidó su PIN? Tengo un código nuevo", style = MaterialTheme.typography.titleMedium)
-        }
-    }
-}
-
-// ─── B2b: cambio de PIN obligatorio ──────────────────────────────────────────
-
-@Composable
-private fun CambiarPinPantalla(vm: PinViewModel) {
-    val etapa by vm.etapaCambio.collectAsStateWithLifecycle()
-    val estadoPin by vm.estado.collectAsStateWithLifecycle()
-
-    // Si el ViewModel detecta bloqueo durante el cambio, redirige al estado de bloqueo del IngresoPin
-    if (estadoPin is EstadoPin.Bloqueado) {
-        IngresoPin(vm)
-        return
-    }
-
-    var pin by rememberSaveable(etapa) { mutableStateOf("") }
-
-    val (titulo, subtitulo, error) = when (val e = etapa) {
-        is EtapaCambio.PinActual ->
-            Triple("Cambiar PIN", "Ingrese su PIN actual", e.error)
-        EtapaCambio.PinNuevo ->
-            Triple("Nuevo PIN", "Elija un nuevo PIN de ${ReglasPin.LARGO} dígitos", null)
-        is EtapaCambio.PinConfirmar ->
-            Triple("Confirmar PIN", "Repita el nuevo PIN", e.error)
-        EtapaCambio.Cargando ->
-            Triple("Cambiando PIN…", "Por favor espere", null)
-    }
-
-    val cargando = etapa is EtapaCambio.Cargando
-    val habilitado = !cargando
-
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("Quesería Campo", style = MaterialTheme.typography.titleSmall,
-             color = MaterialTheme.colorScheme.primary)
-        Text(titulo, style = MaterialTheme.typography.headlineMedium)
-        Text(subtitulo, style = MaterialTheme.typography.bodyLarge)
-
-        Spacer(Modifier.height(8.dp))
-
-        DotPin(pin.length)
-        error?.let { MensajeError(it) }
-
-        Spacer(Modifier.weight(1f))
-
-        TecladoNumerico(
-            onDigito = { pin = EntradaPin.teclear(pin, it).pin },
-            onBorrar = { pin = EntradaPin.borrar(pin) },
-            habilitado = habilitado,
-            mezclar = true,
-            claveMezcla = etapa,    // se vuelve a barajar en cada etapa del cambio
-            onOk = {
-                if (pin.length == ReglasPin.LARGO) {
-                    vm.avanzarCambio(pin)
-                    pin = ""
-                }
-            },
-        )
-
-        if (etapa is EtapaCambio.PinNuevo || etapa is EtapaCambio.PinConfirmar) {
-            // No hay salida: con la opción C esta pantalla solo se alcanza CON red, y ahí el cambio es
-            // obligatorio. El botón solo vuelve a la primera etapa (antes decía "Volver al inicio",
-            // que prometía un B3 al que no llevaba).
-            OutlinedButton(
-                onClick = { vm.reiniciarCambio(); pin = "" },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-            ) {
-                Text("Empezar de nuevo")
-            }
         }
     }
 }

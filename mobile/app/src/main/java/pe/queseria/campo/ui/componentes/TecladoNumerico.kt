@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -37,12 +36,12 @@ internal fun digitosTeclado(mezclar: Boolean): List<Int> =
  *
  * Un solo componente para las dos pantallas que lo usan:
  *  - **B4 (litros)**: `mezclar = false` y [onPunto] → última fila `.` `0` `⌫`.
- *  - **B2 (PIN)**: `mezclar = true`, sin [onOk] → última fila hueco `<dígito>` `⌫`; se ingresa solo al
- *    4.º dígito (`EntradaPin`). B2b (cambio de PIN) todavía usa [onOk] → `⌫` `<dígito>` `OK`.
+ *  - **B1 y B2 (PIN)**: `mezclar = true` y sin [onPunto] → última fila hueco `<dígito>` `⌫`. No hay
+ *    OK: se avanza solo al 4.º dígito (`EntradaPin`).
  *
  * @param mezclar baraja los dígitos (solo el PIN).
- * @param claveMezcla cuando cambia, se vuelve a barajar (B2 remezcla en cada etapa del cambio de
- *   PIN). Con el orden fijo no tiene efecto.
+ * @param claveMezcla cuando cambia, se vuelve a barajar (B1 remezcla en cada etapa: cree su PIN,
+ *   repita su PIN). Con el orden fijo no tiene efecto.
  */
 @Composable
 fun TecladoNumerico(
@@ -53,7 +52,6 @@ fun TecladoNumerico(
     mezclar: Boolean = false,
     claveMezcla: Any? = Unit,
     onPunto: (() -> Unit)? = null,
-    onOk: (() -> Unit)? = null,
 ) {
     val digitos = remember(mezclar, claveMezcla) { digitosTeclado(mezclar) }
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -63,17 +61,9 @@ fun TecladoNumerico(
             }
         }
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (onOk != null) {
-                Borrar(habilitado, onBorrar)
-                Digito(digitos[9], habilitado, onDigito)
-                Button(onClick = onOk, enabled = habilitado, modifier = Modifier.weight(1f).height(ALTO)) {
-                    Text("OK", style = MaterialTheme.typography.titleLarge)
-                }
-            } else {
-                if (onPunto != null) Tecla(".", habilitado, onPunto) else Hueco()
-                Digito(digitos[9], habilitado, onDigito)
-                Borrar(habilitado, onBorrar)
-            }
+            if (onPunto != null) Tecla(".", habilitado, onPunto) else Hueco()
+            Digito(digitos[9], habilitado, onDigito)
+            Borrar(habilitado, onBorrar)
         }
     }
 }

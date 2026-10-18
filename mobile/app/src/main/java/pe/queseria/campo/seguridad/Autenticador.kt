@@ -5,12 +5,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import pe.queseria.campo.datos.remoto.ActivarDto
 import pe.queseria.campo.datos.remoto.ApiQueseria
-import pe.queseria.campo.datos.remoto.CambiarPinDto
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.datos.remoto.LoginPinDto
 import pe.queseria.campo.datos.remoto.TokenMovilDto
 import pe.queseria.campo.datos.remoto.llamar
-import pe.queseria.campo.datos.remoto.traducirHttp
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -30,7 +28,7 @@ sealed class EstadoSesion {
     data class Cerrada(val usuario: UsuarioLocal) : EstadoSesion()
 
     /** conServidor = el PIN lo validó el servidor (hay token nuevo); false = validado sin red. */
-    data class Abierta(val usuario: UsuarioLocal, val debeCambiarPin: Boolean, val conServidor: Boolean) : EstadoSesion()
+    data class Abierta(val usuario: UsuarioLocal, val conServidor: Boolean) : EstadoSesion()
 }
 
 /**
@@ -147,20 +145,6 @@ class Autenticador(
         }
     }
 
-    suspend fun cambiarPin(actual: String, nuevo: String) {
-        validarPin(actual)
-        validarPin(nuevo)
-        val r = llamar { api().cambiarPin(bearer(), CambiarPinDto(actual, nuevo)) }
-        if (!r.isSuccessful) {
-            val error = traducirHttp(r.code(), r.errorBody()?.string())
-            if (error is ErrorApp.PinBloqueado) pin.bloquear()
-            throw error
-        }
-        pin.guardar(nuevo)
-        almacen.guardar(K_DEBE_CAMBIAR, null)
-        (estado.value as? EstadoSesion.Abierta)?.let { _estado.value = it.copy(debeCambiarPin = false) }
-    }
-
     /**
      * Corta el acceso de este celular: borra token, verificador del PIN y datos de sesión, y vuelve
      * a "Vincular celular". Las recolecciones y productores sin sincronizar NO se tocan: siguen en
@@ -214,7 +198,7 @@ class Autenticador(
     // -------------------------------------------------------------
     private fun abrir(u: UsuarioLocal, conServidor: Boolean): EstadoSesion.Abierta {
         guardarUsuario(u)
-        val abierta = EstadoSesion.Abierta(u, almacen.leer(K_DEBE_CAMBIAR) == "1", conServidor)
+        val abierta = EstadoSesion.Abierta(u, conServidor)
         _estado.value = abierta
         return abierta
     }
@@ -230,7 +214,7 @@ class Autenticador(
         // Un minuto de margen para no usar un token a punto de vencer
         almacen.guardar(K_TOKEN_EXPIRA, (reloj() + (t.expiraEnMin - 1) * 60_000L).toString())
         almacen.guardar(K_DISPOSITIVO_ID, t.dispositivoId.toString())
-        almacen.guardar(K_DEBE_CAMBIAR, if (t.debeCambiarPin) "1" else null)
+        almacen.guardar(K_DEBE_CAMBIAR, null)
     }
 
     private fun borrarToken() {
@@ -263,6 +247,7 @@ class Autenticador(
         private const val K_DISPOSITIVO_ID = "dispositivo_id"
         private const val K_TOKEN = "token"
         private const val K_TOKEN_EXPIRA = "token_expira_ms"
+        // Ya no se usa (B2b se quitó en el Bloque 6): se limpia donde se escribía, por celulares viejos
         private const val K_DEBE_CAMBIAR = "debe_cambiar_pin"
     }
 }

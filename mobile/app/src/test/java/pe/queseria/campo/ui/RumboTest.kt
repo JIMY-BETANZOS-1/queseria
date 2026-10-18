@@ -1,14 +1,10 @@
 package pe.queseria.campo.ui
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import pe.queseria.campo.datos.local.EstadoSync
 import pe.queseria.campo.datos.local.ProductorFila
-import pe.queseria.campo.seguridad.EstadoSesion
-import pe.queseria.campo.seguridad.UsuarioLocal
 
 /** Paso de B3 a B4, incluido el aviso de "otra entrega" que antes dejaba la navegación a medias. */
 class RumboTest {
@@ -160,40 +156,5 @@ class RumboTest {
     fun `desde B6 y B7 el atras vuelve a B3`() {
         assertEquals(Destino.Inicio(), Rumbo.atras(Destino.MiDia))
         assertEquals(Destino.Inicio(), Rumbo.atras(Destino.Sync))
-    }
-
-    // ─── Cambio de PIN obligatorio (opción C): con red se exige, sin red se avisa ──
-
-    private fun sesion(debeCambiarPin: Boolean, conServidor: Boolean) = EstadoSesion.Abierta(
-        usuario = UsuarioLocal(id = 7, rol = "acopiador", nombre = "Juan Mamani"),
-        debeCambiarPin = debeCambiarPin,
-        conServidor = conServidor,
-    )
-
-    @Test
-    fun `con red el cambio de PIN se exige y B3 no avisa nada`() {
-        val s = sesion(debeCambiarPin = true, conServidor = true)
-        assertTrue("con señal el cambio es ineludible", Rumbo.exigeCambioDePin(s))
-        assertNull("no se llega a B3, así que no hay aviso que pintar", Rumbo.avisoPinPendiente(s))
-    }
-
-    /**
-     * El fallo que arregla la opción C: `cambiarPin` necesita servidor, así que exigirlo sin señal
-     * encerraba al acopiador en B2b y no podía registrar leche.
-     */
-    @Test
-    fun `sin red se entra a B3 con el aviso en vez de exigir el cambio`() {
-        val s = sesion(debeCambiarPin = true, conServidor = false)
-        assertFalse("sin señal no se puede cambiar: que trabaje", Rumbo.exigeCambioDePin(s))
-        assertEquals(Rumbo.MSG_PIN_PENDIENTE, Rumbo.avisoPinPendiente(s))
-    }
-
-    @Test
-    fun `sin PIN pendiente no se exige nada ni se avisa`() {
-        for (conServidor in listOf(true, false)) {
-            val s = sesion(debeCambiarPin = false, conServidor = conServidor)
-            assertFalse("conServidor=$conServidor", Rumbo.exigeCambioDePin(s))
-            assertNull("conServidor=$conServidor", Rumbo.avisoPinPendiente(s))
-        }
     }
 }
