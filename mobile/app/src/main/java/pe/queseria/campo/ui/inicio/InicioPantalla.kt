@@ -2,27 +2,37 @@ package pe.queseria.campo.ui.inicio
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,6 +59,8 @@ import pe.queseria.campo.datos.local.ProductorFila
 import pe.queseria.campo.datos.local.SyncDao
 import pe.queseria.campo.sync.MiDia
 import pe.queseria.campo.ui.componentes.MensajeAviso
+import pe.queseria.campo.ui.sync.TextosSync
+import pe.queseria.campo.ui.tema.ColorAdvertencia
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -98,6 +110,19 @@ class InicioViewModel(private val dao: SyncDao, private val miDia: MiDia) : View
     val pendientes: StateFlow<Int> =
         combine(dao.observarPendientes(), dao.observarProductoresPendientes()) { r, p -> r + p }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val jornada: StateFlow<Jornada> = todas.map(ResumenJornada::de)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ResumenJornada.de(emptyList()))
+
+    /** Rechazos que el acopiador todavía no marcó "Ya avisé" en B7 (los mismos que cuenta su titular). */
+    val rechazadasPorAvisar: StateFlow<Int> = combine(
+        dao.observarProductoresRechazados(),
+        dao.observarRechazadas(),
+        dao.observarEntregasRetenidas(),
+        dao.observarMeta(Meta.AVISOS_VISTOS),
+    ) { productores, rechazadas, retenidas, avisados ->
+        TextosSync.panorama(productores, rechazadas, retenidas, TextosSync.leerAvisados(avisados)).porAvisar.total
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     /** Sin un pull previo la lista está vacía porque nunca se bajó la ruta, no porque no haya productores. */
     val yaSincronizo: StateFlow<Boolean> =
@@ -159,7 +184,10 @@ class InicioViewModel(private val dao: SyncDao, private val miDia: MiDia) : View
     }
 }
 
-// ─── B3: mis productores ─────────────────────────────────────────────────────
+// ─── B3: mi jornada y mis productores ────────────────────────────────────────
+
+/** Índice del buscador en la lista: "REGISTRAR LECHE" desplaza hasta él (va justo después de la cabecera). */
+private const val INDICE_BUSCADOR = 1
 
 @Composable
 fun InicioPantalla(
@@ -183,9 +211,15 @@ fun InicioPantalla(
     val todas by vm.todas.collectAsStateWithLifecycle()
     val productores by vm.productores.collectAsStateWithLifecycle()
     val pendientes by vm.pendientes.collectAsStateWithLifecycle()
+    val jornada by vm.jornada.collectAsStateWithLifecycle()
+    val rechazadas by vm.rechazadasPorAvisar.collectAsStateWithLifecycle()
     val yaSincronizo by vm.yaSincronizo.collectAsStateWithLifecycle()
     val puedeFaltarLoDeHoy by vm.puedeFaltarLoDeHoy.collectAsStateWithLifecycle()
     val busqueda by vm.busqueda.collectAsStateWithLifecycle()
+
+    val lista = rememberLazyListState()
+    val alcance = rememberCoroutineScope()
+    val focoBuscador = remember { FocusRequester() }
 
     // Se busca en la lista completa: el aviso no debe desaparecer si se escribe en el buscador
     val porConfirmar = confirmar?.let { c -> todas.firstOrNull { it.clave == c } }
@@ -195,64 +229,170 @@ fun InicioPantalla(
         vm.rehidratar()   // por si la pantalla se reabre sin que haya habido una sincronización
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp),
+    // Una sola lista con la cabecera adentro: en 360 dp la tarjeta y los botones ocupan media pantalla,
+    // y así se desplazan con los productores en vez de dejarles un hueco fijo.
+    LazyColumn(
+        state = lista,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Barra(nombreAcopiador = nombreAcopiador, pendientes = pendientes)
+        item(key = "cabecera") {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(nombreAcopiador, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-        Acciones(
-            onNuevoProductor = onNuevoProductor,
-            onMiDia = onMiDia,
-            onSincronizar = onSincronizar,
-        )
+                TarjetaJornada(
+                    jornada = jornada,
+                    insignia = ResumenJornada.insignia(pendientes, rechazadas, conServidor),
+                    onMiDia = onMiDia,
+                    onSincronizar = onSincronizar,
+                )
 
-        // Primero el del PIN: es lo único que el acopiador tiene que recordar hacer al recuperar señal
-        avisoPinPendiente?.let { MensajeAviso(it) }
+                // Registrar leche = elegir productor: el botón lleva al buscador (1 toque + el productor)
+                Button(
+                    onClick = {
+                        alcance.launch {
+                            lista.animateScrollToItem(INDICE_BUSCADOR)
+                            runCatching { focoBuscador.requestFocus() }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+                ) {
+                    Text("REGISTRAR LECHE", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
 
-        if (!conServidor) {
-            MensajeAviso("⚠ Sin señal — ingresaste sin conexión. Lo que registres se enviará solo.")
-        }
-        if (puedeFaltarLoDeHoy) {
-            MensajeAviso(
-                "Sin conexión con el servidor: si hoy ya se registró leche en otro celular, " +
-                    "todavía no se ve acá. Sincronice cuando tenga señal.",
-            )
-        }
-        aviso?.let { MensajeAviso(it) }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BotonAccion("+ Productor", onNuevoProductor, Modifier.weight(1f))
+                    BotonAccion("Sincronizar", onSincronizar, Modifier.weight(1f))
+                }
 
-        // Panel en la propia pantalla, no un AlertDialog: una ventana de diálogo le devolvía el
-        // gesto atrás a la actividad al cerrarse y B4 se cancelaba al entrar (ver Rumbo).
-        porConfirmar?.let { fila ->
-            PanelOtraEntrega(
-                texto = ResumenProductor.textoOtraEntrega(fila),
-                onSi = onConfirmarOtraEntrega,
-                onCancelar = onCancelarConfirmacion,
-            )
-        }
+                // Primero el del PIN: es lo único que el acopiador tiene que recordar hacer al recuperar señal
+                avisoPinPendiente?.let { MensajeAviso(it) }
 
-        OutlinedTextField(
-            value = busqueda,
-            onValueChange = vm::buscar,
-            label = { Text("Buscar por nombre o código") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
+                if (!conServidor) {
+                    MensajeAviso("⚠ Sin señal — ingresó sin conexión. Lo que registre se enviará solo.")
+                }
+                if (puedeFaltarLoDeHoy) {
+                    MensajeAviso(
+                        "Sin conexión con el servidor: si hoy ya se registró leche en otro celular, " +
+                            "todavía no se ve acá. Sincronice cuando tenga señal.",
+                    )
+                }
+                aviso?.let { MensajeAviso(it) }
 
-        if (productores.isEmpty()) {
-            Text(
-                if (!yaSincronizo) "Todavía no se bajó su ruta. Conéctese y toque Sincronizar."
-                else if (busqueda.isBlank()) "No hay productores en sus rutas."
-                else "Ningún productor coincide con la búsqueda.",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(productores, key = { it.clave }) { fila ->
-                    FilaProductor(fila) { onTocarProductor(fila) }
+                // Panel en la propia pantalla, no un AlertDialog: una ventana de diálogo le devolvía el
+                // gesto atrás a la actividad al cerrarse y B4 se cancelaba al entrar (ver Rumbo).
+                porConfirmar?.let { fila ->
+                    PanelOtraEntrega(
+                        texto = ResumenProductor.textoOtraEntrega(fila),
+                        onSi = onConfirmarOtraEntrega,
+                        onCancelar = onCancelarConfirmacion,
+                    )
                 }
             }
+        }
+
+        item(key = "buscador") {
+            OutlinedTextField(
+                value = busqueda,
+                onValueChange = vm::buscar,
+                label = { Text("Buscar productor por nombre o código") },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.fillMaxWidth().focusRequester(focoBuscador),
+            )
+        }
+
+        if (productores.isEmpty()) {
+            item(key = "vacio") {
+                Text(
+                    if (!yaSincronizo) "Todavía no se bajó su ruta. Conéctese y toque Sincronizar."
+                    else if (busqueda.isBlank()) "No hay productores en sus rutas."
+                    else "Ningún productor coincide con la búsqueda.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+            }
+        } else {
+            items(productores, key = { it.clave }) { fila ->
+                FilaProductor(fila) { onTocarProductor(fila) }
+            }
+        }
+    }
+}
+
+/**
+ * Cómo va el día, de un vistazo y al sol: litros en grande y negrita, entregas y productores atendidos.
+ * Toda la tarjeta abre "Mi día"; la pastilla de sincronización abre B7.
+ */
+@Composable
+private fun TarjetaJornada(jornada: Jornada, insignia: Insignia, onMiDia: () -> Unit, onSincronizar: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onMiDia),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                "HOY",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                ResumenJornada.textoLitros(jornada),
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                ResumenJornada.textoEntregas(jornada),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Text(
+                ResumenJornada.textoAtendidos(jornada),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                PastillaSync(insignia, onSincronizar, Modifier.weight(1f, fill = false))
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "Ver mi día ›",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PastillaSync(insignia: Insignia, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val color = when (insignia.tono) {
+        TextosSync.Tono.BIEN -> MaterialTheme.colorScheme.primary
+        TextosSync.Tono.ADVERTENCIA -> ColorAdvertencia
+        TextosSync.Tono.ERROR -> MaterialTheme.colorScheme.error
+    }
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(50),
+        color = color,
+        contentColor = Color.White,
+        modifier = modifier.heightIn(min = 40.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Text(insignia.texto, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -297,33 +437,9 @@ private fun PanelOtraEntrega(texto: String, onSi: () -> Unit, onCancelar: () -> 
 }
 
 /**
- * Accesos a las pantallas que no son la lista. Botones anchos y altos: se usan de pie, en el campo,
- * a veces con guantes.
- *
- * "Sincronizar" abre B7 en lugar de disparar el worker desde aquí: así el acopiador ve qué se envió y
- * qué se rechazó, en vez de tocar un botón que no contesta nada.
- */
-@Composable
-private fun Acciones(onNuevoProductor: () -> Unit, onMiDia: () -> Unit, onSincronizar: () -> Unit) {
-    // Dos filas, no tres botones en una. En 360 dp de ancho (los 720 px del Realme) cada botón de una
-    // fila de tres se queda con ~104 dp, y el relleno propio del OutlinedButton (24 dp por lado) deja
-    // ~56 dp para el texto: "Sincronizar" necesita unos 95 dp y se partía en varias líneas. Así las
-    // etiquetas van completas y la letra no se encoge, que en campo es lo que importa.
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            BotonAccion("+ Productor", onNuevoProductor, Modifier.weight(1f))
-            BotonAccion("Mi día", onMiDia, Modifier.weight(1f))
-        }
-        BotonAccion("Sincronizar", onSincronizar, Modifier.fillMaxWidth())
-    }
-}
-
-/**
- * Botón de campo: 56 dp de alto, texto en una sola línea y menos relleno lateral que el de serie, para
- * que la palabra entera quepa aunque el celular tenga la letra del sistema agrandada.
+ * Botón secundario de campo ("+ Productor", "Sincronizar"): 56 dp de alto, texto en una sola línea y
+ * menos relleno lateral que el de serie, para que la palabra entera quepa aunque el celular tenga la
+ * letra del sistema agrandada. Van dos por fila: en 360 dp cada uno tiene ~160 dp, de sobra.
  */
 @Composable
 private fun BotonAccion(texto: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -335,21 +451,9 @@ private fun BotonAccion(texto: String, onClick: () -> Unit, modifier: Modifier =
         Text(
             texto,
             style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun Barra(nombreAcopiador: String, pendientes: Int) {
-    Column(Modifier.fillMaxWidth()) {
-        Text("Mis productores", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            if (pendientes == 0) nombreAcopiador else "$nombreAcopiador · $pendientes sin enviar",
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (pendientes == 0) MaterialTheme.colorScheme.onSurfaceVariant
-            else MaterialTheme.colorScheme.primary,
         )
     }
 }

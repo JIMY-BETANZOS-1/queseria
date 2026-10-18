@@ -350,8 +350,27 @@ horaria automática" (America/Lima), y dejarlo verificado por escrito.
 campo (por ejemplo, DNI repetido), sus recolecciones se rechazan también —el push responde "El productor
 no está registrado"— y hoy **no hay forma de apuntarlas al productor correcto**: el productor es el campo
 3 de la cadena canónica firmada (`uuid:<productor_uuid_cliente>`), así que cambiarlo invalida la firma y,
-al refirmar, rompe el `hash_anterior` de los registros siguientes de ese celular. La app 0.4.0 hace lo
-único seguro: dejarlas a la vista en B7 bajo "Entrega retenida: su productor fue rechazado", con litros,
-hora y motivo, para que el acopiador lo reporte y el admin lo registre. La solución de fondo exige
+al refirmar, rompe el `hash_anterior` de los registros siguientes de ese celular. La app hace lo único
+seguro: dejarlas a la vista en B7, dentro de la tarjeta de su alta rechazada, con litros, hora y motivo,
+para que el acopiador lo reporte y el admin lo registre. Desde la 0.5.0 el acopiador puede marcar
+"Ya avisé" (`meta.avisos_vistos`): la tarjeta pasa a "ya avisadas" y deja de contar como rechazo
+pendiente, pero las filas siguen en Room como RECHAZADO, sin cambios. La solución de fondo exige
 decidir dónde vive la reasignación (el admin web sobre la recolección rechazada, o un alta corregida
 reenviada con el mismo `uuid_cliente`) y toca backend y esquema.
+
+**(I) DNI repetido de un productor externo que el celular no conoce.** El aviso de B5 ("¿Es este
+productor?") compara el DNI solo contra los productores que hay en el celular (`productoresLocales`):
+los de las rutas del acopiador, que es lo único que baja el pull. Los productores `externo` que registra
+el analista en planta no bajan nunca, así que si el acopiador da de alta a uno de ellos con su DNI, el
+celular no avisa nada, el alta se envía y el servidor la rechaza por el UNIQUE de `documento`, con su
+leche retenida por arrastre (ver (H)). Opciones, todas con backend: una consulta puntual de DNI cuando
+hay señal (`GET` que diga solo si existe y de qué tipo, sin exponer datos de otros), o que el servidor
+acepte el alta como "coincide con un productor existente" y lo resuelva el admin. Sin señal seguirá sin
+poder detectarse, así que la regla de "nunca impedir el registro" se mantiene.
+
+**(J) Longitud del PIN fija en 4 dígitos.** Hoy el PIN acepta de 4 a 6 dígitos en los dos lados
+(`PATRON_PIN = r"^[0-9]{4,6}$"` en `backend/app/esquemas/__init__.py` y `Autenticador.PATRON_PIN` en el
+móvil; B2/B2b esperan "OK" desde 4). Decisión: fijarlo en 4 dígitos. Se hará en el **siguiente bloque**,
+junto con (A) y (B), porque toca el backend (patrón y mensajes de los tres sitios por los que entra un
+PIN) y el móvil (B2 puede ingresar solo al cuarto dígito, sin "OK"; texto "Elija un nuevo PIN de 4
+dígitos"). Antes hay que revisar si algún usuario ya tiene un PIN de 5 o 6 dígitos y pedirle el cambio.
