@@ -160,11 +160,22 @@ def login_pin(datos: LoginPin):
     )
 
 
+def validar_pin_nuevo(pin: str, dni: str | None, celular: str | None) -> None:
+    """422 si el PIN que se va a crear es trivial. No cuenta como intento fallido."""
+    motivo = seguridad.pin_trivial(pin, dni, celular)
+    if motivo is not None:
+        raise ErrorApi(422, "pin_trivial", f"Elija un PIN menos obvio: {motivo}")
+
+
 @router.post("/pin/cambiar", status_code=204)
 def cambiar_pin(datos: CambiarPin, usuario: Usuario = Depends(solo_movil)):
+    # El PIN nuevo se revisa ANTES de verificar el actual: un PIN nuevo inválido no gasta un intento
+    if datos.pin_nuevo == datos.pin_actual:
+        raise ErrorApi(422, "pin_repetido", "El PIN nuevo debe ser distinto del actual")
     error: ErrorApi | None = None
     with db.transaccion(usuario.id) as conn:
-        fila = db.uno(conn, "SELECT pin_hash FROM usuario WHERE id = %s FOR UPDATE", (usuario.id,))
+        fila = db.uno(conn, "SELECT pin_hash, dni, celular FROM usuario WHERE id = %s FOR UPDATE", (usuario.id,))
+        validar_pin_nuevo(datos.pin_nuevo, fila["dni"], fila["celular"])
         if not seguridad.verificar(datos.pin_actual, fila["pin_hash"]):
             error = _error_fallo_pin(_registrar_fallo_pin(conn, usuario.id))
         else:

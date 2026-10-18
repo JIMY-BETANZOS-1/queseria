@@ -29,6 +29,31 @@ def verificar(secreto: str, hash_: str | None) -> bool:
         return False
 
 
+def pin_trivial(pin: str, dni: str | None = None, celular: str | None = None) -> str | None:
+    """Por qué un PIN de 4 dígitos es demasiado fácil de adivinar, o None si se acepta.
+
+    Rechaza 204 de las 10 000 combinaciones: todos iguales (0000), secuencias de subida o de bajada
+    (1234, 4321), pares repetidos (1212) y dobles (1122); además, los últimos 4 dígitos del DNI o del
+    celular del propio usuario. Se aplica al CREAR el PIN, nunca al ingresar: un PIN viejo no deja
+    fuera a nadie. Las mismas reglas están en el móvil (ReglasPin.kt) solo para avisar antes de enviar.
+    """
+    a, b, c, d = pin
+    if a == b == c == d:
+        return "todos los dígitos son iguales"
+    pasos = {int(y) - int(x) for x, y in zip(pin, pin[1:])}
+    if pasos == {1} or pasos == {-1}:
+        return "es una secuencia"
+    if a == c and b == d:
+        return "repite un par de dígitos"
+    if a == b and c == d:
+        return "repite dígitos de a dos"
+    if dni and dni[-4:] == pin:
+        return "son los últimos dígitos de su DNI"
+    if celular and celular[-4:] == pin:
+        return "son los últimos dígitos de su celular"
+    return None
+
+
 def crear_token(usuario_id: int, rol: str, minutos: int, dispositivo_id: int | None = None) -> str:
     ahora = datetime.now(timezone.utc)
     datos = {"sub": str(usuario_id), "rol": rol, "iat": ahora, "exp": ahora + timedelta(minutes=minutos)}

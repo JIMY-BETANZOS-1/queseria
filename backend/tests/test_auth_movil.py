@@ -1,5 +1,7 @@
 import uuid
 
+import pytest
+
 from conftest import (acopiador_con_celular, activar, cab, crear_acopiador, generar_codigo, login_pin)
 
 
@@ -23,14 +25,72 @@ def test_activacion_pin_y_cambio_de_pin(client, admin, db):
     assert r.json()["debe_cambiar_pin"] is True          # PIN inicial puesto por el admin
     token = r.json()["access_token"]
 
-    r = client.post("/auth/pin/cambiar", json={"pin_actual": "4321", "pin_nuevo": "908172"}, headers=cab(token))
+    r = client.post("/auth/pin/cambiar", json={"pin_actual": "4321", "pin_nuevo": "9081"}, headers=cab(token))
     assert r.status_code == 204, r.text
     r = login_pin(client, device, "4321")
     assert r.status_code == 401
     assert r.json()["codigo"] == "pin_incorrecto"
-    r = login_pin(client, device, "908172")
+    r = login_pin(client, device, "9081")
     assert r.status_code == 200
     assert r.json()["debe_cambiar_pin"] is False
+
+
+def _intentos(db, usuario_id: int) -> int:
+    return db.execute("SELECT pin_intentos_fallidos FROM usuario WHERE id = %s", (usuario_id,)).fetchone()[
+        "pin_intentos_fallidos"]
+
+
+@pytest.mark.parametrize("pin", ["123", "12345", "123456", "12a4", ""])
+def test_el_pin_tiene_exactamente_4_digitos(client, admin, db, pin):
+    acop = acopiador_con_celular(client, admin, pin="4821")
+    r = login_pin(client, acop["device_uuid"], pin)
+    assert r.status_code == 422
+    # Una entrada mal formada nunca llega a verificarse: no cuenta como intento fallido
+    assert _intentos(db, acop["id"]) == 0
+    r = client.post("/auth/pin/cambiar", json={"pin_actual": "4821", "pin_nuevo": pin}, headers=cab(acop["token"]))
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize("nuevo", ["0000", "1234", "4321", "1212", "1122"])
+def test_cambiar_a_un_pin_trivial_se_rechaza_sin_gastar_intento(client, admin, db, nuevo):
+    acop = acopiador_con_celular(client, admin, pin="4821")
+    r = client.post("/auth/pin/cambiar", json={"pin_actual": "4821", "pin_nuevo": nuevo}, headers=cab(acop["token"]))
+    assert r.status_code == 422
+    assert r.json()["codigo"] == "pin_trivial"
+    assert r.json()["mensaje"].startswith("Elija un PIN menos obvio: ")
+    assert _intentos(db, acop["id"]) == 0
+    assert login_pin(client, acop["device_uuid"], "4821").status_code == 200   # el PIN no cambió
+
+
+def test_cambiar_a_los_ultimos_digitos_del_dni_o_celular_se_rechaza(client, admin):
+    acop = acopiador_con_celular(client, admin, pin="4821")
+    for propio in (acop["dni"][-4:], acop["celular"][-4:]):
+        if propio == "4821":   # DNI o celular al azar que justo termina en el PIN actual: sería pin_repetido
+            continue
+        r = client.post("/auth/pin/cambiar", json={"pin_actual": "4821", "pin_nuevo": propio},
+                        headers=cab(acop["token"]))
+        assert r.status_code == 422, propio
+        assert r.json()["codigo"] == "pin_trivial"
+
+
+def test_el_pin_nuevo_debe_ser_distinto_del_actual(client, admin, db):
+    """Pendiente (B): antes se aceptaba repetir el PIN y pin_actualizado_en avanzaba igual."""
+    acop = acopiador_con_celular(client, admin, pin="4821")
+    antes = db.execute("SELECT pin_actualizado_en FROM usuario WHERE id = %s", (acop["id"],)).fetchone()
+    r = client.post("/auth/pin/cambiar", json={"pin_actual": "4821", "pin_nuevo": "4821"}, headers=cab(acop["token"]))
+    assert r.status_code == 422
+    assert r.json()["codigo"] == "pin_repetido"
+    assert _intentos(db, acop["id"]) == 0
+    despues = db.execute("SELECT pin_actualizado_en FROM usuario WHERE id = %s", (acop["id"],)).fetchone()
+    assert antes == despues
+
+
+def test_pin_actual_incorrecto_si_cuenta_como_intento(client, admin, db):
+    acop = acopiador_con_celular(client, admin, pin="4821")
+    r = client.post("/auth/pin/cambiar", json={"pin_actual": "4822", "pin_nuevo": "7319"}, headers=cab(acop["token"]))
+    assert r.status_code == 401
+    assert r.json()["codigo"] == "pin_incorrecto"
+    assert _intentos(db, acop["id"]) == 1
 
 
 def test_codigo_usado_o_vencido_se_rechaza(client, admin, db):

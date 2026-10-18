@@ -53,7 +53,8 @@ CHECKS = {
     "ck_usuario_dni": "El DNI debe tener 8 dígitos",
     "ck_usuario_celular": "El celular debe tener 9 dígitos",
     "ck_usuario_credenciales": "Faltan datos de acceso: el admin necesita correo y contraseña; "
-                               "acopiadores y analistas, DNI, celular y PIN",
+                               "acopiadores y analistas, DNI y celular",
+    "ck_usuario_pin_fecha": "No puede haber fecha de PIN sin PIN",
     "ck_acopiador_color": "El color debe tener el formato #RRGGBB",
     "acopiador_sueldo_base_mensual_check": "El sueldo base no puede ser negativo",
     "acopiador_comision_por_litro_check": "La comisión por litro no puede ser negativa",
