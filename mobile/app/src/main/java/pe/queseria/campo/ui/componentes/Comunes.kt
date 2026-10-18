@@ -1,7 +1,7 @@
 package pe.queseria.campo.ui.componentes
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
@@ -46,6 +46,10 @@ fun MensajeAviso(texto: String, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * Botones de campo: 56 dp como mínimo, no una altura fija. Con una altura fija una etiqueta que no
+ * cabía en una línea se partía y el botón la recortaba; así el botón crece con ella.
+ */
 @Composable
 fun BtnPrimario(
     texto: String,
@@ -57,7 +61,7 @@ fun BtnPrimario(
     Button(
         onClick = onClick,
         enabled = habilitado && !cargando,
-        modifier = modifier.fillMaxWidth().height(52.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp),
     ) {
         if (cargando) {
             CircularProgressIndicator(
@@ -82,7 +86,7 @@ fun BtnSecundario(
         onClick = onClick,
         enabled = habilitado,
         colors = ButtonDefaults.outlinedButtonColors(),
-        modifier = modifier.fillMaxWidth().height(52.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp),
     ) {
         Text(texto, style = MaterialTheme.typography.titleMedium)
     }

@@ -2,7 +2,6 @@ package pe.queseria.campo.ui.productor
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -278,13 +277,15 @@ private fun PanelDuplicado(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Uno debajo del otro, a todo el ancho: lado a lado en 360 dp quedaban ~100 dp para el texto
+            // y "Usar ese productor" se partía en dos líneas que el botón cortaba.
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (porDocumento) {
-                    BtnPrimario("USAR ESE PRODUCTOR", onUsar, Modifier.weight(1f))
-                    BtnSecundario("Crear igual", onCrearIgual, Modifier.weight(1f))
+                    BtnPrimario("USAR ESE PRODUCTOR", onUsar)
+                    BtnSecundario("Crear igual", onCrearIgual)
                 } else {
-                    BtnPrimario("CREAR IGUAL", onCrearIgual, Modifier.weight(1f))
-                    BtnSecundario("Usar ese productor", onUsar, Modifier.weight(1f))
+                    BtnPrimario("CREAR IGUAL", onCrearIgual)
+                    BtnSecundario("Usar ese productor", onUsar)
                 }
             }
         }
