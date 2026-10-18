@@ -126,8 +126,9 @@ CREATE TABLE usuario (
   celular               varchar(9),
   email                 text        UNIQUE,
   password_hash         text,                 -- solo admin (web)
-  pin_hash              text,                 -- acopiador y analista (app móvil); lo cambia el propio usuario
-  pin_actualizado_en    timestamptz,
+  pin_hash              text,                 -- acopiador y analista (app móvil); NULL = pendiente de activar:
+                                              -- el propio usuario crea su PIN al activar el celular
+  pin_actualizado_en    timestamptz,          -- cuándo el usuario creó su PIN (NULL = PIN heredado del admin o sin PIN)
   pin_intentos_fallidos smallint    NOT NULL DEFAULT 0,
   bloqueado_hasta       timestamptz,          -- bloqueo temporal tras varios PIN incorrectos
   activo                boolean     NOT NULL DEFAULT true,
@@ -141,8 +142,10 @@ CREATE TABLE usuario (
        AND email IS NOT NULL AND password_hash IS NOT NULL)
     OR
     (rol IN ('acopiador', 'analista')
-       AND dni IS NOT NULL AND celular IS NOT NULL AND pin_hash IS NOT NULL)
-  )
+       AND dni IS NOT NULL AND celular IS NOT NULL)
+  ),
+  -- No hay fecha de PIN sin PIN
+  CONSTRAINT ck_usuario_pin_fecha CHECK (pin_actualizado_en IS NULL OR pin_hash IS NOT NULL)
 );
 CREATE TRIGGER trg_usuario_act BEFORE UPDATE ON usuario
   FOR EACH ROW EXECUTE FUNCTION fn_actualizado_en();

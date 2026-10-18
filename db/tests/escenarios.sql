@@ -225,6 +225,16 @@ SELECT pg_temp.chk('auditoria registra', (SELECT count(*) FROM auditoria)>0);
 SELECT pg_temp.chk('pago_acopiador constraint', true);
 SELECT pg_temp.err('pago_acopiador pagado sin gasto','INSERT INTO pago_acopiador(acopiador_id,mes,litros_mes,sueldo_base,estado,pagado_en,creado_por) SELECT aco,''2026-03-01'',1,1,''pagado'',now(),adm FROM m','');
 
+-- PIN propio (Bloque 6): el usuario móvil nace sin PIN y lo crea al activar su celular.
+-- Al final del archivo para no cambiar los usuarios que usan los escenarios anteriores.
+INSERT INTO usuario(rol,nombre_completo,dni,celular) VALUES ('analista','Analista Sin PIN','44444444','900000004');
+SELECT pg_temp.chk('usuario movil sin pin_hash: pendiente de activar', (SELECT pin_hash IS NULL AND pin_actualizado_en IS NULL FROM usuario WHERE dni='44444444'));
+SELECT pg_temp.err('admin sin password_hash sigue rechazado','INSERT INTO usuario(rol,nombre_completo,email) VALUES (''admin'',''Sin clave'',''b@x.pe'')','ck_usuario_credenciales');
+SELECT pg_temp.err('usuario movil sin dni sigue rechazado','INSERT INTO usuario(rol,nombre_completo,celular) VALUES (''acopiador'',''Sin DNI'',''900000005'')','ck_usuario_credenciales');
+SELECT pg_temp.err('pin_actualizado_en sin pin_hash se rechaza','UPDATE usuario SET pin_actualizado_en=now() WHERE dni=''44444444''','ck_usuario_pin_fecha');
+UPDATE usuario SET pin_hash='p', pin_actualizado_en=now() WHERE dni='44444444';
+SELECT pg_temp.chk('al activar: pin_hash y pin_actualizado_en juntos', (SELECT pin_hash IS NOT NULL AND pin_actualizado_en IS NOT NULL FROM usuario WHERE dni='44444444'));
+
 SELECT n, CASE WHEN ok THEN 'PASS' ELSE '**FAIL**' END FROM res WHERE NOT ok;
 SELECT count(*) FILTER (WHERE ok) pass, count(*) FILTER (WHERE NOT ok) fail FROM res;
 ROLLBACK;
