@@ -29,6 +29,10 @@ interface ApiQueseria {
 
     @GET("acopiador/mi-dia")
     suspend fun miDia(@Header("Authorization") bearer: String): MiDiaDto
+
+    /** Hoy y los 6 días anteriores, hoy primero, incluidos los días sin entregas. */
+    @GET("acopiador/ultimos-dias")
+    suspend fun ultimosDias(@Header("Authorization") bearer: String): List<MiDiaDto>
 }
 
 object Red {

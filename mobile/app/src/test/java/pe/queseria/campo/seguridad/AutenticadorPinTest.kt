@@ -102,6 +102,9 @@ class AutenticadorPinTest {
 
         override suspend fun miDia(bearer: String): MiDiaDto =
             error("no se usa en estas pruebas")
+
+        override suspend fun ultimosDias(bearer: String): List<MiDiaDto> =
+            error("no se usa en estas pruebas")
     }
 
     private val almacen = Memoria()
