@@ -26,7 +26,7 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 | `datos/local/` | Room: productores, rutas, estado de sanción, recolecciones (cola por `estado_sync`), meta (cursor de pull, última firma). |
 | `datos/remoto/` | Retrofit (endpoints reales), DTOs y traducción de errores HTTP a mensajes (`ErrorApp`). |
 | `registro/` | Armado y firma de la recolección (`ArmadoRecoleccion`), registro encadenado y alta de productor de campo (`Registrador`). |
-| `sync/` | `MotorSync` (push por lotes + pull incremental), `SyncWorker` (WorkManager), `MiDia`. |
+| `sync/` | `MotorSync` (push por lotes + pull incremental), `SyncWorker` (WorkManager), `MiDia` (hoy y los últimos 7 días: servidor + Room). |
 
 ## Decisiones
 - **Token y datos de sesión:** se cifran con AES-256-GCM, con la clave en Android Keystore, y se guardan
@@ -36,5 +36,5 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
   el JSON lleva exactamente los números que se firmaron (`NumeroExacto`).
 - **Cola:** las filas `PENDIENTE` de `recoleccion`/`productor`. `creado`/`duplicado` → `SINCRONIZADO`;
   `rechazado` → `RECHAZADO` con motivo, se conserva y no se reenvía. Ante una falla de red queda
-  `PENDIENTE` y WorkManager reintenta con espera exponencial. Solo se purga lo confirmado de hace más de 7 días.
+  `PENDIENTE` y WorkManager reintenta con espera exponencial. Solo se purga lo confirmado de hace más de 7 días (los mismos 7 días de "Últimos días", B6b).
 - Huecos del contrato: ver "Observaciones de la app Android" en `docs/sincronizacion.md`.

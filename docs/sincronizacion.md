@@ -211,6 +211,23 @@ puede subirse antes o después de la revisión. `GET /analisis/{recoleccion_id}/
 (hora de Lima). Las anuladas aparecen en la lista con `anulada_en`, pero no suman. Lo que aún no se
 sincronizó lo suma el celular desde Room.
 
+## 6b. `GET /acopiador/ultimos-dias` (solo acopiador, Bloque 7)
+
+Lista de `MiDia` (el mismo objeto de la sección 6), **un elemento por día de hoy−6 a hoy, hoy primero**,
+incluidos los días sin entregas (`total_litros` 0, `recolecciones` vacía). Un día = fecha en hora de Lima
+(`fecha` de `v_recoleccion_detalle`, la misma regla que `mi-dia`); el elemento de hoy es idéntico a lo que
+devuelve `mi-dia`. Solo las recolecciones que registró el acopiador autenticado (`registrado_por`). Sin
+parámetros: el límite de 7 días es la constante `DIAS_HISTORIAL` en `backend/app/routers/acopiador.py` (y
+la misma en `MiDia.DIAS_HISTORIAL` de la app). Otro rol → 403; sin token → 401. No toca el esquema.
+
+Por qué un solo endpoint con las filas, y no `mi-dia?fecha=` o un resumen por día: la lista de B6b
+necesita el total de cada día y su detalle las filas; así basta **una consulta y una llamada**, sin
+parámetros que validar, y con señal intermitente el detalle se arma con lo ya recibido (unas 200 filas
+como mucho). `mi-dia` no cambió: B3 lo sigue usando para rehidratar el día.
+
+El celular junta cada día con lo de Room igual que en B6, descartando por UUID lo pendiente que el
+servidor ya tiene. Sin red no arma totales de días anteriores (ver `docs/pendientes-historial.md`).
+
 ## 7. Admin (relacionado)
 
 - `GET /alertas`: pendientes, con datos de la recolección y `recoleccion_retenida`. Filtros `todas`,
@@ -279,7 +296,8 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
 
     Límites que quedan: necesita red en ese momento (si la app se cierra, se vuelve a preguntar al
     abrir; en un celular limpio y sin señal no hay nada que rehidratar, y B3 avisa que puede faltar lo
-    de hoy); solo cubre HOY; y solo lo que registró ESE acopiador, así que si a un productor le
+    de hoy); solo cubre HOY (los días anteriores ya se pueden **consultar** en B6b, sección 6b, pero
+    eso no cambia el estado de B3, que es por jornada); y solo lo que registró ESE acopiador, así que si a un productor le
     recibió leche otro acopiador (ruta reasignada a mitad del día) B3 lo seguirá mostrando como
     pendiente. Tampoco se enteran las filas locales de una anulación hecha en el servidor: una
     recolección anulada que este celular registró sigue sumando en B3 hasta el próximo día.
@@ -333,7 +351,9 @@ recuperar un PIN olvidado o bloqueado.
 
 **(F) Límites 2 y 3 de la rehidratación de B3** (ver el ítem 10 de este documento). Además de necesitar
 red en ese momento: **(2) solo cubre HOY** — un celular reinstalado no recupera el estado de días
-anteriores, que solo vive en el servidor; y **(3) solo lo que registró ESE acopiador** — si a un productor
+anteriores, que solo vive en el servidor (desde el Bloque 7 el acopiador **ve** los totales de los
+últimos 7 días en B6b con `GET /acopiador/ultimos-dias`; lo que sigue sin existir es rehidratar B3 con
+días anteriores, que no hace falta porque B3 es solo de hoy); y **(3) solo lo que registró ESE acopiador** — si a un productor
 le recibió leche otro acopiador (ruta reasignada a mitad del día), B3 lo seguirá mostrando como
 pendiente y puede recibirle leche dos veces el mismo día sin aviso. De ahí sale también que una
 recolección anulada en el servidor que este celular registró siga sumando en B3 hasta el día siguiente.
