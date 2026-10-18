@@ -54,6 +54,8 @@ data class ActivarDto(
     @SerialName("device_uuid") val deviceUuid: String,
     @SerialName("clave_publica") val clavePublica: String,
     val modelo: String?,
+    /** El PIN que el usuario acaba de crear (4 dígitos). */
+    val pin: String,
 )
 
 @Serializable
@@ -70,6 +72,9 @@ data class DispositivoActivadoDto(
     @SerialName("dispositivo_id") val dispositivoId: Long,
     @SerialName("activado_en") val activadoEn: String,
     val usuario: UsuarioSesionDto,
+    /** Activar ya abre la sesión: el servidor devuelve el token (no hace falta otro login). */
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("expira_en_min") val expiraEnMin: Int,
 )
 
 @Serializable

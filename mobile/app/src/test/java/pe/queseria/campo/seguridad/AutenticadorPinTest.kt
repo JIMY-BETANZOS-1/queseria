@@ -61,9 +61,23 @@ class AutenticadorPinTest {
         /** Qué falla de red simular: sin señal, o el servidor que no contesta en 4 s. */
         var fallaDeRed: () -> IOException = { IOException("sin señal") }
 
+        var activacionesPedidas = 0
+        var ultimaActivacion: ActivarDto? = null
+
+        /** Como el backend: un código inválido es 401; si sale bien, el PIN nuevo pasa a ser el del servidor. */
+        var codigoValido = true
+
         override suspend fun activar(cuerpo: ActivarDto): DispositivoActivadoDto {
+            activacionesPedidas++
             if (!conRed) throw fallaDeRed()
-            return DispositivoActivadoDto(dispositivoId = 3, activadoEn = "2026-10-13T08:00:00", usuario = usuario)
+            if (!codigoValido) throw ErrorApp.NoAutorizado("Código inválido, vencido o ya usado")
+            ultimaActivacion = cuerpo
+            pinDelServidor = cuerpo.pin
+            debeReactivar = false           // el backend pone pin_actualizado_en = now()
+            return DispositivoActivadoDto(
+                dispositivoId = 3, activadoEn = "2026-10-13T08:00:00", usuario = usuario,
+                accessToken = "jwt-de-activacion", expiraEnMin = 60,
+            )
         }
 
         override suspend fun loginPin(cuerpo: LoginPinDto): TokenMovilDto {
@@ -120,7 +134,7 @@ class AutenticadorPinTest {
 
     /** Deja el celular vinculado y con un ingreso online correcto: el estado normal en campo. */
     private suspend fun vincularEIngresarConSenal() {
-        auth.activar("ABC123")
+        auth.activar("ABC123", "1234")
         auth.ingresar("1234")
     }
 
@@ -135,9 +149,23 @@ class AutenticadorPinTest {
     }
 
     @Test
-    fun `el ingreso online guarda el verificador local`() = runTest {
-        auth.activar("ABC123")
-        assertFalse("Recién vinculado no debe haber verificador", pinLocal.tieneVerificador())
+    fun `la activacion guarda el verificador y el token y abre la sesion`() = runTest {
+        val abierta = auth.activar("ABC123", "4821")
+
+        assertTrue("Con señal y sin otro login: el servidor acaba de aceptar el PIN", abierta.conServidor)
+        assertEquals(abierta, auth.estado.value)
+        assertTrue("Ya se puede entrar sin señal con el PIN recién creado", pinLocal.tieneVerificador())
+        assertEquals("jwt-de-activacion", auth.tokenVigente())
+        assertEquals("4821", api.ultimaActivacion?.pin)
+        assertTrue("El PIN no se guarda en claro", almacen.datos.values.none { it.contains("4821") })
+        api.conRed = false
+        assertFalse(auth.ingresar("4821").conServidor)
+    }
+
+    @Test
+    fun `el ingreso online repone el verificador local si falta`() = runTest {
+        auth.activar("ABC123", "1234")
+        pinLocal.borrar()           // p. ej. un celular que venía de una versión anterior
 
         auth.ingresar("1234")
 
@@ -190,8 +218,10 @@ class AutenticadorPinTest {
 
     @Test
     fun `sin verificador y sin red los reintentos no bloquean`() = runTest {
-        // Vinculado pero sin ningún ingreso online: no hay con qué validar sin señal
-        auth.activar("ABC123")
+        // Vinculado pero sin verificador (desde el Bloque 6 la activación lo guarda; esto es un celular
+        // que venía de una versión anterior): no hay con qué validar sin señal
+        auth.activar("ABC123", "1234")
+        pinLocal.borrar()
         api.conRed = false
 
         repeat(PinLocal.MAX_INTENTOS + 2) {
@@ -299,7 +329,7 @@ class AutenticadorPinTest {
 
         // El admin genera un código nuevo y el acopiador vuelve a vincular el mismo celular
         api.dispositivoActivo = true
-        auth.activar("NUEVO123")
+        auth.activar("NUEVO123", "1234")
         assertEquals("El mismo aparato, no uno nuevo", device, auth.deviceUuid())
 
         assertTrue(auth.ingresar("1234").conServidor)
@@ -359,7 +389,7 @@ class AutenticadorPinTest {
     @Test
     fun `con red el servidor avisa que hay que cambiar el PIN`() = runTest {
         api.debeCambiarPin = true
-        auth.activar("ABC123")
+        auth.activar("ABC123", "1234")
 
         val s = auth.ingresar("1234")
 
@@ -376,7 +406,7 @@ class AutenticadorPinTest {
     @Test
     fun `el PIN pendiente sobrevive al ingreso sin red y a reabrir la app`() = runTest {
         api.debeCambiarPin = true
-        auth.activar("ABC123")
+        auth.activar("ABC123", "1234")
         auth.ingresar("1234")
 
         api.conRed = false
@@ -393,7 +423,7 @@ class AutenticadorPinTest {
     @Test
     fun `con senal debil se entra sin cambiar el PIN y se exige al recuperar la senal`() = runTest {
         api.debeCambiarPin = true
-        auth.activar("ABC123")
+        auth.activar("ABC123", "1234")
         auth.ingresar("1234")
 
         api.conRed = false
@@ -411,7 +441,7 @@ class AutenticadorPinTest {
     @Test
     fun `cambiar el PIN limpia el pendiente y no vuelve sin red`() = runTest {
         api.debeCambiarPin = true
-        auth.activar("ABC123")
+        auth.activar("ABC123", "1234")
         auth.ingresar("1234")
 
         auth.cambiarPin("1234", "8765")
@@ -477,5 +507,109 @@ class AutenticadorPinTest {
     fun `sin celular vinculado olvide mi PIN no ofrece volver`() {
         auth.irAActivar()
         assertEquals(EstadoSesion.SinVincular(motivo = null, puedeVolver = false), auth.estado.value)
+    }
+
+    // ─── Bloque 6: activación con PIN propio y reactivación sin perder nada ───
+
+    private var clavesPedidas = 0
+
+    /** Mismo almacén, servidor y verificador que [auth], con lo que falta sincronizar y la clave a elección. */
+    private fun autenticadorCon(pendientes: String?, claveExiste: Boolean) = Autenticador(
+        api = api,
+        almacen = almacen,
+        clavePublica = { clavesPedidas++; "clave-publica-de-prueba" },
+        pin = pinLocal,
+        modelo = "realme RMX3231",
+        reloj = { ahora },
+        pendientesSinEnviar = { pendientes },
+        claveFirmaExiste = { claveExiste },
+    )
+
+    @Test
+    fun `reactivar con un PIN nuevo quita el bloqueo local y el PIN viejo deja de servir`() = runTest {
+        vincularEIngresarConSenal()
+        api.conRed = false
+        repeat(PinLocal.MAX_INTENTOS) { runCatching { auth.ingresar("0000") } }
+        assertNotNull("Quedó bloqueado en el celular", auth.bloqueadoHasta())
+
+        api.conRed = true
+        auth.irAActivar()
+        auth.activar("NUEVO123", "7319")
+
+        assertNull("La reactivación limpia el bloqueo local", auth.bloqueadoHasta())
+        api.conRed = false
+        capturar<ErrorApp.NoAutorizado> { auth.ingresar("1234") }
+        assertFalse(auth.ingresar("7319").conServidor)
+    }
+
+    @Test
+    fun `reactivar conserva el aparato y reutiliza la clave de firma`() = runTest {
+        val a = autenticadorCon(pendientes = "2 entregas", claveExiste = true)
+        a.activar("ABC123", "1234")
+        val device = a.deviceUuid()
+        val primera = api.ultimaActivacion!!
+
+        a.irAActivar()
+        a.activar("NUEVO123", "7319")
+
+        assertEquals("El mismo aparato: el servidor reutiliza su fila de dispositivo", device, a.deviceUuid())
+        assertEquals(device, api.ultimaActivacion!!.deviceUuid)
+        assertEquals("La misma clave pública: lo pendiente sigue bien firmado",
+            primera.clavePublica, api.ultimaActivacion!!.clavePublica)
+    }
+
+    @Test
+    fun `con pendientes y sin clave de firma no se reactiva y pide sincronizar primero`() = runTest {
+        val a = autenticadorCon(pendientes = "2 entregas y 1 productor", claveExiste = false)
+        val antes = almacen.datos.toMap()
+
+        val e = capturar<ErrorApp.Local> { a.activar("ABC123", "4821") }
+
+        assertEquals(
+            "Sincronice primero: quedan 2 entregas y 1 productor sin enviar. Si no puede, avise al administrador.",
+            e.message,
+        )
+        assertEquals("No se llamó al servidor", 0, api.activacionesPedidas)
+        assertEquals("Ni se creó una clave nueva (invalidaría lo pendiente)", 0, clavesPedidas)
+        assertEquals("Nada cambió en el celular", antes, almacen.datos)
+    }
+
+    @Test
+    fun `sin pendientes se activa aunque haya que crear la clave de firma`() = runTest {
+        val a = autenticadorCon(pendientes = null, claveExiste = false)
+        assertTrue(a.activar("ABC123", "4821").conServidor)
+        assertEquals(1, clavesPedidas)
+    }
+
+    @Test
+    fun `con pendientes y con su clave de firma se reactiva normal`() = runTest {
+        val a = autenticadorCon(pendientes = "3 entregas", claveExiste = true)
+        assertTrue(a.activar("ABC123", "4821").conServidor)
+        assertEquals(1, api.activacionesPedidas)
+    }
+
+    @Test
+    fun `si la activacion falla no queda nada a medias`() = runTest {
+        vincularEIngresarConSenal()
+        auth.cerrarSesion()
+        auth.irAActivar()
+        val antes = almacen.datos.toMap()
+
+        api.conRed = false
+        capturar<ErrorApp.SinRed> { auth.activar("NUEVO123", "7319") }
+        api.conRed = true
+        api.codigoValido = false
+        capturar<ErrorApp.NoAutorizado> { auth.activar("VIEJO123", "7319") }
+
+        assertEquals("Ni token, ni verificador, ni sesión cambiaron", antes, almacen.datos)
+        api.conRed = false
+        auth.volverAlPin()
+        assertFalse("El PIN de antes sigue sirviendo", auth.ingresar("1234").conServidor)
+    }
+
+    @Test
+    fun `un PIN nuevo que no es de 4 digitos no llega al servidor`() = runTest {
+        for (malo in listOf("123", "12345", "123456")) capturar<ErrorApp.Validacion> { auth.activar("ABC123", malo) }
+        assertEquals(0, api.activacionesPedidas)
     }
 }

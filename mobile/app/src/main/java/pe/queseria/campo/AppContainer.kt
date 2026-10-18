@@ -2,6 +2,7 @@ package pe.queseria.campo
 
 import android.content.Context
 import android.os.Build
+import kotlinx.coroutines.flow.first
 import pe.queseria.campo.datos.local.BaseLocal
 import pe.queseria.campo.datos.remoto.ApiQueseria
 import pe.queseria.campo.datos.remoto.ErrorApp
@@ -16,6 +17,7 @@ import pe.queseria.campo.sync.MiDia
 import pe.queseria.campo.sync.MotorSync
 import pe.queseria.campo.sync.RemotoApi
 import pe.queseria.campo.ubicacion.Ubicador
+import pe.queseria.campo.ui.componentes.TextosPendientes
 
 /** Dependencias de la app (sin Hilt). Se crea una vez en [QueseriaApp]. */
 class AppContainer(context: Context) {
@@ -33,6 +35,11 @@ class AppContainer(context: Context) {
         clavePublica = { Firmador.clavePublicaB64(claveDispositivo.obtenerOCrear()) },
         pin = PinLocal(caja),
         modelo = "${Build.MANUFACTURER} ${Build.MODEL}".take(100),
+        pendientesSinEnviar = {
+            val dao = base.syncDao()
+            TextosPendientes.contar(dao.observarPendientes().first(), dao.observarProductoresPendientes().first())
+        },
+        claveFirmaExiste = claveDispositivo::existe,
     )
 
     val registrador = Registrador(base, claveDispositivo)

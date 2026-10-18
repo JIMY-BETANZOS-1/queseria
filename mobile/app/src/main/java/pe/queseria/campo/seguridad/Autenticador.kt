@@ -37,10 +37,16 @@ sealed class EstadoSesion {
  * Vinculación del celular, ingreso con PIN y token de la API.
  *
  * Flujo (backend/app/routers/auth.py):
- *  1. activar(código del admin, 24 h): crea la clave de firma en el Keystore y envía su clave pública
- *     + device_uuid. El PIN inicial lo define el admin al crear el usuario.
+ *  1. activar(código del admin, PIN nuevo): el código es de un solo uso y dura 60 min. El usuario crea
+ *     su propio PIN de 4 dígitos; el servidor lo guarda y devuelve el token, así que entra directo.
+ *     Envía la clave pública de firma (Keystore) + device_uuid. Reactivar con un código nuevo es la
+ *     forma de recuperar un PIN olvidado.
  *  2. ingresar(PIN): con red manda el servidor; sin red se valida con [PinLocal].
- *  3. Si el servidor responde debe_cambiar_pin, la app pide cambiarlo (cambiarPin).
+ *
+ * @param pendientesSinEnviar descripción de lo que falta sincronizar ("2 entregas y 1 productor") o
+ *   null si no hay nada. Solo se lee al activar (ver [activar]).
+ * @param claveFirmaExiste si la clave de firma del Keystore ya existe. Se pregunta ANTES de
+ *   [clavePublica], que la crearía.
  */
 class Autenticador(
     private val api: ApiQueseria?,
@@ -49,6 +55,8 @@ class Autenticador(
     private val pin: PinLocal,
     private val modelo: String?,
     private val reloj: () -> Long = System::currentTimeMillis,
+    private val pendientesSinEnviar: suspend () -> String? = { null },
+    private val claveFirmaExiste: () -> Boolean = { true },
 ) {
     private val _estado = MutableStateFlow(usuario()?.let { EstadoSesion.Cerrada(it) } ?: EstadoSesion.SinVincular())
     val estado: StateFlow<EstadoSesion> = _estado.asStateFlow()
@@ -65,15 +73,36 @@ class Autenticador(
         return UsuarioLocal(id, almacen.leer(K_ROL) ?: "", almacen.leer(K_NOMBRE) ?: "")
     }
 
-    suspend fun activar(codigo: String): UsuarioLocal {
-        val r = llamar { api().activar(ActivarDto(codigo.trim(), deviceUuid(), clavePublica(), modelo)) }
-        val u = UsuarioLocal(r.usuario.id, r.usuario.rol, r.usuario.nombreCompleto)
-        if (usuario()?.id != u.id) pin.borrar()
-        guardarUsuario(u)
+    /**
+     * Activa (o reactiva) este celular con el código del admin y el PIN que el usuario acaba de crear.
+     *
+     * Reactivar NO pierde ni invalida nada de lo que falta enviar:
+     *  - la clave de firma del Keystore se reutiliza (el servidor recibe la misma clave pública), así
+     *    que las firmas de lo pendiente siguen siendo válidas;
+     *  - el servidor reutiliza la misma fila de `dispositivo` (mismo `device_uuid`, [K_DEVICE]);
+     *  - Room (entregas, altas, cadena `hash_anterior` en Meta.ULTIMA_FIRMA) no se toca: aquí no hay DAO.
+     *
+     * Lo único que no se puede garantizar es que la clave de firma ya no exista: se registraría una
+     * nueva y lo pendiente, firmado con la vieja, llegaría con `firma_invalida`. En ese caso, con algo
+     * sin enviar, no se activa: hay que sincronizar antes (el servidor aún tiene la clave vieja).
+     *
+     * Si el servidor rechaza (código, PIN trivial, red...), no se cambió nada en el celular.
+     */
+    suspend fun activar(codigo: String, pinNuevo: String): EstadoSesion.Abierta {
+        validarPin(pinNuevo)
+        if (!claveFirmaExiste()) {
+            pendientesSinEnviar()?.let { throw ErrorApp.Local(sincronicePrimero(it)) }
+        }
+        val r = llamar { api().activar(ActivarDto(codigo.trim(), deviceUuid(), clavePublica(), modelo, pinNuevo)) }
+
+        // Desde aquí el servidor ya aceptó: el PIN nuevo reemplaza al anterior (y a su bloqueo local)
+        pin.borrar()
+        pin.guardar(pinNuevo)
+        almacen.guardar(K_TOKEN, r.accessToken)
+        almacen.guardar(K_TOKEN_EXPIRA, (reloj() + (r.expiraEnMin - 1) * 60_000L).toString())
         almacen.guardar(K_DISPOSITIVO_ID, r.dispositivoId.toString())
-        borrarToken()
-        _estado.value = EstadoSesion.Cerrada(u)
-        return u
+        almacen.guardar(K_DEBE_CAMBIAR, null)
+        return abrir(UsuarioLocal(r.usuario.id, r.usuario.rol, r.usuario.nombreCompleto), conServidor = true)
     }
 
     suspend fun ingresar(pinTexto: String): EstadoSesion.Abierta {
@@ -221,6 +250,9 @@ class Autenticador(
     companion object {
         const val MSG_DESVINCULADO = "Celular desvinculado, pida un código nuevo al administrador"
         const val MSG_DEBE_REACTIVAR = "Pida un código nuevo al administrador para crear su PIN"
+
+        fun sincronicePrimero(pendientes: String) =
+            "Sincronice primero: quedan $pendientes sin enviar. Si no puede, avise al administrador."
 
         private val LIMA: ZoneId = ZoneId.of("America/Lima")
         private val HORA: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
