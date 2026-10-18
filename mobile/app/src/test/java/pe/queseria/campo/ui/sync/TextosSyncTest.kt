@@ -1,9 +1,11 @@
 package pe.queseria.campo.ui.sync
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import pe.queseria.campo.datos.local.EntregaRetenidaFila
 import pe.queseria.campo.datos.local.EstadoSync
+import pe.queseria.campo.datos.local.ProductorEntidad
 import pe.queseria.campo.datos.local.RecoleccionEntidad
 import pe.queseria.campo.sync.ResumenSync
 import java.time.Instant
@@ -24,7 +26,7 @@ class TextosSyncTest {
 
     private fun retenida(id: String) = EntregaRetenidaFila(
         id = id, litros = "23.50", registradaEnMs = ahora, productor = "Rosa Quispe",
-        motivoProductor = "Ya existe un productor con ese documento",
+        motivoProductor = "Ya existe un productor con ese documento", productorClave = "u1",
     )
 
     // ─── Último sync ──────────────────────────────────────────────────────────
@@ -51,49 +53,141 @@ class TextosSyncTest {
     // ─── Resumen del envío ────────────────────────────────────────────────────
 
     @Test
-    fun `el resumen solo nombra lo que hubo`() {
-        assertEquals(
-            "3 entregas enviadas · 1 con alerta",
-            TextosSync.textoResumen(ResumenSync(recoleccionesConfirmadas = 3, conAlertas = 1, lotes = 1)),
-        )
-        assertEquals(
-            "2 entregas enviadas · 1 productor · 1 rechazada",
-            TextosSync.textoResumen(
-                ResumenSync(productoresEnviados = 1, recoleccionesConfirmadas = 2, rechazados = 1, lotes = 1),
-            ),
-        )
+    fun `sin nada que enviar se dice claro, no se deja en blanco`() {
+        assertEquals("No había nada pendiente por enviar", TextosSync.textoResumen(ResumenSync()))
     }
 
     @Test
     fun `de a uno el resumen va en singular`() {
+        assertEquals("1 entrega enviada", TextosSync.textoResumen(ResumenSync(recoleccionesConfirmadas = 1, lotes = 1)))
+        assertEquals("1 productor enviado", TextosSync.textoResumen(ResumenSync(productoresEnviados = 1, lotes = 1)))
         assertEquals(
-            "1 entrega enviada",
-            TextosSync.textoResumen(ResumenSync(recoleccionesConfirmadas = 1, lotes = 1)),
+            "1 alta de productor rechazada",
+            TextosSync.textoResumen(ResumenSync(productoresRechazados = 1, lotes = 1)),
         )
         assertEquals(
-            "1 productor",
-            TextosSync.textoResumen(ResumenSync(productoresEnviados = 1, lotes = 1)),
+            "1 entrega rechazada",
+            TextosSync.textoResumen(ResumenSync(recoleccionesRechazadas = 1, lotes = 1)),
         )
-        assertEquals("1 rechazada", TextosSync.textoResumen(ResumenSync(rechazados = 1, lotes = 1)))
     }
 
     @Test
     fun `de a varios el resumen va en plural`() {
         assertEquals(
-            "2 entregas enviadas · 3 productores · 2 con alerta · 4 rechazadas",
+            "2 entregas enviadas · 3 productores enviados · 2 con alerta · " +
+                "2 altas de productor rechazadas · 4 entregas rechazadas",
             TextosSync.textoResumen(
                 ResumenSync(
-                    productoresEnviados = 3, recoleccionesConfirmadas = 2, rechazados = 4,
-                    conAlertas = 2, lotes = 1,
+                    productoresEnviados = 3, recoleccionesConfirmadas = 2, productoresRechazados = 2,
+                    recoleccionesRechazadas = 4, conAlertas = 2, lotes = 1,
                 ),
             ),
         )
     }
 
+    /** El caso que salía como "1 productor · 1 rechazada": el único productor fue rechazado. */
     @Test
-    fun `sin nada que enviar se dice claro, no se deja en blanco`() {
-        assertEquals("No había nada pendiente por enviar", TextosSync.textoResumen(ResumenSync()))
+    fun `un alta rechazada no se lee como productor enviado`() {
+        val texto = TextosSync.textoResumen(
+            ResumenSync(productoresRechazados = 1, recoleccionesRechazadas = 1, lotes = 1),
+        )
+        assertEquals("1 alta de productor rechazada · 1 entrega rechazada", texto)
+        assertFalse(texto.contains("enviad"))
     }
+
+    @Test
+    fun `el resumen solo nombra lo que hubo`() {
+        assertEquals(
+            "3 entregas enviadas · 1 con alerta",
+            TextosSync.textoResumen(ResumenSync(recoleccionesConfirmadas = 3, conAlertas = 1, lotes = 1)),
+        )
+    }
+
+    // ─── Titular ──────────────────────────────────────────────────────────────
+
+    @Test
+    fun `sin pendientes ni rechazos el titular dice todo enviado`() {
+        assertEquals(TextosSync.Titular("Todo enviado", TextosSync.Tono.BIEN), TextosSync.titular(0, 0, 0))
+    }
+
+    @Test
+    fun `con una rechazada no dice todo enviado`() {
+        assertEquals(
+            TextosSync.Titular("Enviado, con 1 rechazada", TextosSync.Tono.ADVERTENCIA),
+            TextosSync.titular(0, 0, 1),
+        )
+    }
+
+    @Test
+    fun `con varias rechazadas va en plural`() {
+        assertEquals(
+            TextosSync.Titular("Enviado, con 3 rechazadas", TextosSync.Tono.ADVERTENCIA),
+            TextosSync.titular(0, 0, 3),
+        )
+    }
+
+    @Test
+    fun `lo pendiente manda sobre lo rechazado`() {
+        assertEquals(
+            TextosSync.Titular("1 entrega sin enviar", TextosSync.Tono.ERROR),
+            TextosSync.titular(1, 0, 2),
+        )
+        assertEquals(
+            TextosSync.Titular("2 entregas y 1 productor sin enviar", TextosSync.Tono.ERROR),
+            TextosSync.titular(2, 1, 0),
+        )
+    }
+
+    // ─── Ya avisé ─────────────────────────────────────────────────────────────
+
+    private fun altaRechazada(clave: String) = ProductorEntidad(
+        clave, null, clave, null, "Rosa Quispe", "41234567", null, 3, null, null, false, null,
+        EstadoSync.RECHAZADO, "Ya existe un productor con ese documento", ahora,
+    )
+
+    @Test
+    fun `cada alta rechazada lleva su leche retenida y las sueltas van aparte`() {
+        val p = panoramaDePrueba(avisados = emptySet())
+        assertEquals(listOf("u1"), p.porAvisar.altas.map { it.productor.clave })
+        assertEquals(listOf("aaaa"), p.porAvisar.altas.single().entregas.map { it.id })
+        assertEquals(listOf("bbbb"), p.porAvisar.sueltas.map { it.id })
+        assertEquals(2, p.porAvisar.total)
+        assertEquals(0, p.avisados.total)
+    }
+
+    @Test
+    fun `lo avisado sale de por avisar pero se conserva con su leche`() {
+        val p = panoramaDePrueba(avisados = setOf(TextosSync.avisoDeAlta("u1")))
+        assertEquals(1, p.porAvisar.total)
+        assertEquals(listOf("bbbb"), p.porAvisar.sueltas.map { it.id })
+        assertEquals("la leche sigue a la vista", listOf("aaaa"), p.avisados.altas.single().entregas.map { it.id })
+    }
+
+    @Test
+    fun `con todo avisado no queda nada por avisar`() {
+        val p = panoramaDePrueba(setOf(TextosSync.avisoDeAlta("u1"), TextosSync.avisoDeEntrega("bbbb")))
+        assertEquals(0, p.porAvisar.total)
+        assertEquals(2, p.avisados.total)
+    }
+
+    @Test
+    fun `los avisados se guardan una vez cada uno y se leen igual`() {
+        val v1 = TextosSync.agregarAvisado(null, "alta:u1")
+        val v2 = TextosSync.agregarAvisado(TextosSync.agregarAvisado(v1, "rec:bbbb"), "alta:u1")
+        assertEquals(setOf("alta:u1", "rec:bbbb"), TextosSync.leerAvisados(v2))
+        assertEquals(emptySet<String>(), TextosSync.leerAvisados(null))
+        assertEquals(emptySet<String>(), TextosSync.leerAvisados(""))
+    }
+
+    private fun panoramaDePrueba(avisados: Set<String>) = TextosSync.panorama(
+        productoresRechazados = listOf(altaRechazada("u1")),
+        rechazadas = listOf(
+            recoleccion("aaaa", "El productor no está registrado (súbalo antes que sus recolecciones)"),
+            recoleccion("bbbb", "Un acopiador solo registra productores de ruta"),
+        ),
+        retenidas = listOf(retenida("aaaa")),
+        avisados = avisados,
+    )
 
     // ─── Rechazadas: las de arrastre van aparte ───────────────────────────────
 

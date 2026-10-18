@@ -74,7 +74,8 @@ abstract class SyncDao {
                rec.litros            AS litros,
                rec.registrada_en_ms  AS registrada_en_ms,
                p.nombre              AS productor,
-               p.motivo              AS motivo_productor
+               p.motivo              AS motivo_productor,
+               p.clave               AS productor_clave
           FROM recoleccion rec
           JOIN productor p ON p.uuid_cliente = rec.productor_uuid_cliente
          WHERE rec.estado_sync = 'RECHAZADO' AND p.estado_sync = 'RECHAZADO'

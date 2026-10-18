@@ -16,4 +16,6 @@ data class EntregaRetenidaFila(
     /** El nombre que el acopiador escribió en el alta; el productor nunca llegó a existir. */
     val productor: String,
     @ColumnInfo(name = "motivo_productor") val motivoProductor: String?,
+    /** Para mostrarla dentro de la tarjeta de su alta rechazada en B7. */
+    @ColumnInfo(name = "productor_clave") val productorClave: String,
 )

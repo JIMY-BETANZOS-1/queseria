@@ -15,6 +15,12 @@ private val colores = lightColorScheme(
     onErrorContainer = Color(0xFF7F0000),
 )
 
+/**
+ * Advertencia: algo que el acopiador debe atender pero que no es un error suyo (p. ej. se envió todo,
+ * con rechazos). Material 3 no trae este rol. Ámbar oscuro: contraste ≥ 4.5 sobre blanco, legible al sol.
+ */
+val ColorAdvertencia = Color(0xFFB45309)
+
 @Composable
 fun TemaCampo(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = colores, content = content)

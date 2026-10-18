@@ -105,4 +105,5 @@ object Meta {
     const val ULTIMO_ERROR_SYNC = "ultimo_error_sync"
     const val ULTIMA_FIRMA = "ultima_firma"         // firma de la última recolección de este celular
     const val PRECIOS = "precios"                   // JSON de PreciosDto
+    const val AVISOS_VISTOS = "avisos_vistos"       // rechazos que el acopiador ya avisó (una clave por línea)
 }

@@ -33,12 +33,16 @@ class RemotoApi(private val api: () -> ApiQueseria, private val bearer: () -> St
 }
 
 data class ResumenSync(
+    /** Solo las altas que el servidor aceptó (creado o duplicado); las rechazadas van aparte. */
     val productoresEnviados: Int = 0,
     val recoleccionesConfirmadas: Int = 0,
-    val rechazados: Int = 0,
+    val productoresRechazados: Int = 0,
+    val recoleccionesRechazadas: Int = 0,
     val conAlertas: Int = 0,
     val lotes: Int = 0,
-)
+) {
+    val rechazados: Int get() = productoresRechazados + recoleccionesRechazadas
+}
 
 /**
  * Sincronización (docs/sincronizacion.md):
@@ -92,14 +96,18 @@ class MotorSync(
             val ahora = reloj()
             for (res in respuesta.productores) {
                 val p = productores.getOrNull(res.indice) ?: continue
-                when (res.estado) {
-                    EstadoItem.CREADO, EstadoItem.DUPLICADO -> dao.productorSincronizado(p.clave, res.productorId, res.codigo)
-                    EstadoItem.RECHAZADO -> dao.productorRechazado(p.clave, res.motivo)
+                r = when (res.estado) {
+                    EstadoItem.CREADO, EstadoItem.DUPLICADO -> {
+                        dao.productorSincronizado(p.clave, res.productorId, res.codigo)
+                        r.copy(productoresEnviados = r.productoresEnviados + 1)
+                    }
+                    EstadoItem.RECHAZADO -> {
+                        dao.productorRechazado(p.clave, res.motivo)
+                        r.copy(productoresRechazados = r.productoresRechazados + 1)
+                    }
                     else -> continue
                 }
                 avance++
-                r = r.copy(productoresEnviados = r.productoresEnviados + 1,
-                           rechazados = r.rechazados + if (res.estado == EstadoItem.RECHAZADO) 1 else 0)
             }
             for (res in respuesta.recolecciones) {
                 val rec = recolecciones.getOrNull(res.indice) ?: continue
@@ -112,7 +120,7 @@ class MotorSync(
                     }
                     EstadoItem.RECHAZADO -> {
                         dao.recoleccionRechazada(rec.id, res.motivo)
-                        r = r.copy(rechazados = r.rechazados + 1)
+                        r = r.copy(recoleccionesRechazadas = r.recoleccionesRechazadas + 1)
                     }
                     else -> continue
                 }

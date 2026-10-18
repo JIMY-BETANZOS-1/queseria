@@ -14,6 +14,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -27,13 +30,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import pe.queseria.campo.BuildConfig
-import pe.queseria.campo.datos.local.EntregaRetenidaFila
 import pe.queseria.campo.datos.local.Meta
-import pe.queseria.campo.datos.local.ProductorEntidad
+import pe.queseria.campo.datos.local.MetaEntidad
 import pe.queseria.campo.datos.local.RecoleccionEntidad
 import pe.queseria.campo.datos.local.SyncDao
 import pe.queseria.campo.datos.remoto.ErrorApp
@@ -44,7 +47,7 @@ import pe.queseria.campo.ui.componentes.BtnPrimario
 import pe.queseria.campo.ui.componentes.BtnSecundario
 import pe.queseria.campo.ui.componentes.MensajeAviso
 import pe.queseria.campo.ui.componentes.MensajeError
-import pe.queseria.campo.ui.componentes.TextosPendientes
+import pe.queseria.campo.ui.tema.ColorAdvertencia
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
 
@@ -73,14 +76,26 @@ class SyncViewModel(private val dao: SyncDao, private val motor: MotorSync) : Vi
     val ultimoError: StateFlow<String?> = dao.observarMeta(Meta.ULTIMO_ERROR_SYNC)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val retenidas: StateFlow<List<EntregaRetenidaFila>> = dao.observarEntregasRetenidas()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /** Rechazos agrupados: por avisar al administrador y ya avisados. */
+    val rechazos: StateFlow<TextosSync.PanoramaRechazos> = combine(
+        dao.observarProductoresRechazados(),
+        dao.observarRechazadas(),
+        dao.observarEntregasRetenidas(),
+        dao.observarMeta(Meta.AVISOS_VISTOS),
+    ) { productores, rechazadas, retenidas, avisados ->
+        TextosSync.panorama(productores, rechazadas, retenidas, TextosSync.leerAvisados(avisados))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SIN_RECHAZOS)
 
-    val rechazadas: StateFlow<List<RecoleccionEntidad>> = dao.observarRechazadas()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val productoresRechazados: StateFlow<List<ProductorEntidad>> = dao.observarProductoresRechazados()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    /**
+     * "Ya avisé": solo guarda la marca en Meta. El productor y su leche siguen en Room como RECHAZADO
+     * (la purga solo borra lo SINCRONIZADO), así que la entrega se puede seguir consultando.
+     */
+    fun marcarAvisado(clave: String) {
+        viewModelScope.launch {
+            val actual = dao.meta(Meta.AVISOS_VISTOS)
+            dao.guardarMeta(MetaEntidad(Meta.AVISOS_VISTOS, TextosSync.agregarAvisado(actual, clave)))
+        }
+    }
 
     /**
      * Sincroniza en el momento, no por WorkManager: es la misma instancia de [MotorSync] que usa
@@ -105,6 +120,11 @@ class SyncViewModel(private val dao: SyncDao, private val motor: MotorSync) : Vi
     }
 
     companion object {
+        val SIN_RECHAZOS = TextosSync.PanoramaRechazos(
+            porAvisar = TextosSync.Rechazos(emptyList(), emptyList()),
+            avisados = TextosSync.Rechazos(emptyList(), emptyList()),
+        )
+
         fun factory(dao: SyncDao, motor: MotorSync) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>) = SyncViewModel(dao, motor) as T
@@ -122,12 +142,12 @@ fun SyncPantalla(dao: SyncDao, motor: MotorSync, onVolver: () -> Unit) {
     val productoresPendientes by vm.productoresPendientes.collectAsStateWithLifecycle()
     val ultimoSyncMs by vm.ultimoSyncMs.collectAsStateWithLifecycle()
     val ultimoError by vm.ultimoError.collectAsStateWithLifecycle()
-    val retenidas by vm.retenidas.collectAsStateWithLifecycle()
-    val rechazadas by vm.rechazadas.collectAsStateWithLifecycle()
-    val productoresRechazados by vm.productoresRechazados.collectAsStateWithLifecycle()
+    val rechazos by vm.rechazos.collectAsStateWithLifecycle()
+    var verAvisados by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val sueltas = TextosSync.partirRechazadas(rechazadas, retenidas)
+    val porAvisar = rechazos.porAvisar
+    val avisados = rechazos.avisados
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -137,18 +157,20 @@ fun SyncPantalla(dao: SyncDao, motor: MotorSync, onVolver: () -> Unit) {
         Text("Sincronización", style = MaterialTheme.typography.headlineSmall)
 
         Estado(
-            pendientes = TextosPendientes.estado(pendientes, productoresPendientes),
-            todoEnviado = pendientes == 0 && productoresPendientes == 0,
+            titular = TextosSync.titular(pendientes, productoresPendientes, porAvisar.total),
             ultimoSync = TextosSync.textoUltimoSync(ultimoSyncMs, System.currentTimeMillis()),
         )
 
         when (val e = estado) {
             // Sin resumen propio todavía, se muestra lo último que dejó el worker en segundo plano
             is EstadoSincronizacion.Listo ->
-                if (e.resumen != null) {
-                    MensajeAviso("✓ ${TextosSync.textoResumen(e.resumen)}")
-                } else {
+                if (e.resumen == null) {
                     ultimoError?.let { MensajeAviso("Último intento: $it") }
+                } else if (e.resumen.rechazados > 0) {
+                    // Con rechazos no va el "✓": hay algo que el acopiador tiene que avisar
+                    MensajeError(TextosSync.textoResumen(e.resumen))
+                } else {
+                    MensajeAviso("✓ ${TextosSync.textoResumen(e.resumen)}")
                 }
 
             is EstadoSincronizacion.Error -> MensajeError(
@@ -165,37 +187,35 @@ fun SyncPantalla(dao: SyncDao, motor: MotorSync, onVolver: () -> Unit) {
             cargando = estado is EstadoSincronizacion.Sincronizando,
         )
 
-        if (retenidas.isNotEmpty()) {
-            Seccion("Entrega retenida: su productor fue rechazado") {
-                MensajeError(
-                    "Esta leche ya se recibió y no se puede pasar a otro productor desde el celular. " +
-                        "Repórtela al administrador con estos datos.",
-                )
-                retenidas.forEach { r ->
-                    Problema(
-                        titulo = TextosSync.textoRetenida(r),
-                        motivo = r.motivoProductor ?: "El servidor rechazó el alta del productor",
-                    )
-                }
-            }
-        }
-
-        if (productoresRechazados.isNotEmpty()) {
+        if (porAvisar.altas.isNotEmpty()) {
             Seccion("Altas de productor rechazadas") {
-                productoresRechazados.forEach { p ->
-                    Problema(titulo = p.nombre, motivo = p.motivo ?: "Sin motivo")
+                porAvisar.altas.forEach { a ->
+                    TarjetaAlta(a, onAvisado = { vm.marcarAvisado(TextosSync.avisoDeAlta(a.productor.clave)) })
                 }
             }
         }
 
-        if (sueltas.isNotEmpty()) {
+        if (porAvisar.sueltas.isNotEmpty()) {
             Seccion("Entregas rechazadas") {
-                sueltas.forEach { r ->
-                    Problema(
-                        titulo = "${r.litros} L · ${r.productorNombre}",
-                        motivo = r.motivo ?: "Sin motivo",
-                    )
+                porAvisar.sueltas.forEach { r ->
+                    TarjetaEntrega(r, onAvisado = { vm.marcarAvisado(TextosSync.avisoDeEntrega(r.id)) })
                 }
+            }
+        }
+
+        if (avisados.total > 0) {
+            BtnSecundario(
+                texto = if (verAvisados) "Ocultar las ya avisadas" else "Ver las ya avisadas (${avisados.total})",
+                onClick = { verAvisados = !verAvisados },
+            )
+            if (verAvisados) {
+                Text(
+                    "Ya avisó al administrador. Se siguen guardando en este celular; no se borra nada.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                avisados.altas.forEach { TarjetaAlta(it, onAvisado = null) }
+                avisados.sueltas.forEach { TarjetaEntrega(it, onAvisado = null) }
             }
         }
 
@@ -211,7 +231,7 @@ fun SyncPantalla(dao: SyncDao, motor: MotorSync, onVolver: () -> Unit) {
 }
 
 @Composable
-private fun Estado(pendientes: String, todoEnviado: Boolean, ultimoSync: String) {
+private fun Estado(titular: TextosSync.Titular, ultimoSync: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth(),
@@ -221,11 +241,14 @@ private fun Estado(pendientes: String, todoEnviado: Boolean, ultimoSync: String)
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                pendientes,
+                titular.texto,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = if (todoEnviado) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.error,
+                color = when (titular.tono) {
+                    TextosSync.Tono.BIEN -> MaterialTheme.colorScheme.primary
+                    TextosSync.Tono.ADVERTENCIA -> ColorAdvertencia
+                    TextosSync.Tono.ERROR -> MaterialTheme.colorScheme.error
+                },
             )
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
@@ -247,16 +270,60 @@ private fun Seccion(titulo: String, contenido: @Composable () -> Unit) {
     }
 }
 
+/**
+ * Alta rechazada con la leche que se le registró. Esa leche ya se recibió y no se puede reapuntar a otro
+ * productor sin romper la firma (pendiente (H)): lo único que el acopiador puede hacer es avisar.
+ * [onAvisado] null = ya avisada (se muestra sin botón).
+ */
+@Composable
+private fun TarjetaAlta(alta: TextosSync.AltaRechazada, onAvisado: (() -> Unit)?) {
+    Problema(
+        titulo = alta.productor.nombre,
+        motivo = alta.productor.motivo ?: "El servidor rechazó el alta del productor",
+        onAvisado = onAvisado,
+    ) {
+        if (alta.entregas.isNotEmpty()) {
+            Text(
+                "Su leche ya se recibió y no se puede pasar a otro productor desde el celular:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            alta.entregas.forEach {
+                Text(
+                    TextosSync.textoRetenida(it),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TarjetaEntrega(r: RecoleccionEntidad, onAvisado: (() -> Unit)?) {
+    Problema(
+        titulo = "${r.litros} L · ${r.productorNombre}",
+        motivo = r.motivo ?: "Sin motivo",
+        onAvisado = onAvisado,
+    )
+}
+
 /** Una fila con su motivo tal como lo dio el servidor: es lo que el acopiador tiene que poder dictar. */
 @Composable
-private fun Problema(titulo: String, motivo: String) {
+private fun Problema(
+    titulo: String,
+    motivo: String,
+    onAvisado: (() -> Unit)?,
+    detalle: @Composable () -> Unit = {},
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 titulo,
@@ -269,6 +336,17 @@ private fun Problema(titulo: String, motivo: String) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer,
             )
+            detalle()
+            if (onAvisado != null) {
+                Text(
+                    "Avise al administrador: dígale el nombre y este motivo.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                BtnSecundario(texto = "Ya avisé", onClick = onAvisado)
+            }
         }
     }
 }

@@ -112,7 +112,7 @@ class MotorSyncTest {
                     it.uuidCliente != null && it.uuidCliente == r.productorUuidCliente &&
                         it.estadoSync == EstadoSync.RECHAZADO
                 } ?: return@mapNotNull null
-                EntregaRetenidaFila(r.id, r.litros, r.registradaEnMs, p.nombre, p.motivo)
+                EntregaRetenidaFila(r.id, r.litros, r.registradaEnMs, p.nombre, p.motivo, p.clave)
             },
         )
         override suspend fun meta(clave: String) = metas[clave]
@@ -301,6 +301,9 @@ class MotorSyncTest {
         otras.forEach { assertEquals("lo demás del lote sigue su curso", EstadoSync.SINCRONIZADO, estado(it.id)) }
         assertEquals(2, resumen.recoleccionesConfirmadas)
         assertEquals(1, resumen.rechazados)
+        assertEquals("un alta rechazada no es un productor enviado", 0, resumen.productoresEnviados)
+        assertEquals(1, resumen.productoresRechazados)
+        assertEquals(0, resumen.recoleccionesRechazadas)
 
         // Y no se reintenta: el alta rechazada se conserva con su motivo
         motor.sincronizar()
@@ -332,6 +335,26 @@ class MotorSyncTest {
         assertEquals("Rosa Quispe", retenida.productor)
         assertEquals("10.50", retenida.litros)
         assertEquals("Ya existe un productor con ese documento", retenida.motivoProductor)
+    }
+
+    /** Antes salía "1 productor · 1 rechazada" y parecía que el productor sí se había enviado. */
+    @Test
+    fun `en un lote con un alta aceptada y otra rechazada solo la aceptada cuenta como enviada`() = runTest {
+        val buena = "8f0c0000-aaaa-4bbb-8ccc-000000000006"
+        val mala = "8f0c0000-aaaa-4bbb-8ccc-000000000007"
+        dao.insertarProductor(ProductorEntidad(buena, null, buena, null, "Ana Condori", null, null, 3,
+            null, null, false, null, EstadoSync.PENDIENTE, null, reloj))
+        dao.insertarProductor(ProductorEntidad(mala, null, mala, null, "Rosa Quispe", "41234567", null, 3,
+            null, null, false, null, EstadoSync.PENDIENTE, null, reloj + 1))
+        registrar(1, productorId = null, uuid = mala)
+        servidor.rechazarProductor = { if (it == mala) "Ya existe un productor con ese documento" else null }
+
+        val resumen = motor.sincronizar()
+
+        assertEquals(1, resumen.productoresEnviados)
+        assertEquals(1, resumen.productoresRechazados)
+        assertEquals("su leche se rechaza por arrastre", 1, resumen.recoleccionesRechazadas)
+        assertEquals(2, resumen.rechazados)
     }
 
     @Test
