@@ -34,6 +34,10 @@ mobile/local.properties
 mobile/.idea/
 mobile/.kotlin/
 
+# Logs de crash de la JVM (daemon de Gradle sin memoria)
+hs_err_pid*.log
+replay_pid*.log
+
 # IDE y sistema
 .idea/
 .vscode/
