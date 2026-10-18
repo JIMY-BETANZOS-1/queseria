@@ -2,6 +2,7 @@ package pe.queseria.campo.ui
 
 import pe.queseria.campo.datos.local.ProductorFila
 import pe.queseria.campo.ui.inicio.ResumenProductor
+import java.time.LocalDate
 
 /**
  * Pantallas del acopiador una vez abierta la sesión. Son pocas y el paso entre ellas es lineal, así
@@ -26,6 +27,12 @@ sealed class Destino {
 
     /** B6: mi día. */
     data object MiDia : Destino()
+
+    /** B6b: últimos días. */
+    data object UltimosDias : Destino()
+
+    /** B6 para un día anterior de B6b. [fecha] en ISO ("2026-10-15"), para poder guardarla. */
+    data class DiaAnterior(val fecha: String) : Destino()
 
     /** B7: sincronización. */
     data object Sync : Destino()
@@ -72,6 +79,10 @@ object Rumbo {
             destino
         }
 
+    /** Toque en un día de B6b: hoy abre la B6 de siempre (en vivo); otro día, su detalle. */
+    fun alAbrirDia(esHoy: Boolean, fecha: LocalDate): Destino =
+        if (esHoy) Destino.MiDia else Destino.DiaAnterior(fecha.toString())
+
     /** Limpieza del aviso "✓ Registrado" de B3: nunca puede sacar de B4. */
     fun alLimpiarAviso(destino: Destino): Destino =
         (destino as? Destino.Inicio)?.copy(aviso = null) ?: destino
@@ -81,7 +92,8 @@ object Rumbo {
         (destino as? Destino.Inicio)?.copy(confirmar = null) ?: destino
 
     /**
-     * Botón o gesto atrás: cierra el aviso de confirmación, o vuelve de B4 a B3.
+     * Botón o gesto atrás: cierra el aviso de confirmación, vuelve de B4 a B3, o deshace el camino
+     * B6 → B6b → día anterior.
      * `null` = no hay nada que hacer (que el sistema salga de la app).
      *
      * Importante: mientras el aviso está abierto esto ya devuelve algo, así que el `BackHandler`
@@ -93,6 +105,8 @@ object Rumbo {
         destino is Destino.Registrar -> Destino.Inicio()
         destino is Destino.NuevoProductor -> Destino.Inicio()
         destino is Destino.MiDia -> Destino.Inicio()
+        destino is Destino.UltimosDias -> Destino.MiDia
+        destino is Destino.DiaAnterior -> Destino.UltimosDias
         destino is Destino.Sync -> Destino.Inicio()
         else -> null
     }

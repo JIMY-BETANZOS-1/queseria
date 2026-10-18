@@ -38,10 +38,25 @@ object LineasMiDia {
     fun fechaLarga(fecha: LocalDate): String =
         "${DIAS[fecha.dayOfWeek.value - 1]} ${fecha.dayOfMonth} ${MESES[fecha.monthValue - 1]}"
 
-    /** "123.50 L · 8 entregas" (el total ya lo calcula MiDia: servidor sin anuladas + lo pendiente). */
+    /**
+     * "123.50 L · 8 entregas" (el total ya lo calcula MiDia: servidor sin anuladas + lo pendiente).
+     * Un día anterior sin red no tiene total: se dice "Sin conexión" en vez de inventarlo.
+     */
     fun total(r: ResumenMiDia): String {
+        if (r.sinTotal) return "Sin conexión"
         val entregas = if (r.nRecolecciones == 1) "1 entrega" else "${r.nRecolecciones} entregas"
         return "${r.totalLitros.setScale(2, RoundingMode.HALF_UP)} L · $entregas"
+    }
+
+    /** "Incluye 2 sin enviar" bajo el total; `null` si no hay total o no falta enviar nada. */
+    fun incluyeSinEnviar(r: ResumenMiDia): String? =
+        if (r.sinTotal || r.pendientes.isEmpty()) null else "Incluye ${r.pendientes.size} sin enviar"
+
+    /** Texto de la lista vacía, según sea hoy, un día anterior con red o uno sin red. */
+    fun sinEntregas(r: ResumenMiDia, esHoy: Boolean): String = when {
+        esHoy -> "Todavía no hay entregas registradas hoy."
+        r.sinTotal -> "Este celular no tiene nada pendiente de ese día."
+        else -> "No hubo entregas ese día."
     }
 
     fun lineas(r: ResumenMiDia): List<LineaDia> {

@@ -38,6 +38,8 @@ import pe.queseria.campo.ui.componentes.BtnPrimario
 import pe.queseria.campo.ui.componentes.BtnSecundario
 import pe.queseria.campo.ui.componentes.MensajeAviso
 import pe.queseria.campo.ui.componentes.MensajeError
+import pe.queseria.campo.ui.tema.ColorAdvertencia
+import java.time.LocalDate
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
 
@@ -47,7 +49,8 @@ sealed class EstadoMiDia {
     data class Error(val mensaje: String) : EstadoMiDia()
 }
 
-class MiDiaViewModel(private val miDia: MiDia) : ViewModel() {
+/** [fecha] = null: hoy, en vivo (GET /acopiador/mi-dia). Otra fecha: un día de "Últimos días". */
+class MiDiaViewModel(private val miDia: MiDia, private val fecha: LocalDate?) : ViewModel() {
 
     private val _estado = MutableStateFlow<EstadoMiDia>(EstadoMiDia.Cargando)
     val estado: StateFlow<EstadoMiDia> = _estado.asStateFlow()
@@ -60,7 +63,13 @@ class MiDiaViewModel(private val miDia: MiDia) : ViewModel() {
         viewModelScope.launch {
             _estado.value = EstadoMiDia.Cargando
             _estado.value = try {
-                EstadoMiDia.Ok(miDia.obtener())
+                if (fecha == null) {
+                    EstadoMiDia.Ok(miDia.obtener())
+                } else {
+                    // Pasada la medianoche, el día más viejo sale de la ventana: se dice y no se inventa
+                    miDia.ultimosDias().dias.firstOrNull { it.fecha == fecha }?.let { EstadoMiDia.Ok(it) }
+                        ?: EstadoMiDia.Error("Ese día ya no está entre los últimos ${MiDia.DIAS_HISTORIAL} días.")
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -70,18 +79,28 @@ class MiDiaViewModel(private val miDia: MiDia) : ViewModel() {
     }
 
     companion object {
-        fun factory(miDia: MiDia) = object : ViewModelProvider.Factory {
+        fun factory(miDia: MiDia, fecha: LocalDate?) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>) = MiDiaViewModel(miDia) as T
+            override fun <T : ViewModel> create(modelClass: Class<T>) = MiDiaViewModel(miDia, fecha) as T
         }
     }
 }
 
-// ─── B6: mi día ──────────────────────────────────────────────────────────────
+// ─── B6: mi día (o un día anterior, desde B6b) ───────────────────────────────
 
+/**
+ * @param fecha null = hoy. Con fecha, el mismo detalle para un día de "Últimos días".
+ * @param onDiasAnteriores solo en hoy: abre B6b.
+ */
 @Composable
-fun MiDiaPantalla(miDia: MiDia, onVolver: () -> Unit) {
-    val vm: MiDiaViewModel = viewModel(factory = MiDiaViewModel.factory(miDia))
+fun MiDiaPantalla(
+    miDia: MiDia,
+    onVolver: () -> Unit,
+    fecha: LocalDate? = null,
+    onDiasAnteriores: (() -> Unit)? = null,
+) {
+    // Sin NavHost los ViewModel los guarda la actividad: uno por fecha, para no mostrar el día equivocado
+    val vm: MiDiaViewModel = viewModel(key = "mi-dia-${fecha ?: "hoy"}", factory = MiDiaViewModel.factory(miDia, fecha))
     val estado by vm.estado.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { vm.actualizar() }
@@ -90,7 +109,7 @@ fun MiDiaPantalla(miDia: MiDia, onVolver: () -> Unit) {
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Mi día", style = MaterialTheme.typography.headlineSmall)
+        Text(if (fecha == null) "Mi día" else "Día anterior", style = MaterialTheme.typography.headlineSmall)
 
         // Zona de contenido acotada: así los botones quedan siempre a la vista, por larga que sea la lista
         Column(
@@ -107,7 +126,7 @@ fun MiDiaPantalla(miDia: MiDia, onVolver: () -> Unit) {
 
                 is EstadoMiDia.Error -> MensajeError(e.mensaje)
 
-                is EstadoMiDia.Ok -> Resumen(e.resumen)
+                is EstadoMiDia.Ok -> Resumen(e.resumen, esHoy = fecha == null)
             }
         }
 
@@ -116,12 +135,13 @@ fun MiDiaPantalla(miDia: MiDia, onVolver: () -> Unit) {
             onClick = vm::actualizar,
             cargando = estado is EstadoMiDia.Cargando,
         )
+        onDiasAnteriores?.let { BtnSecundario(texto = "Ver días anteriores ›", onClick = it) }
         BtnSecundario(texto = "Volver", onClick = onVolver)
     }
 }
 
 @Composable
-private fun ColumnScope.Resumen(r: ResumenMiDia) {
+private fun ColumnScope.Resumen(r: ResumenMiDia, esHoy: Boolean) {
     val lineas = LineasMiDia.lineas(r)
 
     Text(LineasMiDia.fechaLarga(r.fecha), style = MaterialTheme.typography.titleMedium)
@@ -131,8 +151,13 @@ private fun ColumnScope.Resumen(r: ResumenMiDia) {
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
     )
+    LineasMiDia.incluyeSinEnviar(r)?.let {
+        Text(it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = ColorAdvertencia)
+    }
 
-    if (r.sinSincronizar) {
+    if (r.sinTotal) {
+        MensajeAviso("⚠ Sin conexión: solo se ve lo que este celular aún no envió. El total del día está en el servidor.")
+    } else if (r.sinSincronizar) {
         MensajeAviso("⚠ Sin conexión: el total es solo lo de este celular.")
     }
     if (r.rechazadas.isNotEmpty()) {
@@ -144,7 +169,7 @@ private fun ColumnScope.Resumen(r: ResumenMiDia) {
 
     if (lineas.isEmpty()) {
         Text(
-            "Todavía no hay entregas registradas hoy.",
+            LineasMiDia.sinEntregas(r, esHoy),
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(top = 8.dp),
         )

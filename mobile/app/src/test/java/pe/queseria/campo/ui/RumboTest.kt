@@ -5,6 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import pe.queseria.campo.datos.local.EstadoSync
 import pe.queseria.campo.datos.local.ProductorFila
+import java.time.LocalDate
 
 /** Paso de B3 a B4, incluido el aviso de "otra entrega" que antes dejaba la navegación a medias. */
 class RumboTest {
@@ -144,7 +145,9 @@ class RumboTest {
 
     @Test
     fun `ningun aviso que llegue tarde saca de B5, B6 ni B7`() {
-        for (destino in listOf(Destino.NuevoProductor, Destino.MiDia, Destino.Sync)) {
+        for (destino in listOf(
+            Destino.NuevoProductor, Destino.MiDia, Destino.UltimosDias, Destino.DiaAnterior("2026-10-15"), Destino.Sync,
+        )) {
             assertEquals(destino, Rumbo.alGuardar(destino, "id:7", AVISO))
             assertEquals(destino, Rumbo.alLimpiarAviso(destino))
             assertEquals(destino, Rumbo.alConfirmarOtraEntrega(destino))
@@ -156,5 +159,21 @@ class RumboTest {
     fun `desde B6 y B7 el atras vuelve a B3`() {
         assertEquals(Destino.Inicio(), Rumbo.atras(Destino.MiDia))
         assertEquals(Destino.Inicio(), Rumbo.atras(Destino.Sync))
+    }
+
+    // ─── B6b: últimos días ───────────────────────────────────────────────────
+
+    @Test
+    fun `en B6b hoy abre la B6 de siempre y otro dia su detalle`() {
+        val jueves = LocalDate.of(2026, 10, 15)
+        assertEquals(Destino.MiDia, Rumbo.alAbrirDia(esHoy = true, fecha = jueves))
+        assertEquals(Destino.DiaAnterior("2026-10-15"), Rumbo.alAbrirDia(esHoy = false, fecha = jueves))
+    }
+
+    @Test
+    fun `atras deshace el camino B6, B6b, dia anterior`() {
+        assertEquals(Destino.UltimosDias, Rumbo.atras(Destino.DiaAnterior("2026-10-15")))
+        assertEquals(Destino.MiDia, Rumbo.atras(Destino.UltimosDias))
+        assertEquals(Destino.Inicio(), Rumbo.atras(Destino.MiDia))
     }
 }

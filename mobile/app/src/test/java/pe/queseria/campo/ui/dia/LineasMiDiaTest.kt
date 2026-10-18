@@ -54,6 +54,7 @@ class LineasMiDiaTest {
         rechazadas: List<RecoleccionEntidad> = emptyList(),
         totalLitros: String = "0.00",
         n: Int = 0,
+        sinTotal: Boolean = false,
     ) = ResumenMiDia(
         fecha = LocalDate.of(2026, 10, 15),
         totalLitros = BigDecimal(totalLitros),
@@ -62,6 +63,7 @@ class LineasMiDiaTest {
         pendientes = pendientes,
         rechazadas = rechazadas,
         sinSincronizar = servidor == null,
+        sinTotal = sinTotal,
     )
 
     @Test
@@ -161,6 +163,34 @@ class LineasMiDiaTest {
         assertEquals(1, ls.size)
         assertEquals("08:40", ls.single().hora)
         assertEquals("Sin enviar", ls.single().etiqueta)
+    }
+
+    @Test
+    fun `un dia anterior sin red no inventa el total`() {
+        val r = resumen(pendientes = listOf(local()), totalLitros = "0.00", n = 0, sinTotal = true)
+
+        assertEquals("Sin conexión", LineasMiDia.total(r))
+        assertNull("sin total no hay a qué sumarle lo pendiente", LineasMiDia.incluyeSinEnviar(r))
+        assertEquals("Sin enviar", LineasMiDia.lineas(r).single().etiqueta)
+    }
+
+    @Test
+    fun `bajo el total se avisa cuanto falta enviar`() {
+        assertEquals(
+            "Incluye 1 sin enviar",
+            LineasMiDia.incluyeSinEnviar(resumen(servidor = listOf(delServidor()), pendientes = listOf(local()))),
+        )
+        assertNull(LineasMiDia.incluyeSinEnviar(resumen(servidor = listOf(delServidor()))))
+    }
+
+    @Test
+    fun `la lista vacia se explica segun el dia`() {
+        assertEquals("Todavía no hay entregas registradas hoy.", LineasMiDia.sinEntregas(resumen(servidor = emptyList()), esHoy = true))
+        assertEquals("No hubo entregas ese día.", LineasMiDia.sinEntregas(resumen(servidor = emptyList()), esHoy = false))
+        assertEquals(
+            "Este celular no tiene nada pendiente de ese día.",
+            LineasMiDia.sinEntregas(resumen(sinTotal = true), esHoy = false),
+        )
     }
 
     @Test
