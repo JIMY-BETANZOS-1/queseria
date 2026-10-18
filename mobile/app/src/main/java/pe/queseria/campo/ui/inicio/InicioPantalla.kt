@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -359,13 +358,13 @@ private fun TarjetaJornada(jornada: Jornada, insignia: Insignia, onMiDia: () -> 
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            // La insignia va en su propia fila: compartiéndola con "Ver mi día ›", en 360 dp el texto
+            // se partía en tres líneas y la pastilla quedaba como un óvalo deformado.
+            PastillaSync(insignia, onSincronizar, Modifier.fillMaxWidth().padding(top = 8.dp))
+            Box(
+                contentAlignment = Alignment.CenterEnd,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onMiDia),
             ) {
-                PastillaSync(insignia, onSincronizar, Modifier.weight(1f, fill = false))
-                Spacer(Modifier.weight(1f))
                 Text(
                     "Ver mi día ›",
                     style = MaterialTheme.typography.titleMedium,
@@ -386,13 +385,19 @@ private fun PastillaSync(insignia: Insignia, onClick: () -> Unit, modifier: Modi
     }
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(50),
+        shape = RoundedCornerShape(12.dp),
         color = color,
         contentColor = Color.White,
         modifier = modifier.heightIn(min = 40.dp),
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            Text(insignia.texto, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(
+                insignia.texto,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
