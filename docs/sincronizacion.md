@@ -238,9 +238,9 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
    y sin red valida contra él. Bloqueo local: 5 intentos → 15 min, copiando los valores por defecto de
    `PIN_MAX_INTENTOS` / `PIN_BLOQUEO_MIN`. **La API no expone esos valores**: si el admin los cambia
    en `.env`, el celular no se entera. La primera vez se necesita red.
-4. **"Definir PIN" al activar.** El backend no tiene ese paso: el PIN inicial lo pone el admin al crear
-   el usuario; el primer login devuelve `debe_cambiar_pin=true` y la app pide cambiarlo con
-   `POST /auth/pin/cambiar` (necesita red).
+4. **"Definir PIN" al activar — RESUELTO en el Bloque 6.** El usuario crea su PIN de 4 dígitos en la
+   activación (`POST /auth/dispositivo/activar` recibe `pin` y devuelve el token); el admin ya no define
+   PIN inicial. `debe_cambiar_pin` siempre es `false` y la app ya no tiene cambio de PIN.
 5. **Token vencido sin red.** El JWT móvil dura `JWT_MINUTOS_MOVIL` (12 h). La sincronización en segundo
    plano no puede renovarlo sin el PIN: si vence, lo pendiente espera a que el acopiador ingrese con PIN
    y señal. Nada se pierde (sigue en Room).
@@ -300,35 +300,36 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
 Lo que falta antes de entregar celulares a los acopiadores de verdad. Nada de esto bloquea la Fase 3:
 son decisiones del cliente o cambios de `backend/` y `db/` que necesitan su aprobación.
 
-**(C) Cambio de PIN obligatorio sin señal — RESUELTO en la Fase 3C (opción C).** `POST /auth/pin/cambiar`
-necesita token y servidor, así que exigir el cambio sin red encerraba al acopiador en B2b sin poder
-registrar leche. Ahora: con red el cambio es obligatorio e ineludible; sin red se entra a B3 con el aviso
-fijo "Debe cambiar su PIN: hágalo cuando tenga señal" y el flag se queda en la caja fuerte, de modo que el
-próximo ingreso con señal lo vuelve a exigir (`Rumbo.exigeCambioDePin` / `Rumbo.avisoPinPendiente`).
+**(C) Cambio de PIN obligatorio sin señal — OBSOLETO desde el Bloque 6.** Se había resuelto en la Fase 3C
+con la "opción C" (con red el cambio era ineludible; sin red se entraba a B3 con un aviso). Desde el
+Bloque 6 el usuario crea su propio PIN al activar, así que no hay PIN del admin que cambiar: B2b, la
+opción C, `Rumbo.exigeCambioDePin` y `Autenticador.cambiarPin` se quitaron (app 0.6.0). Un PIN olvidado
+se recupera reactivando con un código nuevo. Un usuario que todavía tenga un PIN puesto por el admin
+(`pin_actualizado_en` NULL) recibe 401 `debe_reactivar` con señal; sin señal sigue entrando con su
+verificador local, así que nunca se bloquea el registro de leche.
 
-**(A) Lista negra de PIN triviales, validada en el backend.** Hoy la única regla es
-`PATRON_PIN = r"^[0-9]{4,6}$"` (`backend/app/esquemas/__init__.py`), así que `1234`, `0000`, `111111` o
-`123456` son PIN válidos. La lista negra debe vivir en el backend para que valga en los tres sitios por
-los que entra un PIN: `POST /auth/pin/cambiar`, `POST /usuarios/{id}/pin` y el `pin_inicial` del alta de
-usuario. La app puede avisar antes de enviar, pero el servidor es el que manda.
+**(A) Lista negra de PIN triviales — RESUELTO en el Bloque 6.** `seguridad.pin_trivial` (backend) rechaza
+204 de las 10 000 combinaciones (todos iguales, secuencias de subida o bajada, XYXY, XXYY) y los últimos 4
+dígitos del DNI o celular del usuario, con 422 `pin_trivial`. Se aplica al CREAR el PIN —en la activación
+y en `POST /auth/pin/cambiar`— nunca al ingresar. `POST /usuarios/{id}/pin` y `pin_inicial` ya no
+existen. La app avisa antes con las mismas reglas (`ReglasPin.kt`), pero decide el servidor.
 
-**(B) `pin_nuevo` distinto de `pin_actual`.** `cambiar_pin` (`backend/app/routers/auth.py:163`) no lo
-comprueba: re-hashea el mismo PIN, pone `pin_actualizado_en = now()` y responde 204, de modo que
-`debe_cambiar_pin` pasa a `false` sin que nada haya cambiado — el cambio obligatorio se puede esquivar
-repitiendo el PIN que el admin ya conoce. Validar en el backend. La app además puede avisarlo en B2b sin
-gastar un intento.
+**(B) `pin_nuevo` distinto de `pin_actual` — RESUELTO en el Bloque 6.** `POST /auth/pin/cambiar` responde
+422 `pin_repetido` (y 422 `pin_trivial`) **antes** de verificar el PIN actual, así que no gasta intento.
+El endpoint queda en el backend, sin pantalla en la app.
 
-**(D) Seed que ejercite el cambio de PIN, con PIN menos obvios.** `db/seed.sql` da el PIN `1234` a los
-tres usuarios móviles y pone `pin_actualizado_en = now()`, con lo que el login devuelve
-`debe_cambiar_pin = false` y **el flujo del cambio obligatorio nunca se prueba con el seed**. Hace falta
-al menos un acopiador con `pin_actualizado_en = NULL` y un PIN que no esté en la lista negra de (A), para
-poder probar B2b y la opción C sin tocar la base a mano.
+**(D) Seed que ejercite la activación — PARCIAL.** Ya no hay cambio obligatorio que probar (ver (C)).
+`db/seed.sql` sigue dando el PIN `1234` (trivial) a los tres usuarios móviles con `pin_actualizado_en =
+now()`: siguen entrando, porque el login no revisa trivialidad. Falta, si se quiere, un usuario del seed
+**pendiente de activar** (`pin_hash` NULL) para probar B1 sin crear uno a mano; es un cambio en `db/` que
+necesita aprobación.
 
-**(E) PIN inicial aleatorio por usuario, generado por el panel admin y mostrado una sola vez.** Hoy el
-admin escribe `pin_inicial` a mano al crear el acopiador (`UsuarioMovilNuevo`), y el seed repite `1234`
-para todos. El panel debería generarlo al azar (fuera de la lista negra), mostrarlo una vez y no volver a
-mostrarlo. El patrón ya existe en el repo: `POST /usuarios/{id}/codigo-activacion` devuelve el código una
-sola vez y en la base deja solo su HMAC.
+**(E) PIN inicial del admin — RESUELTO de otra forma en el Bloque 6.** El admin ya no define ningún PIN:
+el usuario nace "pendiente de activar" (`pin_hash` NULL, migración `db/migraciones/2026-10-bloque6-pin-null.sql`,
+y `pin_pendiente` en los listados) y el admin solo genera el código de activación (8 caracteres, un solo
+uso, `CODIGO_ACTIVACION_MINUTOS` = 60, se muestra una vez y en la base queda su HMAC; máximo 10 códigos
+inválidos por IP en 10 min → 429). Con ese código el usuario crea su PIN. El mismo código sirve para
+recuperar un PIN olvidado o bloqueado.
 
 **(F) Límites 2 y 3 de la rehidratación de B3** (ver el ítem 10 de este documento). Además de necesitar
 red en ese momento: **(2) solo cubre HOY** — un celular reinstalado no recupera el estado de días
@@ -368,9 +369,8 @@ hay señal (`GET` que diga solo si existe y de qué tipo, sin exponer datos de o
 acepte el alta como "coincide con un productor existente" y lo resuelva el admin. Sin señal seguirá sin
 poder detectarse, así que la regla de "nunca impedir el registro" se mantiene.
 
-**(J) Longitud del PIN fija en 4 dígitos.** Hoy el PIN acepta de 4 a 6 dígitos en los dos lados
-(`PATRON_PIN = r"^[0-9]{4,6}$"` en `backend/app/esquemas/__init__.py` y `Autenticador.PATRON_PIN` en el
-móvil; B2/B2b esperan "OK" desde 4). Decisión: fijarlo en 4 dígitos. Se hará en el **siguiente bloque**,
-junto con (A) y (B), porque toca el backend (patrón y mensajes de los tres sitios por los que entra un
-PIN) y el móvil (B2 puede ingresar solo al cuarto dígito, sin "OK"; texto "Elija un nuevo PIN de 4
-dígitos"). Antes hay que revisar si algún usuario ya tiene un PIN de 5 o 6 dígitos y pedirle el cambio.
+**(J) Longitud del PIN fija en 4 dígitos — RESUELTO en el Bloque 6.** `PATRON_PIN = r"^[0-9]{4}$"` en el
+backend y `ReglasPin.LARGO = 4` en el móvil. B2 se verifica solo al 4.º dígito, sin OK, y una entrada
+mal formada (3, 5 o 6 dígitos) da 422 sin contar como intento. Un usuario con un PIN viejo de 5 o 6 dígitos
+no puede teclearlo: usa "¿Olvidó su PIN? Tengo un código nuevo" y crea uno de 4 al reactivar, sin perder
+lo que tenga sin enviar (probado en el Realme, app 0.6.0).
