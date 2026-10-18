@@ -1,5 +1,6 @@
-"""GET /sync/pull, GET /acopiador/mi-dia y las acciones del admin (alertas y anulación)."""
+"""GET /sync/pull, GET /acopiador/mi-dia, GET /acopiador/ultimos-dias y las acciones del admin (alertas y anulación)."""
 import uuid
+from datetime import datetime, time, timedelta, timezone
 
 from conftest import cab, crear_productor, crear_ruta_asignada, item_recoleccion, movil_con_celular, push
 
@@ -109,6 +110,50 @@ def test_mi_dia_y_anulacion(client, admin):
 
     analista = movil_con_celular(client, admin, "analista")
     assert client.get("/acopiador/mi-dia", headers=cab(analista["token"])).status_code == 403
+
+
+def test_ultimos_dias(client, admin):
+    lima = timezone(timedelta(hours=-5))  # America/Lima no tiene horario de verano (y Windows no trae tzdata)
+    hoy = datetime.now(lima).date()
+
+    def a_las(dia, hora, minuto=0) -> str:
+        return datetime.combine(dia, time(hora, minuto), lima).isoformat()
+
+    acop = movil_con_celular(client, admin, "acopiador")
+    ruta_id = crear_ruta_asignada(client, admin, acop["id"])
+    prod = crear_productor(client, admin, ruta_id)
+    ayer = hoy - timedelta(days=1)
+    h1 = item_recoleccion(acop, prod["id"], litros=20.5)
+    h2 = item_recoleccion(acop, prod["id"], litros=3)
+    a1 = item_recoleccion(acop, prod["id"], litros=10, registrada_en=a_las(ayer, 7))
+    a2 = item_recoleccion(acop, prod["id"], litros=4.25, registrada_en=a_las(ayer, 23, 30))  # 04:30 UTC de hoy
+    viejo = item_recoleccion(acop, prod["id"], litros=9, registrada_en=a_las(hoy - timedelta(days=7), 7))
+    push(client, acop, recolecciones=[h1, h2, a1, a2, viejo])
+    assert client.post(f"/recolecciones/{h2['id']}/anular", json={"motivo": "Prueba"}, headers=cab(admin)).status_code == 200
+
+    # Otro acopiador de la misma ruta (reasignada): lo suyo no aparece en el historial del primero
+    otro = movil_con_celular(client, admin, "acopiador")
+    push(client, otro, recolecciones=[item_recoleccion(otro, prod["id"], litros=50)])
+
+    r = client.get("/acopiador/ultimos-dias", headers=cab(acop["token"]))
+    assert r.status_code == 200, r.text
+    dias = r.json()
+    assert [d["fecha"] for d in dias] == [(hoy - timedelta(days=i)).isoformat() for i in range(7)]
+
+    assert dias[0]["n_recolecciones"] == 1 and dias[0]["total_litros"] == 20.5
+    assert {x["recoleccion_id"] for x in dias[0]["recolecciones"]} == {h1["id"], h2["id"]}  # la anulada se ve
+    assert dias[1]["n_recolecciones"] == 2 and dias[1]["total_litros"] == 14.25            # 23:30 de Lima = ayer
+    assert [x["recoleccion_id"] for x in dias[1]["recolecciones"]] == [a1["id"], a2["id"]]
+    assert all(d["n_recolecciones"] == 0 and d["total_litros"] == 0 and d["recolecciones"] == [] for d in dias[2:])
+    assert viejo["id"] not in {x["recoleccion_id"] for d in dias for x in d["recolecciones"]}
+
+    # Hoy coincide con "Mi día"
+    dia = client.get("/acopiador/mi-dia", headers=cab(acop["token"])).json()
+    assert dia == dias[0]
+
+    analista = movil_con_celular(client, admin, "analista")
+    assert client.get("/acopiador/ultimos-dias", headers=cab(analista["token"])).status_code == 403
+    assert client.get("/acopiador/ultimos-dias").status_code == 401
 
 
 def test_revisar_alerta_libera_el_pago(client, admin, db):

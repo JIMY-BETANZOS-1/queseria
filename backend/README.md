@@ -56,6 +56,7 @@ Errores siempre con el formato `{"codigo": "...", "mensaje": "..."}` (los de val
 - `POST /sync/calidad` — (analista) revisiones: normal o alterado con análisis.
 - `GET /sync/pull?desde=` — (acopiador, analista) cambios incrementales + estado de sanción y precios completos.
 - `GET /acopiador/mi-dia` — (acopiador) litros y recolecciones de hoy.
+- `GET /acopiador/ultimos-dias` — (acopiador) lo mismo para hoy y los 6 días anteriores, un elemento por día (hoy primero, incluidos los días sin entregas).
 - `POST /analisis/{recoleccion_id}/foto` — (analista, admin) foto JPEG/PNG/WebP (máx. `FOTO_MAX_MB`); `GET` la devuelve.
 
 **Admin** (todo requiere rol admin)
