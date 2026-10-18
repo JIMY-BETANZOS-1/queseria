@@ -16,6 +16,12 @@ sealed class ErrorApp(mensaje: String) : Exception(mensaje) {
     /** 401 `dispositivo_no_vinculado`: el celular fue desactivado o nunca vinculado; no es fallo de PIN. */
     class DispositivoNoVinculado(mensaje: String) : ErrorApp(mensaje)
 
+    /**
+     * 401 `debe_reactivar`: el usuario no tiene PIN propio (lo puso el admin antes del Bloque 6). Debe
+     * crear el suyo activando con un código nuevo. No es fallo de PIN.
+     */
+    class DebeReactivar(mensaje: String) : ErrorApp(mensaje)
+
     /** 403: el rol no puede hacer esta operación. */
     class Prohibido(mensaje: String) : ErrorApp(mensaje)
 
@@ -66,6 +72,8 @@ fun traducirHttp(codigo: Int, cuerpo: String?): ErrorApp {
         401 -> when (codigoError) {
             "dispositivo_no_vinculado" ->
                 ErrorApp.DispositivoNoVinculado(mensaje ?: "Este celular no está vinculado o fue desactivado")
+            "debe_reactivar" ->
+                ErrorApp.DebeReactivar(mensaje ?: "Pida un código nuevo al administrador para crear su PIN")
             else -> ErrorApp.NoAutorizado(mensaje ?: "Debe ingresar con su PIN")
         }
         403 -> ErrorApp.Prohibido(mensaje ?: "No tiene permiso para esta operación")

@@ -37,7 +37,8 @@ internal fun digitosTeclado(mezclar: Boolean): List<Int> =
  *
  * Un solo componente para las dos pantallas que lo usan:
  *  - **B4 (litros)**: `mezclar = false` y [onPunto] → última fila `.` `0` `⌫`.
- *  - **B2 (PIN)**: `mezclar = true` y [onOk] → última fila `⌫` `<dígito>` `OK`.
+ *  - **B2 (PIN)**: `mezclar = true`, sin [onOk] → última fila hueco `<dígito>` `⌫`; se ingresa solo al
+ *    4.º dígito (`EntradaPin`). B2b (cambio de PIN) todavía usa [onOk] → `⌫` `<dígito>` `OK`.
  *
  * @param mezclar baraja los dígitos (solo el PIN).
  * @param claveMezcla cuando cambia, se vuelve a barajar (B2 remezcla en cada etapa del cambio de

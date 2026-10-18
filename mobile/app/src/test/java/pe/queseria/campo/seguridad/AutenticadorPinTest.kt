@@ -55,6 +55,9 @@ class AutenticadorPinTest {
         /** Lo que responde /auth/pin/login: el backend lo calcula con pin_actualizado_en IS NULL. */
         var debeCambiarPin = false
 
+        /** true = PIN puesto por el admin antes del Bloque 6: el backend responde 401 debe_reactivar. */
+        var debeReactivar = false
+
         /** Qué falla de red simular: sin señal, o el servidor que no contesta en 4 s. */
         var fallaDeRed: () -> IOException = { IOException("sin señal") }
 
@@ -69,6 +72,9 @@ class AutenticadorPinTest {
             // El backend comprueba el celular antes del PIN (backend/app/routers/auth.py:140)
             if (!dispositivoActivo) {
                 throw ErrorApp.DispositivoNoVinculado("Este celular no está vinculado o fue desactivado")
+            }
+            if (debeReactivar) {
+                throw ErrorApp.DebeReactivar("Pida un código nuevo al administrador para crear su PIN")
             }
             if (cuerpo.pin != pinDelServidor) throw ErrorApp.NoAutorizado("PIN incorrecto")
             return TokenMovilDto(
@@ -418,5 +424,58 @@ class AutenticadorPinTest {
         val s = abierta(autenticadorReabierto().ingresar("8765"))
         assertFalse(s.debeCambiarPin)
         capturar<ErrorApp.NoAutorizado> { auth.ingresar("1234") }
+    }
+
+    // ─── Bloque 6: PIN de 4 dígitos, debe_reactivar y "¿Olvidó su PIN?" ──────
+
+    @Test
+    fun `un PIN que no es de 4 digitos no llega al servidor ni cuenta como intento`() = runTest {
+        vincularEIngresarConSenal()
+        val antes = api.loginsPedidos
+        for (malo in listOf("123", "12345", "123456", "12a4")) {
+            capturar<ErrorApp.Validacion> { auth.ingresar(malo) }
+        }
+        assertEquals("Nada se envió al servidor", antes, api.loginsPedidos)
+        api.conRed = false
+        assertFalse("Sin red entra con el verificador local", auth.ingresar("1234").conServidor)
+        assertFalse("Ni el verificador local sumó fallos", almacen.datos.containsKey("pin_fallos"))
+        assertNull(auth.bloqueadoHasta())
+    }
+
+    @Test
+    fun `debe_reactivar vuelve a vincular sin contar fallo y conserva el aparato`() = runTest {
+        vincularEIngresarConSenal()
+        val device = auth.deviceUuid()
+        api.debeReactivar = true
+
+        val e = capturar<ErrorApp.DebeReactivar> { auth.ingresar("1234") }
+
+        assertEquals(Autenticador.MSG_DEBE_REACTIVAR, e.message)
+        assertEquals(EstadoSesion.SinVincular(Autenticador.MSG_DEBE_REACTIVAR), auth.estado.value)
+        assertNull("No es un fallo de PIN: no hay bloqueo local", auth.bloqueadoHasta())
+        assertFalse(almacen.datos.containsKey("pin_fallos"))
+        assertEquals("El mismo aparato para reactivar", device, auth.deviceUuid())
+    }
+
+    @Test
+    fun `olvide mi PIN va a vincular sin borrar nada y se puede volver`() = runTest {
+        vincularEIngresarConSenal()
+        auth.cerrarSesion()
+        val antes = almacen.datos.toMap()
+
+        auth.irAActivar()
+        assertEquals(EstadoSesion.SinVincular(motivo = null, puedeVolver = true), auth.estado.value)
+        assertEquals("No se borró nada: ni sesión, ni token, ni verificador", antes, almacen.datos)
+
+        auth.volverAlPin()
+        assertEquals(EstadoSesion.Cerrada(UsuarioLocal(7, "acopiador", "Juan Mamani")), auth.estado.value)
+        api.conRed = false
+        assertFalse("El PIN de siempre sigue sirviendo", auth.ingresar("1234").conServidor)
+    }
+
+    @Test
+    fun `sin celular vinculado olvide mi PIN no ofrece volver`() {
+        auth.irAActivar()
+        assertEquals(EstadoSesion.SinVincular(motivo = null, puedeVolver = false), auth.estado.value)
     }
 }

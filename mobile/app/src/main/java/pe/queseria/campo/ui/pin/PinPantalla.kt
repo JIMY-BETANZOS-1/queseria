@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,6 +41,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.seguridad.Autenticador
+import pe.queseria.campo.seguridad.ReglasPin
 import pe.queseria.campo.ui.componentes.MensajeError
 import pe.queseria.campo.ui.componentes.TecladoNumerico
 
@@ -65,6 +68,9 @@ class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
     private val _etapaCambio = MutableStateFlow<EtapaCambio>(EtapaCambio.PinActual())
     val etapaCambio: StateFlow<EtapaCambio> = _etapaCambio.asStateFlow()
 
+    /** "¿Olvidó su PIN?": va a Vincular sin borrar nada; desde ahí se puede volver al PIN. */
+    fun olvidePin() = autenticador.irAActivar()
+
     fun ingresar(pin: String) {
         viewModelScope.launch {
             _estado.value = EstadoPin.Cargando
@@ -76,6 +82,9 @@ class PinViewModel(private val autenticador: Autenticador) : ViewModel() {
                 _estado.value = autenticador.bloqueadoHasta()?.let { EstadoPin.Bloqueado(it) }
                     ?: EstadoPin.Ingresando(error = e.message)
             } catch (e: ErrorApp.DispositivoNoVinculado) {
+                _estado.value = EstadoPin.Ingresando(error = e.message)
+            } catch (e: ErrorApp.DebeReactivar) {
+                // Autenticador ya volvió a Vincular con el motivo; esto es por si la pantalla sigue viva
                 _estado.value = EstadoPin.Ingresando(error = e.message)
             } catch (e: ErrorApp.NoAutorizado) {
                 _estado.value = EstadoPin.Ingresando(error = e.message)
@@ -179,13 +188,27 @@ private fun IngresoPin(vm: PinViewModel) {
 
         Spacer(Modifier.weight(1f))
 
+        // Sin OK: se ingresa solo al teclear el 4.º dígito (EntradaPin). Mientras verifica, el teclado
+        // queda deshabilitado; una entrada incompleta nunca se envía ni cuenta como intento.
         TecladoNumerico(
-            onDigito = { if (pin.length < 6) pin += it },
-            onBorrar = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
+            onDigito = { d ->
+                val paso = EntradaPin.teclear(pin, d)
+                pin = paso.pin
+                if (paso.enviar) vm.ingresar(paso.pin)
+            },
+            onBorrar = { pin = EntradaPin.borrar(pin) },
             habilitado = estado is EstadoPin.Ingresando,
             mezclar = true,     // solo el PIN se baraja (docs/pantallas.md, B2)
-            onOk = { if (pin.length >= 4) vm.ingresar(pin) },
         )
+
+        // También con el PIN bloqueado: es justo cuando más se necesita
+        TextButton(
+            onClick = vm::olvidePin,
+            enabled = estado !is EstadoPin.Cargando,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        ) {
+            Text("¿Olvidó su PIN? Tengo un código nuevo", style = MaterialTheme.typography.titleMedium)
+        }
     }
 }
 
@@ -208,7 +231,7 @@ private fun CambiarPinPantalla(vm: PinViewModel) {
         is EtapaCambio.PinActual ->
             Triple("Cambiar PIN", "Ingrese su PIN actual", e.error)
         EtapaCambio.PinNuevo ->
-            Triple("Nuevo PIN", "Elija un nuevo PIN (4–6 dígitos)", null)
+            Triple("Nuevo PIN", "Elija un nuevo PIN de ${ReglasPin.LARGO} dígitos", null)
         is EtapaCambio.PinConfirmar ->
             Triple("Confirmar PIN", "Repita el nuevo PIN", e.error)
         EtapaCambio.Cargando ->
@@ -236,13 +259,13 @@ private fun CambiarPinPantalla(vm: PinViewModel) {
         Spacer(Modifier.weight(1f))
 
         TecladoNumerico(
-            onDigito = { if (pin.length < 6) pin += it },
-            onBorrar = { if (pin.isNotEmpty()) pin = pin.dropLast(1) },
+            onDigito = { pin = EntradaPin.teclear(pin, it).pin },
+            onBorrar = { pin = EntradaPin.borrar(pin) },
             habilitado = habilitado,
             mezclar = true,
             claveMezcla = etapa,    // se vuelve a barajar en cada etapa del cambio
             onOk = {
-                if (pin.length >= 4) {
+                if (pin.length == ReglasPin.LARGO) {
                     vm.avanzarCambio(pin)
                     pin = ""
                 }
@@ -266,7 +289,7 @@ private fun CambiarPinPantalla(vm: PinViewModel) {
 // ─── Componentes del teclado ─────────────────────────────────────────────────
 
 @Composable
-fun DotPin(cantidad: Int, maximo: Int = 6, modifier: Modifier = Modifier) {
+fun DotPin(cantidad: Int, maximo: Int = ReglasPin.LARGO, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

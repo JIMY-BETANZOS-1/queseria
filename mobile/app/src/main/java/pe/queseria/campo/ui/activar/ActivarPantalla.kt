@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.seguridad.Autenticador
 import pe.queseria.campo.ui.componentes.BtnPrimario
+import pe.queseria.campo.ui.componentes.BtnSecundario
 import pe.queseria.campo.ui.componentes.MensajeAviso
 import pe.queseria.campo.ui.componentes.MensajeError
 import pe.queseria.campo.ui.componentes.TextosPendientes
@@ -80,6 +81,7 @@ class ActivarViewModel(private val autenticador: Autenticador) : ViewModel() {
  * @param motivo por qué se volvió a esta pantalla (el admin desvinculó el celular); null la primera vez.
  * @param entregasPendientes recolecciones guardadas sin enviar; se conservan para la próxima vinculación.
  * @param productoresPendientes altas de campo sin enviar; se conservan igual (y la leche las apunta).
+ * @param onVolver vuelve al PIN sin activar (se llegó desde "¿Olvidó su PIN?"); null si no hay a dónde volver.
  */
 @Composable
 fun ActivarPantalla(
@@ -87,6 +89,7 @@ fun ActivarPantalla(
     motivo: String? = null,
     entregasPendientes: Int = 0,
     productoresPendientes: Int = 0,
+    onVolver: (() -> Unit)? = null,
 ) {
     val vm: ActivarViewModel = viewModel(factory = ActivarViewModel.factory(autenticador))
     val estado by vm.estado.collectAsStateWithLifecycle()
@@ -141,5 +144,8 @@ fun ActivarPantalla(
             cargando = estado is EstadoActivar.Cargando,
             habilitado = codigo.length == 8 && estado !is EstadoActivar.Cargando,
         )
+        onVolver?.let {
+            BtnSecundario(texto = "Volver al PIN", onClick = it, habilitado = estado !is EstadoActivar.Cargando)
+        }
     }
 }

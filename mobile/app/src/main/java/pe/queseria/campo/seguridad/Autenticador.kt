@@ -20,10 +20,11 @@ data class UsuarioLocal(val id: Long, val rol: String, val nombre: String)
 
 sealed class EstadoSesion {
     /**
-     * El celular aún no se vinculó con un código del admin.
+     * El celular aún no se vinculó con un código del admin, o el usuario va a reactivarlo.
      * [motivo] explica por qué se volvió aquí (el admin lo desvinculó); null la primera vez.
+     * [puedeVolver] = llegó desde "¿Olvidó su PIN?" y sigue vinculado: puede volver al PIN sin activar.
      */
-    data class SinVincular(val motivo: String? = null) : EstadoSesion()
+    data class SinVincular(val motivo: String? = null, val puedeVolver: Boolean = false) : EstadoSesion()
 
     /** Vinculado; falta ingresar el PIN. */
     data class Cerrada(val usuario: UsuarioLocal) : EstadoSesion()
@@ -92,6 +93,12 @@ class Autenticador(
             // porque el verificador local dejaría entrar igual sin volver a preguntar al servidor.
             desvincular()
             throw ErrorApp.DispositivoNoVinculado(MSG_DESVINCULADO)
+        } catch (e: ErrorApp.DebeReactivar) {
+            // PIN puesto por el admin (antes del Bloque 6): tampoco es fallo de PIN. Debe crear el suyo
+            // con un código nuevo; lo sin sincronizar se conserva (desvincular no toca Room).
+            val motivo = e.message ?: MSG_DEBE_REACTIVAR
+            desvincular(motivo)
+            throw ErrorApp.DebeReactivar(motivo)
         } catch (e: ErrorApp.NoAutorizado) {
             pin.registrarFallo()
             throw e
@@ -131,7 +138,7 @@ class Autenticador(
      * la base local y se enviarán cuando el admin vuelva a vincular el celular. Se conserva
      * [K_DEVICE] porque identifica al aparato en la nueva activación.
      */
-    fun desvincular() {
+    fun desvincular(motivo: String = MSG_DESVINCULADO) {
         borrarToken()
         pin.borrar()
         almacen.guardar(K_USUARIO_ID, null)
@@ -139,7 +146,20 @@ class Autenticador(
         almacen.guardar(K_NOMBRE, null)
         almacen.guardar(K_DISPOSITIVO_ID, null)
         almacen.guardar(K_DEBE_CAMBIAR, null)
-        _estado.value = EstadoSesion.SinVincular(MSG_DESVINCULADO)
+        _estado.value = EstadoSesion.SinVincular(motivo)
+    }
+
+    /**
+     * "¿Olvidó su PIN? Tengo un código nuevo": lleva a Vincular SIN borrar nada (ni la sesión
+     * guardada, ni el verificador, ni Room). Si el usuario se arrepiente, [volverAlPin] lo regresa.
+     * Lo viejo se reemplaza recién cuando la reactivación sale bien.
+     */
+    fun irAActivar() {
+        _estado.value = EstadoSesion.SinVincular(puedeVolver = usuario() != null)
+    }
+
+    fun volverAlPin() {
+        usuario()?.let { _estado.value = EstadoSesion.Cerrada(it) }
     }
 
     fun cerrarSesion() {
@@ -195,13 +215,13 @@ class Autenticador(
     )
 
     private fun validarPin(p: String) {
-        if (!PATRON_PIN.matches(p)) throw ErrorApp.Validacion("El PIN debe tener de 4 a 6 dígitos")
+        if (!ReglasPin.formatoValido(p)) throw ErrorApp.Validacion("El PIN debe tener ${ReglasPin.LARGO} dígitos")
     }
 
     companion object {
         const val MSG_DESVINCULADO = "Celular desvinculado, pida un código nuevo al administrador"
+        const val MSG_DEBE_REACTIVAR = "Pida un código nuevo al administrador para crear su PIN"
 
-        private val PATRON_PIN = Regex("^[0-9]{4,6}$")   // igual que PATRON_PIN del backend
         private val LIMA: ZoneId = ZoneId.of("America/Lima")
         private val HORA: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
         private const val K_DEVICE = "device_uuid"

@@ -39,7 +39,10 @@ class MainActivity : ComponentActivity() {
                                 .collectAsStateWithLifecycle(initialValue = 0)
                             val productores by dao.observarProductoresPendientes()
                                 .collectAsStateWithLifecycle(initialValue = 0)
-                            ActivarPantalla(contenedor.autenticador, s.motivo, entregas, productores)
+                            ActivarPantalla(
+                                contenedor.autenticador, s.motivo, entregas, productores,
+                                onVolver = if (s.puedeVolver) contenedor.autenticador::volverAlPin else null,
+                            )
                         }
 
                         is EstadoSesion.Cerrada ->
