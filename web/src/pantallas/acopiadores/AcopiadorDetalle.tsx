@@ -8,10 +8,10 @@ import { fecha } from "../../comun/formato";
 import { Insignia } from "../../comun/Insignia";
 import { MuestraColor } from "../../comun/MuestraColor";
 import { useCarga } from "../../comun/useCarga";
+import { useAvisoCreado } from "../../comun/useAvisoCreado";
 import { useTitulo } from "../../comun/useTitulo";
 import { AccesoMovil } from "../../usuarios/AccesoMovil";
 import { CambiarActivo } from "../../usuarios/CambiarActivo";
-import { useAvisoCreado } from "../../usuarios/useAvisoCreado";
 import { datosDe, FormularioAcopiador, valoresDe } from "./FormularioAcopiador";
 
 /** Solo los campos que cambiaron (PATCH). */
@@ -96,7 +96,12 @@ export default function AcopiadorDetalle() {
           <p><Insignia tono="atencion">Sin rutas</Insignia> Sin rutas asignadas, su celular no verá productores.</p>
         ) : (
           <ul>
-            {a.rutas.map((r) => <li key={r.ruta_id}>{r.nombre} <span className="texto-suave">desde {fecha(r.vigente_desde)}</span></li>)}
+            {a.rutas.map((r) => (
+              <li key={r.ruta_id}>
+                <Link to={`/rutas/${r.ruta_id}`}>{r.nombre}</Link>{" "}
+                <span className="texto-suave">desde {fecha(r.vigente_desde)}</span>
+              </li>
+            ))}
           </ul>
         )}
       </section>

@@ -16,6 +16,11 @@ export type UsuarioMovil = Esquemas["UsuarioMovil"];
 export type Analista = UsuarioMovil;
 export type AnalistaNuevo = Esquemas["UsuarioMovilNuevo"];
 export type AnalistaCambios = Esquemas["UsuarioMovilCambios"];
+export type Ruta = Esquemas["Ruta"];
+export type RutaNueva = Esquemas["RutaNueva"];
+export type RutaCambios = Esquemas["RutaCambios"];
+export type Asignar = Esquemas["Asignar"];
+export type Asignacion = Esquemas["Asignacion"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 

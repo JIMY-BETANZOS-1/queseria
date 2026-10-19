@@ -6,10 +6,10 @@ import type { Analista, AnalistaCambios } from "../../api/tipos";
 import { editarAnalista, obtenerAnalista } from "../../api/usuarios";
 import { Insignia } from "../../comun/Insignia";
 import { useCarga } from "../../comun/useCarga";
+import { useAvisoCreado } from "../../comun/useAvisoCreado";
 import { useTitulo } from "../../comun/useTitulo";
 import { AccesoMovil } from "../../usuarios/AccesoMovil";
 import { CambiarActivo } from "../../usuarios/CambiarActivo";
-import { useAvisoCreado } from "../../usuarios/useAvisoCreado";
 import { datosDe, FormularioAnalista, valoresDe } from "./FormularioAnalista";
 
 /** Solo los campos que cambiaron (PATCH). */

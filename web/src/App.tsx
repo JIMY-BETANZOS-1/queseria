@@ -10,6 +10,9 @@ import Analistas from "./pantallas/analistas/Analistas";
 import Entrar from "./pantallas/Entrar";
 import Inicio from "./pantallas/Inicio";
 import NoEncontrada from "./pantallas/NoEncontrada";
+import RutaDetalle from "./pantallas/rutas/RutaDetalle";
+import RutaNueva from "./pantallas/rutas/RutaNueva";
+import Rutas from "./pantallas/rutas/Rutas";
 import { RequiereSesion } from "./sesion/RequiereSesion";
 
 /** Rutas del panel. El enrutador (BrowserRouter) lo pone main.tsx; las pruebas usan MemoryRouter. */
@@ -25,6 +28,9 @@ export default function App() {
         <Route path="analistas" element={<Analistas />} />
         <Route path="analistas/nuevo" element={<AnalistaNuevo />} />
         <Route path="analistas/:id" element={<AnalistaDetalle />} />
+        <Route path="rutas" element={<Rutas />} />
+        <Route path="rutas/nueva" element={<RutaNueva />} />
+        <Route path="rutas/:id" element={<RutaDetalle />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>

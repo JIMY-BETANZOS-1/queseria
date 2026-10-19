@@ -33,6 +33,19 @@ export function fecha(aaaaMmDd: string): string {
   return a && m && d ? `${d}/${m}/${a}` : aaaaMmDd;
 }
 
+const DIA_LIMA = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Lima",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** Fecha de hoy en Lima como "AAAA-MM-DD" (formato de los campos date de la API y de <input type="date">). */
+export function hoyLima(ahora: number | Date = Date.now()): string {
+  const partes = Object.fromEntries(DIA_LIMA.formatToParts(ahora).map((p) => [p.type, p.value]));
+  return `${partes.year}-${partes.month}-${partes.day}`;
+}
+
 const SOLES = new Intl.NumberFormat("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** "S/ 1,234.50": moneda con 2 decimales. */

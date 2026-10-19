@@ -1,5 +1,5 @@
 // Datos ficticios con la forma exacta de la API (tipos de esquema.d.ts): si el backend cambia un campo, tsc avisa.
-import type { Acopiador, Analista, CodigoActivacion, Dispositivo } from "../api/tipos";
+import type { Acopiador, Analista, Asignacion, CodigoActivacion, Dispositivo, Ruta } from "../api/tipos";
 
 export function acopiador(cambios: Partial<Acopiador> = {}): Acopiador {
   return {
@@ -32,6 +32,32 @@ export function analista(cambios: Partial<Analista> = {}): Analista {
     pin_bloqueado: false,
     pin_pendiente: false,
     celular_vinculado: true,
+    ...cambios,
+  };
+}
+
+export function ruta(cambios: Partial<Ruta> = {}): Ruta {
+  return {
+    id: 21,
+    nombre: "Ruta 4 - Collana",
+    descripcion: "Collana y Yanamayo",
+    activa: true,
+    actualizado_en: "2026-10-01T09:00:00-05:00",
+    acopiador_id: 7,
+    acopiador: "Juan Carlos Mamani Quispe",
+    color_hex: "#2563EB",
+    ...cambios,
+  };
+}
+
+export function asignacion(cambios: Partial<Asignacion> = {}): Asignacion {
+  return {
+    id: 301,
+    ruta_id: 21,
+    acopiador_id: 7,
+    acopiador: "Juan Carlos Mamani Quispe",
+    vigente_desde: "2026-09-18",
+    vigente_hasta: null,
     ...cambios,
   };
 }

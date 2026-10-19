@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 /**
- * Aviso de "recién creado" en el detalle de un usuario: se muestra si se llegó desde "Nuevo" (state
+ * Aviso de "recién creado" en el detalle de un usuario o una ruta: se muestra si se llegó desde "Nuevo" (state
  * { creado: true }) y se apaga con la primera acción, porque después contradiría el estado actual.
  * Devuelve [mostrar, olvidar]; olvidar también limpia el historial, así con F5 no vuelve.
  */

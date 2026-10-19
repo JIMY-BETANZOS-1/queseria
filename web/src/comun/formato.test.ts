@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fecha, fechaHoraLima, horaLima, soles } from "./formato";
+import { fecha, fechaHoraLima, horaLima, hoyLima, soles } from "./formato";
 
 describe("horaLima", () => {
   it("convierte a hora de Lima (UTC−5) sin importar la zona del PC", () => {
@@ -30,6 +30,22 @@ describe("fechaHoraLima", () => {
 describe("fecha (tipo date de la API)", () => {
   it("no se corre un día por la zona horaria", () => {
     expect(fecha("2026-10-18")).toBe("18/10/2026");
+  });
+});
+
+describe("hoyLima", () => {
+  it("a las 23:30 de Lima sigue siendo hoy en Lima, aunque en UTC (y en Tokio) ya sea mañana", () => {
+    const instante = Date.UTC(2026, 9, 19, 4, 30);   // 23:30 del 18/10 en Lima
+    expect(new Date(instante).getDate()).toBe(19);   // el proceso corre con TZ=Asia/Tokyo
+    expect(hoyLima(instante)).toBe("2026-10-18");
+  });
+
+  it("a medianoche de Lima ya es el día siguiente", () => {
+    expect(hoyLima(Date.UTC(2026, 9, 19, 5, 0))).toBe("2026-10-19");
+  });
+
+  it("sin argumento usa la hora actual", () => {
+    expect(hoyLima()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 
