@@ -9,6 +9,8 @@ if (-not (Test-Path (Join-Path $script:Web '.env.local'))) {
 }
 
 Push-Location $script:Web
+# Vite puede escribir avisos en stderr; con 'Stop', PowerShell 5.1 detendría el servidor
+$ErrorActionPreference = 'Continue'
 try {
     npm run dev
 } finally {

@@ -16,6 +16,7 @@ try {
 }
 
 Push-Location $script:Web
+$ErrorActionPreference = 'Continue'   # openapi-typescript escribe su progreso en stderr
 try {
     & (Join-Path $script:Web 'node_modules\.bin\openapi-typescript.cmd') $json -o 'src/api/esquema.d.ts'
     if ($LASTEXITCODE -ne 0) { Write-Error 'Falló openapi-typescript.'; exit 1 }

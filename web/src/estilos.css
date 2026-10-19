@@ -1,4 +1,4 @@
-/* Estilos base del panel: claro, sobrio, pensado para laptop. */
+/* Estilos del panel: claro, sobrio, pensado para laptop (>= 1024 px). Solo clases: nada de style en React. */
 :root {
   --fondo: #f6f7f9;
   --superficie: #ffffff;
@@ -6,13 +6,16 @@
   --texto-suave: #52606d;
   --borde: #d9dee4;
   --primario: #1d4ed8;
+  --primario-oscuro: #1e40af;
+  --primario-claro: #e8eefc;
   --ok-fondo: #e7f6ec;
   --ok-texto: #166534;
   --error-fondo: #fdecec;
   --error-texto: #b91c1c;
-  --aviso-fondo: #fff6e0;
-  --aviso-texto: #92400e;
+  --atencion-fondo: #fff6e0;
+  --atencion-texto: #92400e;
   --radio: 6px;
+  --ancho-menu: 220px;
   font-family: system-ui, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.5;
@@ -34,12 +37,187 @@ h1 {
   margin: 0 0 1rem;
 }
 
-.pagina {
+a {
+  color: var(--primario);
+}
+
+.texto-suave {
+  color: var(--texto-suave);
+}
+
+/* ---------------------------------------------------------------- marco */
+.marco {
+  display: grid;
+  grid-template-columns: var(--ancho-menu) 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "barra barra"
+    "menu  contenido";
+  min-height: 100vh;
+}
+
+.barra {
+  grid-area: barra;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1.5rem;
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+}
+
+.barra-titulo {
+  font-weight: 600;
+}
+
+.barra-sesion {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu {
+  grid-area: menu;
+  background: var(--superficie);
+  border-right: 1px solid var(--borde);
+  padding: 1rem 0.75rem;
+}
+
+.menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.menu-opcion {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radio);
+  color: var(--texto);
+  text-decoration: none;
+}
+
+.menu-opcion:hover {
+  background: var(--fondo);
+}
+
+.menu-opcion.activa {
+  background: var(--primario-claro);
+  color: var(--primario-oscuro);
+  font-weight: 600;
+}
+
+.contenido {
+  grid-area: contenido;
+  padding: 1.5rem;
   max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------- entrar */
+.entrar {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
   padding: 1.5rem;
 }
 
+.entrar-tarjeta {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.entrar-tarjeta h1,
+.entrar-tarjeta p {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- formularios */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.campo label {
+  font-weight: 500;
+}
+
+.campo input {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.campo input:focus {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+}
+
+.campo input[aria-invalid="true"] {
+  border-color: var(--error-texto);
+}
+
+.campo-error {
+  color: var(--error-texto);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.boton {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radio);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.boton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.boton-primario {
+  background: var(--primario);
+  color: #ffffff;
+}
+
+.boton-primario:hover:not(:disabled) {
+  background: var(--primario-oscuro);
+}
+
+.boton-secundario {
+  background: var(--superficie);
+  color: var(--texto);
+  border-color: var(--borde);
+}
+
+.boton-secundario:hover:not(:disabled) {
+  background: var(--fondo);
+}
+
+.boton-ancho {
+  width: 100%;
+  padding: 0.7rem;
+}
+
+/* ---------------------------------------------------------------- avisos */
 .aviso {
   padding: 0.6rem 0.9rem;
   border-radius: var(--radio);
@@ -54,4 +232,9 @@ h1 {
 .aviso-error {
   background: var(--error-fondo);
   color: var(--error-texto);
+}
+
+.aviso-atencion {
+  background: var(--atencion-fondo);
+  color: var(--atencion-texto);
 }

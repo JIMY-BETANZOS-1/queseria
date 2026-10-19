@@ -1,34 +1,20 @@
-import { useEffect, useState } from "react";
+import { Route, Routes } from "react-router-dom";
 
-import { API_URL } from "./api/config";
-import { consultarSalud, type Salud } from "./api/salud";
+import { Marco } from "./marco/Marco";
+import Entrar from "./pantallas/Entrar";
+import Inicio from "./pantallas/Inicio";
+import NoEncontrada from "./pantallas/NoEncontrada";
+import { RequiereSesion } from "./sesion/RequiereSesion";
 
-type Estado = { tipo: "cargando" } | { tipo: "ok"; salud: Salud } | { tipo: "error"; mensaje: string };
-
-/** Paso 1: esqueleto del panel. Muestra si la API responde (y con ello que el CORS está bien configurado). */
+/** Rutas del panel. El enrutador (BrowserRouter) lo pone main.tsx; las pruebas usan MemoryRouter. */
 export default function App() {
-  const [estado, setEstado] = useState<Estado>({ tipo: "cargando" });
-
-  useEffect(() => {
-    let vigente = true;
-    consultarSalud()
-      .then((salud) => vigente && setEstado({ tipo: "ok", salud }))
-      .catch(() => vigente && setEstado({ tipo: "error", mensaje: `No se pudo conectar con la API (${API_URL})` }));
-    return () => {
-      vigente = false;
-    };
-  }, []);
-
   return (
-    <main className="pagina">
-      <h1>Quesería Huata · Administración</h1>
-      {estado.tipo === "cargando" && <p>Conectando con la API…</p>}
-      {estado.tipo === "ok" && (
-        <p className="aviso aviso-ok">
-          API conectada · base <strong>{estado.salud.base}</strong>
-        </p>
-      )}
-      {estado.tipo === "error" && <p className="aviso aviso-error">{estado.mensaje}</p>}
-    </main>
+    <Routes>
+      <Route path="/entrar" element={<Entrar />} />
+      <Route element={<RequiereSesion><Marco /></RequiereSesion>}>
+        <Route index element={<Inicio />} />
+        <Route path="*" element={<NoEncontrada />} />
+      </Route>
+    </Routes>
   );
 }
