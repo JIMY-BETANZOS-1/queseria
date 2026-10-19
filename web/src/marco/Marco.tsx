@@ -7,7 +7,10 @@ import { vigilarVencimiento } from "../sesion/almacen";
 import { useSesion } from "../sesion/useSesion";
 
 // Solo las pantallas ya construidas: cada paso de W1 agrega la suya
-const MENU = [{ ruta: "/", texto: "Inicio" }];
+const MENU = [
+  { ruta: "/", texto: "Inicio", exacta: true },
+  { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
+];
 
 /** Barra superior + menú lateral + pantalla actual. Solo se muestra con sesión (ver RequiereSesion). */
 export function Marco() {
@@ -33,7 +36,7 @@ export function Marco() {
         <ul>
           {MENU.map((opcion) => (
             <li key={opcion.ruta}>
-              <NavLink to={opcion.ruta} end className={({ isActive }) => (isActive ? "menu-opcion activa" : "menu-opcion")}>
+              <NavLink to={opcion.ruta} end={opcion.exacta} className={({ isActive }) => (isActive ? "menu-opcion activa" : "menu-opcion")}>
                 {opcion.texto}
               </NavLink>
             </li>

@@ -217,6 +217,282 @@ a {
   padding: 0.7rem;
 }
 
+.campo select {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.campo select:focus {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+}
+
+.campo-color {
+  width: 4rem;
+  height: 2.4rem;
+  padding: 0.15rem;
+}
+
+.campo-ayuda {
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+
+.campo-en-linea {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.formulario-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem 1.5rem;
+}
+
+.casilla {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.boton-peligro {
+  background: var(--error-texto);
+  color: #ffffff;
+}
+
+.boton-peligro:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+.boton-peligro-suave {
+  background: var(--superficie);
+  color: var(--error-texto);
+  border-color: var(--error-texto);
+}
+
+.boton-peligro-suave:hover:not(:disabled) {
+  background: var(--error-fondo);
+}
+
+/* Enlaces con aspecto de botón (Link) */
+a.boton {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.boton-enlace {
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primario);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- páginas */
+.encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.encabezado h1 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.miga {
+  margin: 0 0 0.5rem;
+  color: var(--texto-suave);
+}
+
+.filtros {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.fila-acciones {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.seccion {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.seccion h2 {
+  font-size: 1.15rem;
+  margin: 0 0 1rem;
+}
+
+.seccion h3 {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.lista-avisos {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.lista-avisos li + li {
+  margin-top: 0.4rem;
+}
+
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- tablas */
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.tabla th,
+.tabla td {
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: middle;
+}
+
+.tabla th {
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+  font-weight: 600;
+  background: var(--fondo);
+}
+
+.tabla tbody tr:hover {
+  background: #fafbfc;
+}
+
+.muestra-color {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* ---------------------------------------------------------------- insignias */
+.insignia {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.insignia-ok {
+  background: var(--ok-fondo);
+  color: var(--ok-texto);
+}
+
+.insignia-atencion {
+  background: var(--atencion-fondo);
+  color: var(--atencion-texto);
+}
+
+.insignia-error {
+  background: var(--error-fondo);
+  color: var(--error-texto);
+}
+
+.insignia-neutro {
+  background: #eceff3;
+  color: var(--texto-suave);
+}
+
+/* ---------------------------------------------------------------- ventanas */
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 10;
+}
+
+.modal {
+  background: var(--superficie);
+  border-radius: var(--radio);
+  width: 100%;
+  max-width: 520px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal:focus {
+  outline: none;
+}
+
+.modal-titulo {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.modal-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.modal-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.codigo-activacion {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-align: center;
+  margin: 0;
+  padding: 0.75rem;
+  background: var(--fondo);
+  border: 1px dashed var(--borde);
+  border-radius: var(--radio);
+  user-select: all;
+}
+
 /* ---------------------------------------------------------------- avisos */
 .aviso {
   padding: 0.6rem 0.9rem;

@@ -8,12 +8,13 @@ import App from "../App";
 import { API, servidor } from "./servidor";
 
 function Ubicacion() {
-  const { pathname, search } = useLocation();
+  const { pathname, search, state } = useLocation();
   // <span> y no <output>: <output> tiene el rol "status" y se confundiría con los avisos
-  return <span data-testid="ubicacion">{pathname + search}</span>;
+  return <span data-testid="ubicacion" data-estado={JSON.stringify(state ?? null)}>{pathname + search}</span>;
 }
 
-export function renderizar(ruta: string, { apiCaida = false } = {}) {
+/** `ruta` puede llevar el `state` del historial (por ejemplo { creado: true } al venir de "Nuevo acopiador"). */
+export function renderizar(ruta: string | { pathname: string; state: unknown }, { apiCaida = false } = {}) {
   // Inicio consulta /salud al abrirse
   servidor.use(http.get(`${API}/salud`, () => apiCaida
     ? HttpResponse.error()
@@ -28,4 +29,9 @@ export function renderizar(ruta: string, { apiCaida = false } = {}) {
 
 export function ubicacion(): string {
   return screen.getByTestId("ubicacion").textContent ?? "";
+}
+
+/** `state` del historial en la ubicación actual (lo que vería la pantalla tras un F5). */
+export function estadoHistorial(): unknown {
+  return JSON.parse(screen.getByTestId("ubicacion").getAttribute("data-estado") ?? "null");
 }

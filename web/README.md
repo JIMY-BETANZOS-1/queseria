@@ -46,6 +46,15 @@ la dirección de la API es parte de la política de seguridad.
   pantalla donde estaba (solo rutas internas: se rechazan `//`, `\`, `/\` y direcciones absolutas).
 - "Salir" borra la sesión del navegador. El JWT no se revoca en el servidor: vence solo.
 
+## Verificaciones pendientes contra el backend real
+- **Ciclo de activación con el Realme (paso 4, Acopiadores).** Ya verificado en el navegador: crear, 409 por
+  DNI y por color repetidos, generar código, editar comisión, desactivar y reactivar. Falta, con el celular:
+  1. activar en la app (B1) con el código que muestra la web y ver "Celular vinculado" y el modelo en la web;
+  2. desactivar ese celular desde la web y comprobar que la app vuelve a "Vincular celular" sin perder lo que
+     tenga sin enviar;
+  3. generar otro código y reactivar el mismo celular;
+  4. desactivar el acopiador de prueba ("PRUEBA W1 — Acopiador") al terminar: no se puede borrar.
+
 ## Política de seguridad del contenido (CSP)
 Solo en el build: `vite.config.ts` agrega al `index.html` una etiqueta
 `<meta http-equiv="Content-Security-Policy">` con `default-src 'self'`, `script-src 'self'`, `style-src 'self'`,

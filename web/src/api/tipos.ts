@@ -6,6 +6,15 @@ type Esquemas = components["schemas"];
 export type Token = Esquemas["Token"];
 export type UsuarioSesion = Esquemas["UsuarioSesion"];
 
+export type Acopiador = Esquemas["Acopiador"];
+export type AcopiadorNuevo = Esquemas["AcopiadorNuevo"];
+export type AcopiadorCambios = Esquemas["AcopiadorCambios"];
+export type Vehiculo = Acopiador["vehiculo"];
+export type RutaVigente = Esquemas["RutaVigente"];
+export type UsuarioMovil = Esquemas["UsuarioMovil"];
+export type CodigoActivacion = Esquemas["CodigoActivacion"];
+export type Dispositivo = Esquemas["Dispositivo"];
+
 // Formato de error de backend/app/errores.py. No está en el OpenAPI: FastAPI declara HTTPValidationError
 // para los 422, pero el backend responde siempre {codigo, mensaje} (+ errores en los de validación).
 export type ErrorCampo = { campo: string; mensaje: string };

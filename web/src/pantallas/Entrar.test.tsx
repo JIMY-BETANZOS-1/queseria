@@ -33,11 +33,11 @@ async function llenarYEnviar(correo = CORREO, clave = CLAVE) {
 describe("Entrar", () => {
   it("con datos correctos entra y vuelve a la pantalla de ?volver=", async () => {
     loginResponde(() => HttpResponse.json(respuestaLogin()));
-    renderizar("/entrar?volver=%2Facopiadores%3Ffecha%3D2026-10-18");
+    renderizar("/entrar?volver=%2Fno-existe%3Ffecha%3D2026-10-18");
 
     await llenarYEnviar();
-    await waitFor(() => expect(ubicacion()).toBe("/acopiadores?fecha=2026-10-18"));
-    expect(document.title).toBe("Página no encontrada · Quesería Huata");   // esa pantalla aún no existe
+    await waitFor(() => expect(ubicacion()).toBe("/no-existe?fecha=2026-10-18"));
+    expect(document.title).toBe("Página no encontrada · Quesería Huata");
   });
 
   it.each(["//sitio-ajeno.example", "/\\sitio-ajeno.example", "https://sitio-ajeno.example"])(
