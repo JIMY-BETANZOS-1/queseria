@@ -37,7 +37,8 @@ describe("Entrar", () => {
 
     await llenarYEnviar();
     await waitFor(() => expect(ubicacion()).toBe("/no-existe?fecha=2026-10-18"));
-    expect(document.title).toBe("Página no encontrada · Quesería Huata");
+    // El título se pone en un efecto, después del cambio de ruta
+    await waitFor(() => expect(document.title).toBe("Página no encontrada · Quesería Huata"));
   });
 
   it.each(["//sitio-ajeno.example", "/\\sitio-ajeno.example", "https://sitio-ajeno.example"])(

@@ -61,5 +61,8 @@ export default defineConfig(({ command, mode }) => ({
     setupFiles: ["src/pruebas/preparar.ts"],
     // Las pruebas nunca llaman a la API real. TZ distinta de Lima: así se prueba que las horas no dependen del PC
     env: { VITE_API_URL: "http://api.prueba", TZ: "Asia/Tokyo" },
+    // Las pruebas de formularios tipean letra por letra: con todos los archivos en paralelo pasan de los 5 s
+    // por defecto aunque solas tarden menos
+    testTimeout: 15_000,
   },
 }));
