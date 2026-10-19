@@ -10,6 +10,7 @@ import { useSesion } from "../sesion/useSesion";
 const MENU = [
   { ruta: "/", texto: "Inicio", exacta: true },
   { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
+  { ruta: "/analistas", texto: "Analistas", exacta: false },
 ];
 
 /** Barra superior + menú lateral + pantalla actual. Solo se muestra con sesión (ver RequiereSesion). */

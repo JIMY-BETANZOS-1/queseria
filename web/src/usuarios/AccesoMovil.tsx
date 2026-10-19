@@ -10,7 +10,7 @@ import { CodigoVentana } from "./CodigoVentana";
 import { estadoAcceso } from "./estadoAcceso";
 
 type Props = {
-  usuario: Pick<UsuarioMovil, "id" | "nombre_completo" | "activo" | "pin_bloqueado" | "pin_pendiente" | "celular_vinculado">;
+  usuario: Pick<UsuarioMovil, "id" | "rol" | "nombre_completo" | "activo" | "pin_bloqueado" | "pin_pendiente" | "celular_vinculado">;
   /** Algo cambió en el acceso (código usado, celular desactivado): recargar los datos del usuario. */
   onCambio: () => void;
   /** Se confirmó una acción (generar código, desactivar celular), aunque falle. */
@@ -38,6 +38,13 @@ export function AccesoMovil({ usuario, onCambio, onAccion }: Props) {
   return (
     <section className="seccion" aria-labelledby="acceso-titulo">
       <h2 id="acceso-titulo">Acceso al celular</h2>
+      {usuario.rol === "analista" && (
+        // MotorSync.bajar (app 0.7.0) rechaza cualquier rol que no sea acopiador
+        <p className="aviso aviso-atencion">
+          La app actual (0.7.0) todavía no tiene las pantallas del analista: puede activar el celular, pero al
+          sincronizar verá "Esta versión de la app es solo para acopiadores".
+        </p>
+      )}
       <div className="fila-acciones">
         <span>Estado: <Insignia tono={estado.tono}>{estado.texto}</Insignia></span>
         <button

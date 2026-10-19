@@ -12,6 +12,10 @@ export type AcopiadorCambios = Esquemas["AcopiadorCambios"];
 export type Vehiculo = Acopiador["vehiculo"];
 export type RutaVigente = Esquemas["RutaVigente"];
 export type UsuarioMovil = Esquemas["UsuarioMovil"];
+// Un analista no tiene datos propios: es un usuario móvil (backend/app/routers/usuarios.py, /analistas)
+export type Analista = UsuarioMovil;
+export type AnalistaNuevo = Esquemas["UsuarioMovilNuevo"];
+export type AnalistaCambios = Esquemas["UsuarioMovilCambios"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 
