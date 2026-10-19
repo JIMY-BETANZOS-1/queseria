@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { ErrorApi } from "../../api/cliente";
 import type { Acopiador, AcopiadorCambios } from "../../api/tipos";
 import { editarAcopiador, obtenerAcopiador } from "../../api/usuarios";
-import { Confirmar } from "../../comun/Confirmar";
 import { fecha } from "../../comun/formato";
 import { Insignia } from "../../comun/Insignia";
 import { MuestraColor } from "../../comun/MuestraColor";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
 import { AccesoMovil } from "../../usuarios/AccesoMovil";
+import { CambiarActivo } from "../../usuarios/CambiarActivo";
+import { useAvisoCreado } from "../../usuarios/useAvisoCreado";
 import { datosDe, FormularioAcopiador, valoresDe } from "./FormularioAcopiador";
 
 /** Solo los campos que cambiaron (PATCH). */
@@ -34,18 +35,8 @@ export default function AcopiadorDetalle() {
     () => (valido ? obtenerAcopiador(numero) : Promise.reject(new ErrorApi(404, "no_encontrado", "El acopiador no existe"))),
     [numero],
   );
-  const ubicacion = useLocation();
-  const navegar = useNavigate();
-  // El aviso de "recién creado" se apaga con la primera acción: después contradiría el estado actual
-  const [recienCreado, setRecienCreado] = useState((ubicacion.state as { creado?: boolean } | null)?.creado === true);
+  const [recienCreado, olvidarCreado] = useAvisoCreado();
   const [cambiarActivo, setCambiarActivo] = useState(false);
-
-  function olvidarCreado() {
-    if (!recienCreado) return;
-    setRecienCreado(false);
-    // También en el historial: con F5 no vuelve a aparecer
-    navegar(ubicacion.pathname, { replace: true, state: null });
-  }
   useTitulo(carga.estado === "listo" ? carga.datos.nombre_completo : "Acopiador");
 
   const miga = <p className="miga"><Link to="/acopiadores">Acopiadores</Link> › Detalle</p>;
@@ -113,33 +104,16 @@ export default function AcopiadorDetalle() {
       <AccesoMovil usuario={a} onCambio={recargar} onAccion={olvidarCreado} />
 
       {cambiarActivo && (
-        <Confirmar
-          titulo={a.activo ? "Desactivar acopiador" : "Reactivar acopiador"}
-          textoConfirmar={a.activo ? "Desactivar" : "Reactivar"}
-          peligro={a.activo}
+        <CambiarActivo
+          rol="acopiador"
+          activo={a.activo}
           onCerrar={() => setCambiarActivo(false)}
           onConfirmar={async () => {
             olvidarCreado();
             ponerDatos(await editarAcopiador(a.id, { activo: !a.activo }));
             setCambiarActivo(false);
           }}
-        >
-          {a.activo ? (
-            <ul className="lista-avisos">
-              <li>Corta su acceso al instante: la app ya no podrá entrar ni sincronizar con el servidor.</li>
-              <li>Lo que ya registró en el servidor no cambia.</li>
-              <li>Lo que tenga sin enviar se queda guardado en su celular: no se borra.</li>
-            </ul>
-          ) : (
-            <ul className="lista-avisos">
-              <li>Vuelve a poder entrar y sincronizar.</li>
-              <li>
-                Si mientras estuvo inactivo intentó entrar con señal, su celular quedó desvinculado: genere un código
-                nuevo y actívelo en ese mismo celular (conserva lo que tenga sin enviar).
-              </li>
-            </ul>
-          )}
-        </Confirmar>
+        />
       )}
     </>
   );

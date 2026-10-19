@@ -2,8 +2,10 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 
 import { ErrorApi, ErrorSesion } from "../../api/cliente";
 import type { Acopiador, AcopiadorNuevo, Vehiculo } from "../../api/tipos";
+import { Campo, type PropsControl } from "../../comun/Campo";
 import { esColorValido } from "../../comun/MuestraColor";
 import { mensajeDeError } from "../../comun/useCarga";
+import { reglaCelular, reglaDni, reglaNombre } from "../../usuarios/reglas";
 
 export const VEHICULOS: { valor: Vehiculo; texto: string }[] = [
   { valor: "moto_lineal", texto: "Moto lineal" },
@@ -25,8 +27,8 @@ export type Valores = {
   sueldo_base_mensual: string;
   comision_por_litro: string;
 };
-type Campo = keyof Valores;
-type Errores = Partial<Record<Campo, string>>;
+type NombreCampo = keyof Valores;
+type Errores = Partial<Record<NombreCampo, string>>;
 
 export function valoresDe(a: Acopiador): Valores {
   return {
@@ -55,10 +57,11 @@ export function datosDe(v: Valores): AcopiadorNuevo {
 
 /** Mismas reglas que los CHECK de db/schema.sql (usuario, acopiador). El servidor decide igual. */
 export function validar(v: Valores): Errores {
-  const e: Errores = {};
-  if (v.nombre_completo.trim() === "") e.nombre_completo = "Escriba el nombre completo";
-  if (!/^[0-9]{8}$/.test(v.dni.trim())) e.dni = "El DNI debe tener 8 dígitos";
-  if (!/^[0-9]{9}$/.test(v.celular.trim())) e.celular = "El celular debe tener 9 dígitos";
+  const e: Errores = {
+    nombre_completo: reglaNombre(v.nombre_completo),
+    dni: reglaDni(v.dni),
+    celular: reglaCelular(v.celular),
+  };
   if (!esColorValido(v.color_hex)) e.color_hex = "Elija un color";
   if (!/^[0-9]{1,8}(\.[0-9]{1,2})?$/.test(v.sueldo_base_mensual.trim())) {
     e.sueldo_base_mensual = "Monto en soles, 0 o más, con hasta 2 decimales";
@@ -66,10 +69,11 @@ export function validar(v: Valores): Errores {
   if (!/^[0-9]{1,3}(\.[0-9]{1,3})?$/.test(v.comision_por_litro.trim())) {
     e.comision_por_litro = "Soles por litro, 0 o más, con hasta 3 decimales";
   }
-  return e;
+  // Solo los campos con error
+  return Object.fromEntries(Object.entries(e).filter(([, mensaje]) => mensaje !== undefined)) as Errores;
 }
 
-const CAMPOS: Campo[] = ["nombre_completo", "dni", "celular", "color_hex", "vehiculo", "sueldo_base_mensual", "comision_por_litro"];
+const CAMPOS: NombreCampo[] = ["nombre_completo", "dni", "celular", "color_hex", "vehiculo", "sueldo_base_mensual", "comision_por_litro"];
 
 type Props = {
   inicial: Valores;
@@ -88,7 +92,7 @@ export function FormularioAcopiador({ inicial, textoGuardar, onGuardar, extra }:
   const [exito, setExito] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
-  function cambiar(campo: Campo, valor: string) {
+  function cambiar(campo: NombreCampo, valor: string) {
     setV((anterior) => ({ ...anterior, [campo]: valor }));
     setExito(null);
   }
@@ -112,7 +116,7 @@ export function FormularioAcopiador({ inicial, textoGuardar, onGuardar, extra }:
       const porCampo: Errores = {};
       if (e instanceof ErrorApi) {
         for (const err of e.errores) {
-          if ((CAMPOS as string[]).includes(err.campo)) porCampo[err.campo as Campo] = err.mensaje;
+          if ((CAMPOS as string[]).includes(err.campo)) porCampo[err.campo as NombreCampo] = err.mensaje;
         }
       }
       setErrores(porCampo);
@@ -122,24 +126,11 @@ export function FormularioAcopiador({ inicial, textoGuardar, onGuardar, extra }:
     }
   }
 
-  function campo(nombre: Campo, etiqueta: string, control: (props: {
-    id: string; "aria-invalid"?: true; "aria-describedby"?: string; disabled: boolean;
-  }) => ReactNode, ayuda?: string) {
-    const error = errores[nombre];
-    const idControl = `${id}-${nombre}`;
-    const descripcion = [error ? `${idControl}-error` : null, ayuda ? `${idControl}-ayuda` : null].filter(Boolean).join(" ");
+  function campo(nombre: NombreCampo, etiqueta: string, control: (props: PropsControl) => ReactNode, ayuda?: string) {
     return (
-      <div className="campo">
-        <label htmlFor={idControl}>{etiqueta}</label>
-        {control({
-          id: idControl,
-          "aria-invalid": error ? true : undefined,
-          "aria-describedby": descripcion || undefined,
-          disabled: guardando,
-        })}
-        {ayuda && <span id={`${idControl}-ayuda`} className="campo-ayuda">{ayuda}</span>}
-        {error && <span id={`${idControl}-error`} className="campo-error">{error}</span>}
-      </div>
+      <Campo id={`${id}-${nombre}`} etiqueta={etiqueta} error={errores[nombre]} ayuda={ayuda} deshabilitado={guardando}>
+        {control}
+      </Campo>
     );
   }
 
