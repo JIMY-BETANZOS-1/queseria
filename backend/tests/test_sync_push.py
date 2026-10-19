@@ -8,7 +8,7 @@ import pytest
 from app.esquemas.sync import RecoleccionPush
 from app.firma import cadena_canonica, hash_de_firma
 from conftest import (activar, cab, crear_productor, crear_ruta_asignada, generar_codigo, item_recoleccion,
-                      movil_con_celular, nueva_clave, push)
+                      movil_con_celular, nueva_clave, push, ruc)
 
 
 @pytest.fixture(scope="module")
@@ -177,7 +177,7 @@ def test_analista_registra_externo_pero_no_de_ruta(client, admin, acop):
     assert ok["estado"] == "creado" and ok["alertas"] == []        # externos: en planta, sin alertas de GPS
     assert malo["estado"] == "rechazado" and malo["motivo"] == "El analista solo registra productores externos"
 
-    nuevo = {"uuid_cliente": str(uuid.uuid4()), "nombre": "Externo de campo", "documento": "20123456789",
+    nuevo = {"uuid_cliente": str(uuid.uuid4()), "nombre": "Externo de campo", "documento": ruc(),
              "celular": "951234567"}
     p = push(client, analista, productores=[nuevo])["productores"][0]
     assert p["estado"] == "creado"

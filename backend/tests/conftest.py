@@ -76,6 +76,11 @@ def celular() -> str:
     return _sin_pin_al_final(lambda: "9" + str(random.randint(10_000_000, 99_999_999)))
 
 
+def ruc() -> str:
+    """RUC de empresa (20 + 9 dígitos): cumple ck_productor_documento y no choca entre corridas."""
+    return "20" + str(random.randint(100_000_000, 999_999_999))
+
+
 def color() -> str:
     return "#%06X" % random.randint(0, 0xFFFFFF)
 

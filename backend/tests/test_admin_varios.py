@@ -1,23 +1,28 @@
 import uuid
+from datetime import date, timedelta
 
 from conftest import cab, celular, dni
 
 
 def test_precio_leche_historial(client, admin):
     h = cab(admin)
-    r = client.post("/precios-leche", json={"tipo": "normal", "precio_litro": 1.85, "vigente_desde": "2099-01-01"},
+    # Fecha lejana y única: el día siguiente a la vigencia más tardía ya guardada (así la suite se puede
+    # repetir sin recrear la base) y nunca antes de 2099, para no cambiar el precio vigente de hoy
+    ultima = date.fromisoformat(client.get("/precios-leche", headers=h).json()[0]["vigente_desde"])
+    desde = max(date(2099, 1, 1), ultima + timedelta(days=1)).isoformat()
+    r = client.post("/precios-leche", json={"tipo": "normal", "precio_litro": 1.85, "vigente_desde": desde},
                     headers=h)
     assert r.status_code == 201, r.text
     assert r.json()["creado_por"] == int(admin["id"])
-    r = client.post("/precios-leche", json={"tipo": "normal", "precio_litro": 1.90, "vigente_desde": "2099-01-01"},
+    r = client.post("/precios-leche", json={"tipo": "normal", "precio_litro": 1.90, "vigente_desde": desde},
                     headers=h)
     assert r.status_code == 409
     assert r.json()["mensaje"] == "Ya existe un precio de ese tipo con esa fecha de vigencia"
-    r = client.post("/precios-leche", json={"tipo": "sancion", "precio_litro": 0, "vigente_desde": "2099-02-01"},
+    r = client.post("/precios-leche", json={"tipo": "sancion", "precio_litro": 0, "vigente_desde": desde},
                     headers=h)
     assert r.status_code == 422
     historial = client.get("/precios-leche", headers=h).json()
-    assert historial[0]["vigente_desde"] == "2099-01-01"
+    assert historial[0]["vigente_desde"] == desde
     assert {(p["tipo"], p["precio_litro"]) for p in historial} >= {("normal", 1.7), ("sancion", 0.7)}
 
 
