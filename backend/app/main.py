@@ -20,11 +20,13 @@ async def ciclo_de_vida(_: FastAPI):
 
 app = FastAPI(title="Quesería Huata — API", version="0.1.0", lifespan=ciclo_de_vida)
 
+# Solo el panel web llama desde el navegador. El token va en la cabecera Authorization (no hay cookies),
+# así que no se habilitan credenciales; solo los métodos y cabeceras que usa la API.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in config().cors_origenes.split(",") if o.strip()],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 registrar_manejadores(app)
 

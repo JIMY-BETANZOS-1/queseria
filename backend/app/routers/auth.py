@@ -18,12 +18,20 @@ router = APIRouter(prefix="/auth", tags=["autenticación"])
 ACTIVAR_MAX_FALLOS = 10
 ACTIVAR_VENTANA_S = 600
 _fallos_activar: dict[str, deque] = defaultdict(deque)
+# Límite de contraseñas de admin fallidas por IP (usuario no tiene contador de intentos para el admin)
+LOGIN_ADMIN_MAX_FALLOS = 10
+LOGIN_ADMIN_VENTANA_S = 600
+_fallos_login_admin: dict[str, deque] = defaultdict(deque)
 _candado = threading.Lock()
 
 
-def _fallos_recientes(ip: str) -> deque:
-    cola = _fallos_activar[ip]
-    limite = time.monotonic() - ACTIVAR_VENTANA_S
+def _ip(request: Request) -> str:
+    return request.client.host if request.client else "?"
+
+
+def _fallos_recientes(registro: dict[str, deque], ip: str, ventana_s: int) -> deque:
+    cola = registro[ip]
+    limite = time.monotonic() - ventana_s
     while cola and cola[0] < limite:
         cola.popleft()
     return cola
@@ -32,10 +40,17 @@ def _fallos_recientes(ip: str) -> deque:
 def reiniciar_limites() -> None:
     with _candado:
         _fallos_activar.clear()
+        _fallos_login_admin.clear()
 
 
 @router.post("/admin/login", response_model=Token)
-def login_admin(datos: LoginAdmin):
+def login_admin(datos: LoginAdmin, request: Request):
+    ip = _ip(request)
+    # Con el límite alcanzado se corta antes de revisar la contraseña (ni la correcta pasa)
+    with _candado:
+        if len(_fallos_recientes(_fallos_login_admin, ip, LOGIN_ADMIN_VENTANA_S)) >= LOGIN_ADMIN_MAX_FALLOS:
+            raise ErrorApi(429, "demasiados_intentos", "Demasiados intentos fallidos. Intente en unos minutos")
+
     with db.pool().connection() as conn:
         fila = db.uno(conn, """
             SELECT id, nombre_completo, password_hash FROM usuario
@@ -43,6 +58,8 @@ def login_admin(datos: LoginAdmin):
         """, (datos.email,))
     # Con correo inexistente se compara igual contra un hash de relleno (mismo tiempo de respuesta)
     if not seguridad.verificar(datos.password, fila["password_hash"] if fila else None) or fila is None:
+        with _candado:
+            _fallos_recientes(_fallos_login_admin, ip, LOGIN_ADMIN_VENTANA_S).append(time.monotonic())
         raise no_autorizado("Correo o contraseña incorrectos")
     minutos = config().jwt_minutos_admin
     return Token(
@@ -54,9 +71,9 @@ def login_admin(datos: LoginAdmin):
 
 @router.post("/dispositivo/activar", response_model=DispositivoActivado)
 def activar_dispositivo(datos: Activar, request: Request):
-    ip = request.client.host if request.client else "?"
+    ip = _ip(request)
     with _candado:
-        if len(_fallos_recientes(ip)) >= ACTIVAR_MAX_FALLOS:
+        if len(_fallos_recientes(_fallos_activar, ip, ACTIVAR_VENTANA_S)) >= ACTIVAR_MAX_FALLOS:
             raise ErrorApi(429, "demasiados_intentos", "Demasiados códigos incorrectos. Intente en unos minutos")
 
     with db.transaccion(None) as conn:
@@ -106,7 +123,7 @@ def activar_dispositivo(datos: Activar, request: Request):
             )
 
     with _candado:
-        _fallos_recientes(ip).append(time.monotonic())
+        _fallos_recientes(_fallos_activar, ip, ACTIVAR_VENTANA_S).append(time.monotonic())
     raise no_autorizado("Código inválido, vencido o ya usado")
 
 
