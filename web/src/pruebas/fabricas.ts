@@ -1,5 +1,7 @@
 // Datos ficticios con la forma exacta de la API (tipos de esquema.d.ts): si el backend cambia un campo, tsc avisa.
-import type { Acopiador, Analista, Asignacion, CodigoActivacion, Dispositivo, Ruta } from "../api/tipos";
+import type {
+  Acopiador, Analista, Asignacion, CodigoActivacion, Dispositivo, Productor, ProductorResumen, RecoleccionDetalle, Ruta,
+} from "../api/tipos";
 
 export function acopiador(cambios: Partial<Acopiador> = {}): Acopiador {
   return {
@@ -58,6 +60,82 @@ export function asignacion(cambios: Partial<Asignacion> = {}): Asignacion {
     acopiador: "Juan Carlos Mamani Quispe",
     vigente_desde: "2026-09-18",
     vigente_hasta: null,
+    ...cambios,
+  };
+}
+
+export function productor(cambios: Partial<Productor> = {}): Productor {
+  return {
+    id: 120,
+    codigo: "P-0120",
+    nombre: "Rosa Condori Huanca",
+    documento: "42345678",
+    celular: "951111222",
+    tipo: "de_ruta",
+    ruta_id: 21,
+    latitud_ref: -15.612345,
+    longitud_ref: -69.912345,
+    aprobado: true,
+    creado_por: 1,
+    uuid_cliente: null,
+    activo: true,
+    actualizado_en: "2026-10-01T09:00:00-05:00",
+    ...cambios,
+  };
+}
+
+export function productorResumen(cambios: Partial<ProductorResumen> = {}): ProductorResumen {
+  return {
+    productor_id: 120,
+    codigo: "P-0120",
+    nombre: "Rosa Condori Huanca",
+    tipo: "de_ruta",
+    ruta_id: 21,
+    pendiente_aprobacion: false,
+    acopiador: "Juan Carlos Mamani Quispe",
+    color_hex: "#2563EB",
+    litros_total: 1234.5,
+    litros_descartados: 20,
+    n_recolecciones: 40,
+    ultima_recoleccion: "2026-10-18T06:15:00-05:00",
+    sancionado: false,
+    bloqueado: false,
+    sancion_hasta: null,
+    activo: true,
+    ...cambios,
+  };
+}
+
+export function recoleccion(cambios: Partial<RecoleccionDetalle> = {}): RecoleccionDetalle {
+  return {
+    recoleccion_id: "0f6c2a4e-0000-4000-8000-000000000001",
+    registrada_en: "2026-10-18T06:15:00-05:00",
+    fecha: "2026-10-18",
+    productor_id: 120,
+    productor_codigo: "P-0120",
+    productor: "Rosa Condori Huanca",
+    tipo_productor: "de_ruta",
+    productor_pendiente: false,
+    ruta_id: 21,
+    ruta: "Ruta 4 - Collana",
+    registrado_por: 7,
+    registrado_por_nombre: "Juan Carlos Mamani Quispe",
+    color_hex: "#2563EB",
+    litros: 32.5,
+    observacion: null,
+    estado_calidad: "normal",
+    revisada: true,
+    latitud: -15.6123,
+    longitud: -69.9123,
+    precision_m: 8,
+    origen_ubicacion: "gps",
+    ubicacion_simulada: false,
+    alertas_pendientes: 0,
+    monto: 55.25,
+    retenida: false,
+    pagable: true,
+    liquidada: false,
+    anulada_en: null,
     ...cambios,
   };
 }

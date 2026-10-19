@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fecha, fechaHoraLima, horaLima, hoyLima, soles } from "./formato";
+import { fecha, fechaHoraLima, horaLima, hoyLima, litros, soles } from "./formato";
 
 describe("horaLima", () => {
   it("convierte a hora de Lima (UTC−5) sin importar la zona del PC", () => {
@@ -46,6 +46,14 @@ describe("hoyLima", () => {
 
   it("sin argumento usa la hora actual", () => {
     expect(hoyLima()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("litros", () => {
+  it("hasta 2 decimales, sin ceros de más, con separador de miles", () => {
+    expect(litros(1234.5)).toBe("1,234.5 L");
+    expect(litros(20)).toBe("20 L");
+    expect(litros(32.25)).toBe("32.25 L");
   });
 });
 

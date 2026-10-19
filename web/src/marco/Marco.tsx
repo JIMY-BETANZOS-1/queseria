@@ -12,6 +12,7 @@ const MENU = [
   { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
   { ruta: "/analistas", texto: "Analistas", exacta: false },
   { ruta: "/rutas", texto: "Rutas", exacta: false },
+  { ruta: "/productores", texto: "Productores", exacta: false },
 ];
 
 /** Barra superior + menú lateral + pantalla actual. Solo se muestra con sesión (ver RequiereSesion). */

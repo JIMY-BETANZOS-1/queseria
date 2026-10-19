@@ -514,3 +514,25 @@ a.boton {
   background: var(--atencion-fondo);
   color: var(--atencion-texto);
 }
+
+/* ---------------------------------------------------------------- grupos de opciones y números */
+.opciones {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
+.opciones legend {
+  font-weight: 500;
+  padding: 0;
+  margin-bottom: 0.3rem;
+  width: 100%;
+}
+
+.tabla .numero {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

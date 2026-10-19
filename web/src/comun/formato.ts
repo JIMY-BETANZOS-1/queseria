@@ -46,6 +46,13 @@ export function hoyLima(ahora: number | Date = Date.now()): string {
   return `${partes.year}-${partes.month}-${partes.day}`;
 }
 
+const LITROS = new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 });
+
+/** "1,234.5 L": litros con hasta 2 decimales (como numeric(8,2) de la base). */
+export function litros(cantidad: number): string {
+  return `${LITROS.format(cantidad)} L`;
+}
+
 const SOLES = new Intl.NumberFormat("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /** "S/ 1,234.50": moneda con 2 decimales. */

@@ -21,6 +21,12 @@ export type RutaNueva = Esquemas["RutaNueva"];
 export type RutaCambios = Esquemas["RutaCambios"];
 export type Asignar = Esquemas["Asignar"];
 export type Asignacion = Esquemas["Asignacion"];
+export type ProductorResumen = Esquemas["ProductorResumen"];
+export type Productor = Esquemas["Productor"];
+export type ProductorNuevo = Esquemas["ProductorNuevo"];
+export type ProductorCambios = Esquemas["ProductorCambios"];
+export type TipoProductor = Productor["tipo"];
+export type RecoleccionDetalle = Esquemas["RecoleccionDetalle"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 

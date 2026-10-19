@@ -10,6 +10,9 @@ import Analistas from "./pantallas/analistas/Analistas";
 import Entrar from "./pantallas/Entrar";
 import Inicio from "./pantallas/Inicio";
 import NoEncontrada from "./pantallas/NoEncontrada";
+import ProductorDetalle from "./pantallas/productores/ProductorDetalle";
+import ProductorNuevo from "./pantallas/productores/ProductorNuevo";
+import Productores from "./pantallas/productores/Productores";
 import RutaDetalle from "./pantallas/rutas/RutaDetalle";
 import RutaNueva from "./pantallas/rutas/RutaNueva";
 import Rutas from "./pantallas/rutas/Rutas";
@@ -31,6 +34,9 @@ export default function App() {
         <Route path="rutas" element={<Rutas />} />
         <Route path="rutas/nueva" element={<RutaNueva />} />
         <Route path="rutas/:id" element={<RutaDetalle />} />
+        <Route path="productores" element={<Productores />} />
+        <Route path="productores/nuevo" element={<ProductorNuevo />} />
+        <Route path="productores/:id" element={<ProductorDetalle />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>
