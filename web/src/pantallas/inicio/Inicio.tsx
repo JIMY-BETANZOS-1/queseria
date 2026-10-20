@@ -15,13 +15,17 @@ function cifra<T>(carga: Carga<T>, texto: (datos: T) => string): string {
   return carga.estado === "listo" ? texto(carga.datos) : carga.estado === "cargando" ? "…" : "—";
 }
 
-function Tarjeta({ ruta, icono, titulo, valor, detalle }: {
-  ruta: string; icono: NombreIcono; titulo: string; valor: string; detalle: string;
+/** Un paso del flujo del día. El número es decorativo: el orden ya lo da la lista numerada (<ol>). */
+function Tarjeta({ numero, ruta, icono, titulo, valor, detalle }: {
+  numero: number; ruta: string; icono: NombreIcono; titulo: string; valor: string; detalle: string;
 }) {
   return (
-    <li>
+    <li className="paso">
       <Link to={ruta} className="tarjeta-accion">
-        <Icono nombre={icono} clase="tarjeta-accion-icono" />
+        <span className="tarjeta-accion-cabecera">
+          <span className="tarjeta-accion-numero" aria-hidden="true">{numero}</span>
+          <Icono nombre={icono} clase="tarjeta-accion-icono" />
+        </span>
         <span className="tarjeta-accion-titulo">{titulo}</span>
         <span className="tarjeta-accion-cifra">{valor}</span>
         <span className="tarjeta-accion-detalle">{detalle}</span>
@@ -45,20 +49,21 @@ export default function Inicio() {
       <div className="encabezado">
         <h1>Inicio</h1>
       </div>
-      <ul className="tarjetas-accion" aria-label="Tareas del día">
-        <Tarjeta ruta="/recolecciones" icono="recolecciones" titulo="Recibir leche"
+      {/* Banner o foto de la planta (opcional): va aquí, en web/public/, cuando el cliente la entregue */}
+      <ol className="tarjetas-accion" aria-label="Tareas del día">
+        <Tarjeta numero={1} ruta="/recolecciones" icono="recolecciones" titulo="Recibir leche"
                  valor={cifra(leche.carga, (js) => litros(js.find((j) => j.fecha === hoy)?.litros_recolectados ?? 0))}
                  detalle={sinRevisar === null ? "recolectados hoy" : `hoy · ${plural(sinRevisar, "entrega", "entregas")} sin revisar`} />
-        <Tarjeta ruta="/produccion" icono="produccion" titulo="Producir"
+        <Tarjeta numero={2} ruta="/produccion" icono="produccion" titulo="Producir"
                  valor={cifra(leche.carga, (js) => litros(Math.round(js.reduce((s, j) => s + j.litros_disponibles, 0) * 100) / 100))}
                  detalle={`de leche aprobada disponible (últimos ${DIAS_LECHE} días)`} />
-        <Tarjeta ruta="/ventas" icono="ventas" titulo="Vender"
+        <Tarjeta numero={3} ruta="/ventas" icono="ventas" titulo="Vender"
                  valor={cifra(lotes.carga, (ls) => plural(ls.length, "lote", "lotes"))}
                  detalle="con saldo para vender" />
-        <Tarjeta ruta="/pagos/productores" icono="pagos" titulo="Pagar"
+        <Tarjeta numero={4} ruta="/pagos/productores" icono="pagos" titulo="Pagar"
                  valor={cifra(resumen.carga, (d) => soles(d.por_pagar.monto_pagable))}
                  detalle="pagable a productores" />
-      </ul>
+      </ol>
 
       <section className="seccion" aria-labelledby="inicio-atencion">
         <h2 id="inicio-atencion">Requiere atención</h2>

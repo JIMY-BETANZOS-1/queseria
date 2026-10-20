@@ -59,6 +59,11 @@ describe("inicio", () => {
     const lista = screen.getByRole("list", { name: "Tareas del día" });
     expect(within(lista).getAllByRole("link").map((l) => l.querySelector(".tarjeta-accion-titulo")?.textContent))
       .toEqual(["Recibir leche", "Producir", "Vender", "Pagar"]);
+    // Pasos numerados del flujo: lista ordenada; el número es decorativo (no entra en el nombre del enlace)
+    expect(lista.tagName).toBe("OL");
+    const numeros = within(lista).getAllByRole("link").map((l) => l.querySelector(".tarjeta-accion-numero"));
+    expect(numeros.map((n) => n?.textContent)).toEqual(["1", "2", "3", "4"]);
+    for (const n of numeros) expect(n).toHaveAttribute("aria-hidden", "true");
 
     await waitFor(() => expect(tarjeta("Pagar")).toHaveTextContent("PagarS/ 1,234.50pagable a productores"));
     expect(tarjeta("Recibir leche")).toHaveTextContent("Recibir leche120.5 Lhoy · 3 entregas sin revisar");
