@@ -7,8 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import db
 from .config import config
 from .errores import registrar_manejadores
-from .routers import (acopiador, alertas, analisis, auth, configuracion, precios, productores, recolecciones,
-                      rutas, sync, usuarios)
+from .routers import (acopiador, alertas, analisis, auth, configuracion, pagos, precios, productores,
+                      recolecciones, rutas, sync, usuarios)
 
 
 @asynccontextmanager
@@ -32,7 +32,7 @@ registrar_manejadores(app)
 
 for r in (auth.router, rutas.router, usuarios.router_acopiadores, usuarios.router_analistas,
           usuarios.router_usuarios, productores.router, recolecciones.router, precios.router,
-          configuracion.router, sync.router, analisis.router, acopiador.router, alertas.router):
+          configuracion.router, sync.router, analisis.router, acopiador.router, alertas.router, pagos.router):
     app.include_router(r)
 
 

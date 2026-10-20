@@ -1,4 +1,5 @@
-"""Recolecciones (v_recoleccion_detalle) y su anulación. El registro llega por /sync/push."""
+"""Recolecciones (v_recoleccion_detalle), su anulación y la revisión de calidad del admin.
+El registro llega por /sync/push."""
 from datetime import date
 from uuid import UUID
 
@@ -8,7 +9,9 @@ from .. import db
 from ..deps import Usuario, solo_admin
 from ..errores import conflicto, no_encontrado
 from ..esquemas.alertas import AnularRecoleccion
-from ..esquemas.recolecciones import RecoleccionDetalle
+from ..esquemas.recolecciones import CalidadAdmin, CalidadRevisada, RecoleccionDetalle
+from ..esquemas.sync import RevisionCalidad
+from .sync import _revisar
 
 router = APIRouter(prefix="/recolecciones", tags=["recolecciones"])
 
@@ -53,3 +56,36 @@ def anular(recoleccion_id: UUID, datos: AnularRecoleccion, usuario: Usuario = De
                 raise no_encontrado("La recolección no existe")
             raise conflicto("La recolección ya está anulada")
         return db.uno(conn, "SELECT * FROM v_recoleccion_detalle WHERE recoleccion_id = %s", (recoleccion_id,))
+
+
+# ----------------------------------------------------------------- calidad (admin)
+@router.get("/sin-revisar", response_model=list[RecoleccionDetalle])
+def sin_revisar(desde: date | None = None, hasta: date | None = None, registrado_por: int | None = None,
+                limit: int = Query(500, ge=1, le=1000), usuario: Usuario = Depends(solo_admin)):
+    """Lista de trabajo de calidad (v_recoleccion_sin_revisar), con el detalle de cada una; las más antiguas primero."""
+    with db.transaccion(usuario.id) as conn:
+        return db.todos(conn, """
+            SELECT d.* FROM v_recoleccion_detalle d
+              JOIN v_recoleccion_sin_revisar s ON s.recoleccion_id = d.recoleccion_id
+             WHERE (%(desde)s::date IS NULL OR d.fecha >= %(desde)s)
+               AND (%(hasta)s::date IS NULL OR d.fecha <= %(hasta)s)
+               AND (%(reg)s::bigint IS NULL OR d.registrado_por = %(reg)s)
+             ORDER BY d.registrada_en
+             LIMIT %(limit)s
+        """, {"desde": desde, "hasta": hasta, "reg": registrado_por, "limit": limit})
+
+
+@router.post("/{recoleccion_id}/calidad", response_model=CalidadRevisada)
+def revisar_calidad(recoleccion_id: UUID, datos: CalidadAdmin, usuario: Usuario = Depends(solo_admin)):
+    """El admin revisa como lo haría el analista (misma lógica que /sync/calidad; la base acepta al admin en
+    calidad_por). Alterado sin análisis, o un análisis fuera de rango, lo rechaza la base."""
+    resultado = _revisar(usuario, RevisionCalidad(recoleccion_id=recoleccion_id, **datos.model_dump()))
+    if resultado["estado"] == "rechazado":
+        if resultado["motivo"] == "La recolección no existe":
+            raise no_encontrado(resultado["motivo"])
+        raise conflicto(resultado["motivo"])
+    if resultado["estado"] == "duplicado":
+        raise conflicto("La recolección ya estaba revisada")
+    with db.transaccion(usuario.id) as conn:
+        detalle = db.uno(conn, "SELECT * FROM v_recoleccion_detalle WHERE recoleccion_id = %s", (recoleccion_id,))
+    return {"recoleccion": detalle, "sancion": resultado["sancion"]}

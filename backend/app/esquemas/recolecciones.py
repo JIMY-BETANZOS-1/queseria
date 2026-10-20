@@ -1,8 +1,12 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
+
+from . import Entrada
+from .sync import SancionCreada
 
 
 class RecoleccionDetalle(BaseModel):
@@ -35,3 +39,19 @@ class RecoleccionDetalle(BaseModel):
     pagable: bool | None
     liquidada: bool | None
     anulada_en: datetime | None
+
+
+class CalidadAdmin(Entrada):
+    """Revisión de calidad hecha por el admin (mientras no exista la app del analista): los mismos campos que
+    RevisionCalidad de /sync/calidad. Alterado exige al menos un dato del análisis (lo controla la base)."""
+    estado: Literal["normal", "alterado"] = "normal"
+    ph: Decimal | None = None
+    temperatura_c: Decimal | None = None
+    grasa_pct: Decimal | None = None
+    densidad: Decimal | None = None
+    antibioticos_positivo: bool | None = None
+
+
+class CalidadRevisada(BaseModel):
+    recoleccion: RecoleccionDetalle
+    sancion: SancionCreada | None = None

@@ -47,6 +47,9 @@ UNICOS = {
     "uq_precio_leche": "Ya existe un precio de ese tipo con esa fecha de vigencia",
     "dispositivo_device_uuid_key": "Este celular ya está vinculado a otro usuario",
     "uq_dispositivo_activo_por_usuario": "El usuario ya tiene un celular activo",
+    "uq_liq_periodo": "Ese productor ya tiene una liquidación de ese mismo periodo",
+    "liquidacion_detalle_pkey": "Una de esas recolecciones ya está en otra liquidación",
+    "uq_pago_acopiador_mes": "Ese acopiador ya tiene un pago registrado para ese mes",
 }
 
 CHECKS = {
@@ -72,6 +75,11 @@ CHECKS = {
     "ck_recoleccion_anulacion": "La anulación necesita fecha, usuario y motivo",
     "ck_analisis_ph": "El pH debe estar entre 0 y 14",
     "ck_analisis_grasa": "La grasa debe estar entre 0 y 100 %",
+    "ck_liq_periodo": "La fecha final del periodo no puede ser anterior a la inicial",
+    "ck_pago_acopiador_mes": "El mes debe indicarse con su primer día (AAAA-MM-01)",
+    "pago_acopiador_sueldo_base_check": "El sueldo base no puede ser negativo",
+    "pago_acopiador_comision_check": "La comisión no puede ser negativa",
+    "gasto_operativo_monto_check": "El monto del gasto debe ser mayor que cero",
 }
 
 FORANEAS = {
@@ -80,6 +88,8 @@ FORANEAS = {
     "productor_ruta_id_fkey": "La ruta no existe",
     "recoleccion_productor_id_fkey": "El productor no existe",
     "analisis_calidad_recoleccion_id_fkey": "La recolección no existe",
+    "liquidacion_productor_productor_id_fkey": "El productor no existe",
+    "pago_acopiador_acopiador_id_fkey": "El acopiador no existe",
 }
 
 
