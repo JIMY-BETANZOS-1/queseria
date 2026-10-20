@@ -15,7 +15,7 @@ const MAX_DIAS = 400;   // el máximo que acepta GET /jornadas
 
 /** A8b · La leche de cada día y su destino, de v_leche_jornada, y registrar la merma de una jornada. */
 export default function LecheJornada() {
-  useTitulo("Leche de la jornada");
+  useTitulo("Leche del día");
   const id = useId();
   const [hoy] = useState(() => hoyLima());
   const [parametros, setParametros] = useSearchParams();
@@ -48,7 +48,7 @@ export default function LecheJornada() {
   return (
     <>
       <div className="encabezado">
-        <h1>Leche de la jornada</h1>
+        <h1>Leche del día</h1>
       </div>
       <p className="texto-suave">
         Por día (hora de Lima): lo recolectado, lo descartado, lo que falta revisar y lo aprobado, y qué pasó con lo

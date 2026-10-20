@@ -60,18 +60,41 @@ describe("protección de rutas", () => {
 });
 
 describe("marco", () => {
-  it("muestra el nombre del admin y la hora de vencimiento en hora de Lima", () => {
+  it("muestra el nombre del admin; con 30 min por delante no muestra el aviso de sesión", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(Date.UTC(2026, 9, 18, 15, 0, 0));    // 10:00 en Lima
     guardarSesion(respuestaLogin(undefined, 30));        // vence 10:29:30 Lima (30 min − 30 s)
     renderizar("/");
 
     expect(screen.getByText("Administrador de Prueba")).toBeInTheDocument();
-    expect(screen.getByText("Sesión hasta las 10:29")).toBeInTheDocument();
+    expect(screen.queryByText(/Sesión hasta las/)).not.toBeInTheDocument();
     // Logo (provisional, se reemplaza en web/public/logo.svg): decorativo, el nombre ya está en el texto
     const logo = screen.getByRole("banner").querySelector("img");
     expect(logo).toHaveAttribute("src", "/logo.svg");
     expect(logo).toHaveAttribute("alt", "");
+  });
+
+  it("con 4 min por delante muestra el aviso de sesión con la hora de Lima", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 9, 18, 15, 0, 0));    // 10:00 en Lima
+    guardarSesion(respuestaLogin(undefined, 4));         // vence 10:03:30 Lima (4 min − 30 s)
+    renderizar("/");
+    expect(within(screen.getByRole("banner")).getByText("Sesión hasta las 10:03")).toHaveClass("aviso-sesion");
+  });
+
+  it("el aviso de sesión aparece solo al quedar 5 min (sin recargar la pantalla)", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    vi.setSystemTime(Date.UTC(2026, 9, 18, 15, 0, 0));    // 10:00 en Lima
+    guardarSesion(respuestaLogin(undefined, 30));        // vence 10:29:30; el aviso, desde las 10:24:30
+    renderizar("/");
+    act(() => {
+      vi.advanceTimersByTime(24 * 60_000 + 29_000);      // 10:24:29
+    });
+    expect(screen.queryByText(/Sesión hasta las/)).not.toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1_000);                      // 10:24:30
+    });
+    expect(screen.getByText("Sesión hasta las 10:29")).toBeInTheDocument();
   });
 
   it("cada enlace y cada grupo del menú lleva su ícono decorativo sin cambiar su nombre", () => {
@@ -99,16 +122,16 @@ describe("marco", () => {
     for (const g of grupos) await usuario.click(within(menu).getByRole("button", { name: g }));
     // Enlaces exactos de cada grupo (sin sobrantes): Configuración no pertenece a ninguno
     const enlaces = (grupo: string) => within(within(menu).getByRole("list", { name: grupo })).getAllByRole("link").map((l) => l.textContent);
-    expect(enlaces("Revisión")).toEqual(["Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada"]);
+    expect(enlaces("Revisión")).toEqual(["Entregas del día", "Alertas", "Calidad", "Leche del día"]);
     expect(enlaces("Personal")).toEqual(["Acopiadores", "Rutas", "Analistas"]);
     expect(enlaces("Planta")).toEqual(["Producción", "Ventas", "Almacén", "Recetas"]);
-    expect(enlaces("Dinero")).toEqual(["Pagos a productores", "Pagos a acopiadores", "Gastos", "Movimientos"]);
+    expect(enlaces("Dinero")).toEqual(["Pagos a productores", "Sueldos de acopiadores", "Gastos", "Movimientos"]);
     expect(within(menu).getAllByRole("link").map((l) => l.textContent)).toEqual([
       "Inicio", "Resumen", "Productores",
-      "Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada",
+      "Entregas del día", "Alertas", "Calidad", "Leche del día",
       "Acopiadores", "Rutas", "Analistas",
       "Producción", "Ventas", "Almacén", "Recetas",
-      "Pagos a productores", "Pagos a acopiadores", "Gastos", "Movimientos",
+      "Pagos a productores", "Sueldos de acopiadores", "Gastos", "Movimientos",
       "Configuración",
     ]);
 
@@ -126,14 +149,20 @@ describe("marco", () => {
     const abiertos = () => within(menu).getAllByRole("button").filter((b) => b.getAttribute("aria-expanded") === "true")
       .map((b) => b.textContent);
     expect(abiertos()).toEqual(["Planta"]);
+    // El grupo de la pantalla actual se resalta (aunque se pliegue); los demás no
+    expect(within(menu).getByRole("button", { name: "Planta" })).toHaveClass("activo");
+    expect(within(menu).getByRole("button", { name: "Dinero" })).not.toHaveClass("activo");
 
     await usuario.click(within(menu).getByRole("button", { name: "Dinero" }));
     expect(abiertos()).toEqual(["Planta", "Dinero"]);
     await usuario.click(within(menu).getByRole("link", { name: "Gastos" }));
     expect(ubicacion()).toBe("/gastos");
     expect(abiertos()).toEqual(["Dinero"]);
+    expect(within(menu).getByRole("button", { name: "Dinero" })).toHaveClass("activo");
+    expect(within(menu).getByRole("button", { name: "Planta" })).not.toHaveClass("activo");
     await usuario.click(within(menu).getByRole("link", { name: "Productores" }));
     expect(abiertos()).toEqual([]);
+    expect(within(menu).getAllByRole("button").filter((b) => b.classList.contains("activo"))).toHaveLength(0);
   });
 
   it("una pantalla a la que se llega desde Pagos (liquidación) abre el grupo Dinero", () => {
@@ -153,6 +182,34 @@ describe("marco", () => {
     expect(within(screen.getByRole("navigation", { name: "Menú principal" })).getByRole("link", { name: "Inicio" }))
       .toHaveAttribute("aria-current", "page");
     await waitFor(() => expect(document.title).toBe("Inicio · Quesería Huata"));
+  });
+
+  it("en producción el pie no muestra 'API conectada' ni la base, pero sí el error de conexión", async () => {
+    vi.stubEnv("PROD", true);
+    try {
+      guardarSesion(respuestaLogin());
+      renderizar("/");
+      expect(await screen.findByRole("heading", { name: "Inicio" })).toBeInTheDocument();
+      // Esperar a que carguen las tarjetas (piden la API después de /salud) y dejar correr las respuestas pendientes
+      await waitFor(() => expect(screen.getByRole("link", { name: /^Pagar/ })).toHaveTextContent("S/ 0.00"));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+      });
+      expect(screen.getByRole("contentinfo")).not.toHaveTextContent(/API conectada|queseria_prueba|Conectando/);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("en producción, si la API no responde, el pie lo avisa", async () => {
+    vi.stubEnv("PROD", true);
+    try {
+      guardarSesion(respuestaLogin());
+      renderizar("/", { apiCaida: true });
+      expect(await within(screen.getByRole("contentinfo")).findByText(`No se pudo conectar con la API (${API})`)).toBeInTheDocument();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it.each(["/dashboard?mes=2026-09", "/?mes=2026-09"])("la dirección vieja %s lleva a /resumen conservando el mes", async (vieja) => {

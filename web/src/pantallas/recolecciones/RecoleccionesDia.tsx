@@ -17,7 +17,7 @@ const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 /** A3 (parcial) · Recolecciones de un día (hora de Lima), resumen por persona y anulación con motivo. */
 export default function RecoleccionesDia() {
-  useTitulo("Recolecciones del día");
+  useTitulo("Entregas del día");
   const id = useId();
   const [hoy] = useState(() => hoyLima());
   const [parametros, setParametros] = useSearchParams();
@@ -58,7 +58,7 @@ export default function RecoleccionesDia() {
   return (
     <>
       <div className="encabezado">
-        <h1>Recolecciones del día</h1>
+        <h1>Entregas del día</h1>
       </div>
 
       <div className="filtros">

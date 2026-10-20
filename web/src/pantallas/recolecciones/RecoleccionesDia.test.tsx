@@ -93,14 +93,15 @@ describe("recolecciones del día", () => {
   it("el menú lleva a la pantalla; por defecto es hoy en Lima y pide ese día con las anuladas", async () => {
     const enviado = simular({ "2026-10-18": DIA });
     renderizar("/");
-    await irPorMenu(userEvent.setup(), "Revisión", "Recolecciones del día");
+    await irPorMenu(userEvent.setup(), "Revisión", "Entregas del día");
 
     expect(ubicacion()).toBe("/recolecciones");
     expect(await screen.findByRole("heading", { name: "Entregas" })).toBeInTheDocument();
     expect(screen.getByLabelText("Fecha")).toHaveValue("2026-10-18");
     expect(screen.getByLabelText("Fecha")).toHaveAttribute("max", "2026-10-18");
     expect(enviado.consultas).toEqual(["?desde=2026-10-18&hasta=2026-10-18&incluir_anuladas=true&limit=1000"]);
-    await waitFor(() => expect(document.title).toBe("Recolecciones del día · Quesería Huata"));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Entregas del día");
+    await waitFor(() => expect(document.title).toBe("Entregas del día · Quesería Huata"));
   });
 
   it("día anterior y siguiente cambian la URL y la consulta; no se puede pasar de hoy", async () => {

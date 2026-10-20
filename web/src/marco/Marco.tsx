@@ -28,10 +28,10 @@ export const MENU: { clave: string; grupo: string | null; icono?: NombreIcono; o
     icono: "revision",
     grupo: "Revisión",
     opciones: [
-      { ruta: "/recolecciones", icono: "recolecciones", texto: "Recolecciones del día", exacta: false },
+      { ruta: "/recolecciones", icono: "recolecciones", texto: "Entregas del día", exacta: false },
       { ruta: "/alertas", icono: "alertas", texto: "Alertas", exacta: false },
       { ruta: "/calidad", icono: "calidad", texto: "Calidad", exacta: false },
-      { ruta: "/jornadas", icono: "jornada", texto: "Leche de la jornada", exacta: false },
+      { ruta: "/jornadas", icono: "jornada", texto: "Leche del día", exacta: false },
     ],
   },
   {
@@ -62,13 +62,27 @@ export const MENU: { clave: string; grupo: string | null; icono?: NombreIcono; o
     tambien: ["/pagos"],
     opciones: [
       { ruta: "/pagos/productores", icono: "pagos", texto: "Pagos a productores", exacta: false },
-      { ruta: "/pagos/acopiadores", icono: "dinero", texto: "Pagos a acopiadores", exacta: false },
+      { ruta: "/pagos/acopiadores", icono: "dinero", texto: "Sueldos de acopiadores", exacta: false },
       { ruta: "/gastos", icono: "gastos", texto: "Gastos", exacta: false },
       { ruta: "/movimientos", icono: "movimientos", texto: "Movimientos", exacta: false },
     ],
   },
   { clave: "pie", grupo: null, opciones: [{ ruta: "/configuracion", icono: "configuracion", texto: "Configuración", exacta: false }] },
 ];
+
+const AVISO_SESION_MS = 5 * 60_000;
+
+/** "Sesión hasta las HH:MM", solo cuando faltan 5 minutos o menos (antes no distrae). Al vencer, vigilarVencimiento
+ * lleva a Entrar. Se monta con key = vencimiento: una sesión nueva vuelve a empezar sin aviso. */
+function AvisoSesion({ venceEn }: { venceEn: number }) {
+  const [cerca, setCerca] = useState(() => venceEn - Date.now() <= AVISO_SESION_MS);
+  useEffect(() => {
+    if (cerca) return undefined;
+    const t = setTimeout(() => setCerca(true), venceEn - AVISO_SESION_MS - Date.now());
+    return () => clearTimeout(t);
+  }, [venceEn, cerca]);
+  return cerca ? <span className="aviso-sesion" role="status">Sesión hasta las {horaLima(venceEn)}</span> : null;
+}
 
 /** Grupo del menú al que pertenece la dirección actual (null si es una opción sin grupo o no está en el menú). */
 export function grupoDe(ruta: string): string | null {
@@ -107,7 +121,7 @@ export function Marco() {
         {sesion && (
           <div className="barra-sesion">
             <span>{sesion.usuario.nombre_completo}</span>
-            <span className="texto-suave">Sesión hasta las {horaLima(sesion.vence_en)}</span>
+            <AvisoSesion key={sesion.vence_en} venceEn={sesion.vence_en} />
             <button type="button" className="boton boton-secundario" onClick={salir}>
               Salir
             </button>
@@ -119,7 +133,8 @@ export function Marco() {
           <div key={clave} className={clave === "pie" ? "menu-pie" : undefined}>
             {grupo && (
               <h2 className="menu-grupo" id={`${id}-grupo-${i}`}>
-                <button type="button" className="menu-grupo-boton" aria-expanded={claves.has(clave)}
+                <button type="button" className={clave === actual ? "menu-grupo-boton activo" : "menu-grupo-boton"}
+                        aria-expanded={claves.has(clave)}
                         aria-controls={`${id}-lista-${i}`} onClick={() => alternar(clave)}>
                   {icono && <Icono nombre={icono} />}
                   <span className="menu-grupo-texto">{grupo}</span>

@@ -57,7 +57,7 @@ describe("códigos de productor sin partirse", () => {
     expect(await screen.findByText("(P-0120)")).toHaveClass("codigo");
   });
 
-  it("en Recolecciones del día, también", async () => {
+  it("en Entregas del día, también", async () => {
     servidor.use(http.get(`${API}/recolecciones`, () => HttpResponse.json([recoleccion()])));
     renderizar("/recolecciones");
     expect(await screen.findByText("(P-0120)")).toHaveClass("codigo");

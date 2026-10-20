@@ -44,7 +44,7 @@ describe("leche de la jornada", () => {
                               costo_litro_util: null, dias_antiguedad: 0 }),
     ]);
     renderizar("/");
-    await irPorMenu(userEvent.setup(), "Revisión", "Leche de la jornada");
+    await irPorMenu(userEvent.setup(), "Revisión", "Leche del día");
 
     expect(ubicacion()).toBe("/jornadas");
     expect(await screen.findByText(/2 días con leche/)).toBeInTheDocument();
@@ -55,7 +55,8 @@ describe("leche de la jornada", () => {
     expect(filas[1]).toEqual(["15/10/2026", "300 L", "20 L", "0 L", "280 L", "250 L", "10 L", "20 L", "S/ 510.00", "S/ 1.8214", "Sin destino", "Registrar merma"]);
     expect(filas[2]).toEqual(["Total", "351 L", "20 L", "51 L", "280 L", "250 L", "10 L", "20 L", "S/ 596.70", "", "", ""]);
     expect(screen.getByText(/1 jornada tiene leche aprobada sin lote ni merma/)).toBeInTheDocument();
-    await waitFor(() => expect(document.title).toBe("Leche de la jornada · Quesería Huata"));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Leche del día");
+    await waitFor(() => expect(document.title).toBe("Leche del día · Quesería Huata"));
   });
 
   it("valida el rango antes de pedir y lo deja en la URL", async () => {

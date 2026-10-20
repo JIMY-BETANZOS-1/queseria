@@ -92,6 +92,14 @@ a {
   font-weight: 600;
 }
 
+.aviso-sesion {
+  padding: 2px var(--esp-1);
+  border-radius: var(--radio);
+  background: var(--atencion-fondo);
+  color: var(--atencion-texto);
+  font-weight: 600;
+}
+
 .barra-logo {
   display: block;
   width: 2rem;
@@ -124,11 +132,14 @@ a {
   padding: 0;
 }
 
+/* Enlaces sueltos y títulos de grupo: mismo alto, borde y fondo */
 .menu-opcion {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.55rem 0.75rem;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
   border-radius: var(--radio);
   color: var(--texto);
   text-decoration: none;
@@ -790,10 +801,15 @@ a.boton {
 }
 
 .menu-grupo {
-  margin: 0.6rem 0 0.15rem;
-  font-size: 0.95rem;
+  margin: var(--esp-1) 0 2px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--texto);
+}
+
+/* Las opciones de un grupo, un poco adentro */
+.menu-grupo + ul {
+  padding-left: var(--esp-2);
 }
 
 .menu-grupo:first-child {
@@ -806,20 +822,26 @@ a.boton {
   align-items: center;
   gap: 0.6rem;
   width: 100%;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid var(--borde);
+  min-height: 2.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid transparent;
   border-radius: var(--radio);
-  background: var(--fondo);
+  background: none;
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.menu-grupo-boton:hover,
-.menu-grupo-boton[aria-expanded="true"] {
-  border-color: var(--primario);
+.menu-grupo-boton:hover {
+  background: var(--fondo);
+}
+
+/* Grupo de la pantalla actual */
+.menu-grupo-boton.activo {
   color: var(--primario-oscuro);
+  background: var(--fondo);
+  box-shadow: inset 3px 0 0 var(--primario);
 }
 
 .menu-grupo-boton:focus-visible {
@@ -962,13 +984,48 @@ a.boton {
   font-size: 0.9rem;
 }
 
+/* Inicio: franja de "Requiere atención" sobre los pasos */
+.franja-atencion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--esp-2);
+  margin-bottom: var(--esp-3);
+  padding: var(--esp-2) var(--esp-3);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+}
+
+.franja-atencion h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.franja-enlace {
+  margin-left: auto;
+}
+
 .etiquetas-atencion {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0 0 0.75rem;
+  gap: var(--esp-1);
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* Paso con pendientes: borde dorado y etiqueta "Pendiente" */
+.tarjeta-accion.pendiente {
+  border-color: var(--acento);
+  border-width: 2px 2px 2px;
+  border-top: 4px solid var(--acento-oscuro);
+  background: var(--acento-claro);
+}
+
+.tarjeta-accion-pendiente {
+  margin-top: auto;
+  padding-top: var(--esp-1);
 }
 
 .etiquetas-atencion a {

@@ -89,13 +89,38 @@ describe("inicio", () => {
     expect(screen.getByRole("link", { name: "Ver el resumen del mes" })).toHaveAttribute("href", "/resumen");
   });
 
-  it("sin nada pendiente lo dice; sin entrega hoy, 0 L", async () => {
+  it("sin nada pendiente lo dice; cada paso en cero tiene su frase y ninguno se resalta", async () => {
     simular(DASHBOARD_VACIO);
-    servidor.use(http.get(`${API}/jornadas`, () => HttpResponse.json([jornada("2026-10-15", 200, 0)])));
+    servidor.use(
+      http.get(`${API}/jornadas`, () => HttpResponse.json([jornada("2026-10-15", 200, 0)])),
+      http.get(`${API}/lotes/disponibles`, () => HttpResponse.json([])),
+    );
     renderizar("/");
     expect(await screen.findByText("Nada pendiente")).toHaveClass("insignia-ok");
-    await waitFor(() => expect(tarjeta("Recibir leche")).toHaveTextContent("0 Lhoy · 0 entregas sin revisar"));
-    expect(tarjeta("Producir")).toHaveTextContent("Producir0 L");
+    await waitFor(() => expect(tarjeta("Recibir leche")).toHaveTextContent("Recibir leche0 LAún no hay entregas hoy"));
+    expect(tarjeta("Producir")).toHaveTextContent("Producir0 LNo hay leche aprobada disponible");
+    await waitFor(() => expect(tarjeta("Vender")).toHaveTextContent("Vender0 lotesNo hay lotes con saldo"));
+    expect(tarjeta("Pagar")).toHaveTextContent("PagarS/ 0.00Nada por pagar");
+    expect(document.querySelectorAll(".tarjeta-accion.pendiente")).toHaveLength(0);
+    expect(screen.queryByText("Pendiente")).not.toBeInTheDocument();
+  });
+
+  it("la franja de atención va antes de los pasos; el paso con pendientes se resalta y lo dice", async () => {
+    simular();
+    servidor.use(http.get(`${API}/jornadas`, () => HttpResponse.json([
+      { ...jornada("2026-10-10", 100, 30), sin_destino: true }, jornada("2026-10-18", 120.5, 40.25)])));
+    renderizar("/");
+    const franja = (await screen.findByRole("heading", { name: "Requiere atención" })).closest("section")!;
+    const pasos = screen.getByRole("list", { name: "Tareas del día" });
+    expect(franja.compareDocumentPosition(pasos) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Recibir: 3 entregas sin revisar; Producir: hay una jornada sin destino
+    await waitFor(() => expect(tarjeta("Recibir leche")).toHaveClass("pendiente"));
+    expect(within(tarjeta("Recibir leche")).getByText("Pendiente")).toHaveClass("insignia-atencion");
+    expect(tarjeta("Producir")).toHaveClass("pendiente");
+    expect(tarjeta("Producir")).toHaveTextContent("70.25 Lde leche aprobada disponible (últimos 30 días) · hay leche sin destino");
+    expect(tarjeta("Vender")).not.toHaveClass("pendiente");
+    expect(tarjeta("Pagar")).not.toHaveClass("pendiente");
   });
 
   it("si una carga falla, su tarjeta muestra — y sigue llevando a su pantalla", async () => {

@@ -88,7 +88,7 @@ function VentanaPago({ fila, mes, editar, onHecho, onCerrar }: {
 
 /** A5 (pago mensual) · Sueldo estimado de cada acopiador y su pago, que al pagarse registra el gasto. */
 export default function PagosAcopiadores() {
-  useTitulo("Pagos a acopiadores");
+  useTitulo("Sueldos de acopiadores");
   const id = useId();
   const [parametros, setParametros] = useSearchParams();
   const [actual] = useState(() => hoyLima().slice(0, 7));
@@ -108,7 +108,7 @@ export default function PagosAcopiadores() {
   return (
     <>
       <div className="encabezado">
-        <h1>Pagos a acopiadores</h1>
+        <h1>Sueldos de acopiadores</h1>
       </div>
       <div className="filtros">
         <div className="campo campo-en-linea">

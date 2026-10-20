@@ -5,7 +5,10 @@ import { consultarSalud, type Salud } from "../api/salud";
 
 type Estado = { tipo: "cargando" } | { tipo: "ok"; salud: Salud } | { tipo: "error"; mensaje: string };
 
-/** Estado de la API, al pie del panel (antes era la pantalla Inicio). */
+/**
+ * Estado de la API, al pie del panel. En el build de producción solo se ve si hay un problema: "conectada" y el
+ * nombre de la base son datos para desarrollo.
+ */
 export function EstadoApi() {
   const [estado, setEstado] = useState<Estado>({ tipo: "cargando" });
 
@@ -19,8 +22,9 @@ export function EstadoApi() {
     };
   }, []);
 
-  if (estado.tipo === "cargando") return <span className="texto-suave">Conectando con la API…</span>;
   if (estado.tipo === "error") return <span className="error">{estado.mensaje}</span>;
+  if (import.meta.env.PROD) return null;
+  if (estado.tipo === "cargando") return <span className="texto-suave">Conectando con la API…</span>;
   return (
     <span className="ok">
       API conectada · base <strong>{estado.salud.base}</strong>

@@ -297,9 +297,11 @@ describe("pagos a acopiadores", () => {
   it("el menú lleva a la pantalla: mes actual en Lima, estimado y sin registrar", async () => {
     const enviado = simular([acopiadorMes()]);
     renderizar("/");
-    await irPorMenu(userEvent.setup(), "Dinero", "Pagos a acopiadores");
+    await irPorMenu(userEvent.setup(), "Dinero", "Sueldos de acopiadores");
 
     expect(await screen.findByText("Juan Carlos Mamani Quispe")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Sueldos de acopiadores");
+    await waitFor(() => expect(document.title).toBe("Sueldos de acopiadores · Quesería Huata"));
     expect(enviado.consultas).toEqual(["?mes=2026-10-01"]);
     expect(screen.getByLabelText("Mes")).toHaveValue("2026-10");
     const celdas = within(fila("Juan Carlos Mamani Quispe")).getAllByRole("cell").map((c) => c.textContent);
