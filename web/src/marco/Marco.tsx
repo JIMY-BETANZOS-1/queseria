@@ -17,8 +17,11 @@ const MENU = [
   { ruta: "/alertas", texto: "Alertas", exacta: false },
   { ruta: "/recolecciones", texto: "Recolecciones del día", exacta: false },
   { ruta: "/calidad", texto: "Calidad", exacta: false },
+  { ruta: "/jornadas", texto: "Leche de la jornada", exacta: false },
   { ruta: "/pagos/productores", texto: "Pagos a productores", exacta: false },
   { ruta: "/pagos/acopiadores", texto: "Pagos a acopiadores", exacta: false },
+  { ruta: "/gastos", texto: "Gastos", exacta: false },
+  { ruta: "/configuracion", texto: "Configuración", exacta: false },
 ];
 
 /** Barra superior + menú lateral + pantalla actual. Solo se muestra con sesión (ver RequiereSesion). */

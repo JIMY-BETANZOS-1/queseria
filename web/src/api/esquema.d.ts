@@ -888,6 +888,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/categorias-gasto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Categorias */
+        get: operations["categorias_categorias_gasto_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/gastos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar
+         * @description Los del rango, del más reciente al más antiguo (también los creados por el pago mensual).
+         */
+        get: operations["listar_gastos_get"];
+        put?: never;
+        /**
+         * Registrar
+         * @description Monto cero o negativo: lo rechaza la base (CHECK monto > 0) y se responde 409, como en Pagos.
+         *     Categoría o acopiador inexistentes: los rechaza la base (claves foráneas).
+         */
+        post: operations["registrar_gastos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/salud": {
         parameters: {
             query?: never;
@@ -1205,6 +1247,15 @@ export interface components {
             /** Pin Nuevo */
             pin_nuevo: string;
         };
+        /** CategoriaGasto */
+        CategoriaGasto: {
+            /** Id */
+            id: number;
+            /** Nombre */
+            nombre: string;
+            /** Manual */
+            manual: boolean;
+        };
         /** CodigoActivacion */
         CodigoActivacion: {
             /** Codigo */
@@ -1320,6 +1371,58 @@ export interface components {
             recoleccion_id: string;
             /** Foto Url */
             foto_url: string;
+        };
+        /**
+         * Gasto
+         * @description Fila de gasto_operativo con los nombres para mostrarla.
+         */
+        Gasto: {
+            /** Id */
+            id: number;
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Categoria Id */
+            categoria_id: number;
+            /** Categoria */
+            categoria: string;
+            /** Descripcion */
+            descripcion: string | null;
+            /** Monto */
+            monto: number;
+            /** Acopiador Id */
+            acopiador_id: number | null;
+            /** Acopiador */
+            acopiador: string | null;
+            /** Registrado Por */
+            registrado_por: number;
+            /** Registrado Por Nombre */
+            registrado_por_nombre: string;
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /**
+             * Del Pago Mensual
+             * @description Lo creó el pago mensual de un acopiador (pago_acopiador.gasto_id)
+             */
+            del_pago_mensual: boolean;
+        };
+        /** GastoNuevo */
+        GastoNuevo: {
+            /** Fecha */
+            fecha?: string | null;
+            /** Categoria Id */
+            categoria_id: number;
+            /** Descripcion */
+            descripcion?: string | null;
+            /** Monto */
+            monto: number;
+            /** Acopiador Id */
+            acopiador_id?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -4305,6 +4408,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    categorias_categorias_gasto_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoriaGasto"][];
+                };
+            };
+        };
+    };
+    listar_gastos_get: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Gasto"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registrar_gastos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GastoNuevo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Gasto"];
                 };
             };
             /** @description Validation Error */

@@ -43,6 +43,12 @@ export type PagoAcopiadorNuevo = Esquemas["PagoAcopiadorNuevo"];
 export type PagoAcopiadorCambios = Esquemas["PagoAcopiadorCambios"];
 export type Dashboard = Esquemas["Dashboard"];
 export type Jornada = Esquemas["Jornada"];
+export type Parametro = Esquemas["Parametro"];
+export type Precio = Esquemas["Precio"];
+export type PrecioNuevo = Esquemas["PrecioNuevo"];
+export type Gasto = Esquemas["Gasto"];
+export type GastoNuevo = Esquemas["GastoNuevo"];
+export type CategoriaGasto = Esquemas["CategoriaGasto"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 
