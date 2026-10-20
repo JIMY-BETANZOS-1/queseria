@@ -37,14 +37,14 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | A1 | Completa (W1). | — |
 | A0 | W2: **Inicio** (`/`): los cuatro pasos del día numerados (Recibir leche, Producir, Vender, Pagar) con su cifra, el paso con pendientes resaltado y "Requiere atención" como franja de etiquetas. Solo lee endpoints existentes. | Banner o foto de la planta (cuando el cliente la entregue). |
 | A2 | Mínimo (W2): **Resumen** (`/resumen`; antes "Dashboard" en `/`, que redirige con su mes) con lo que requiere atención, leche y dinero del mes (flujo y resultado de la base, con los ingresos de Ventas): cifra grande por tarjeta, desglose plegado en "Ver detalle", gráfico SVG del flujo del mes y de la leche de 14 días. | Más gráficos. |
-| A3 | Parcial (W1): **Alertas** y **Entregas del día** (antes "Recolecciones del día") (resumen por persona, ubicación como texto, anular con motivo). | Mapa (Leaflet), rangos de fechas. |
+| A3 | Parcial: **Alertas** (W1) y **Entregas del día** (antes "Recolecciones del día"): resumen por persona, anular con motivo, filtros con contador y **mapa en SVG propio** (W2: vista Mapa y ventana por entrega; punto real con el color del acopiador y el nombre del productor, referencia del productor y distancia calculada por la base, "lejos" según `max_distancia_productor_m`, enlaces a Google Maps). | Mapa con calles (Leaflet), mapa de rutas, rangos de fechas. |
 | A4 | Parcial (W1): **Productores** (altas de campo pendientes primero, crear y editar, aprobar, últimas 50 entregas con su pago). El tipo no se edita. | Historial completo por fechas, litros por periodo. |
 | A5 | Parcial: **Acopiadores** (W1) y **Sueldos de acopiadores** (W2, antes "Pagos a acopiadores": estimado del mes, registrar con ajustes, marcar pagado). | — |
 | A5b | Completa (W1): **Rutas**. | — |
-| A6 | Mínima (W2): **Calidad**: el admin marca normales en lote o alterada con análisis, mientras no exista la app del analista. | Productores observados, crear o levantar sanciones, % por analista. |
+| A6 | Mínima (W2): **Calidad**: el admin marca normales en lote o alterada con análisis y **foto opcional** (la foto sola cuenta como análisis), mientras no exista la app del analista. | Ver el análisis guardado (falta un GET de sus valores), productores observados, crear o levantar sanciones, % por analista. |
 | A7 | W2: **Almacén**: stock, costo promedio ponderado, valor del inventario, "sin stock" y "alcanza para ≈ N L de leche" (en la receta que más usa el insumo); **registrar compras** (la base recalcula el costo promedio) y **crear insumos** (nombre y unidad). | Ajustes de inventario, historial de movimientos; stock mínimo por insumo (necesita `stock_minimo` en `db/`). |
 | A8b | W2: **Leche del día** (antes "Leche de la jornada"; v_leche_jornada), con "sin destino" y "sin leche aprobada"; **registrar merma** con motivo en las jornadas con leche disponible (la base decide si cabe). | Ver a qué lotes fue la leche; listar las mermas de una jornada (el backend ya tiene `GET /mermas`). |
-| A8 | Solo lectura (W2): **Recetas**: unidad de venta, precio, rendimiento y vida útil, insumos por 100 L con su costo de hoy, y "alcanza para" con el stock actual. | Editar recetas. |
+| A8 | W2: **Recetas**: unidad de venta, precio, rendimiento y vida útil, insumos por 100 L con su costo de hoy y "alcanza para"; **crear, editar y "Duplicar como nueva"** con vista previa del costo por 100 L y del alcance. Con lotes ya hechos, unidad, litros base, rendimiento y vida útil no se cambian (parche 004). | — |
 | A9 | Rápida (W2): **Producción** en un paso: receta, leche de una jornada (la más antigua preseleccionada), insumos sugeridos por la receta con "necesita / hay / falta reponer" (bloquea si falta) y cierre con lo producido (propuesto con el rendimiento teórico). | Lote por etapas, leche de varias jornadas, costos propios (luz, mano de obra), bajas. |
 | A10 | Rápida (W2): **Ventas** al contado de una línea desde un lote cerrado con saldo (no vencido), con cliente nuevo en el momento. | Varias líneas por venta, bajas de producto, anular una venta. |
 | A11 | Completa (W2): **Pagos a productores**: por pagar, liquidar periodo (con lo que queda en espera), comprobante imprimible, marcar pagada, eliminar pendientes. | Comprobante en PDF (ReportLab no está instalado). |
@@ -175,6 +175,12 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
      título y pestaña. El campo "Leche de la jornada" del formulario de Producción se mantiene (nombra la jornada).
    - **Pie y sesión:** en el build de producción el pie no muestra "API conectada" ni el nombre de la base (los
      errores de conexión, sí). "Sesión hasta las HH:MM" aparece solo cuando faltan 5 minutos o menos.
+   - **Recetas con lotes (parche 004, `docs/pendiente-parche-004.md`):** `v_lote_resumen` y `v_lote_disponible`
+     calculan el teórico y el vencimiento de cada lote con los valores actuales de su receta. Hasta el parche, el
+     backend rechaza (409) cambiar unidad de venta, litros base, rendimiento o vida útil de una receta con lotes, y
+     la web muestra esos campos deshabilitados con su nota; "Duplicar como nueva" crea otra receta con esos datos.
+   - **Foto del análisis:** se sube antes de marcar alterada (`POST /analisis/{id}/foto`, multipart); si falla, no
+     se marca. La CSP no permite imágenes `blob:`, así que no hay vista previa de la foto.
    - **Código de lote:** `lote_produccion.codigo` (L-AAAA-NNNN) lo genera el backend (`routers/produccion.py`, con un
      candado por año); pendiente: una secuencia o un valor por defecto en la base.
 7. **Siguiente fase (después de la entrega del Bloque W2):**
@@ -186,7 +192,21 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Producción y ventas completas:** Insumos (A7: ajustes e historial de movimientos; "por reponer" necesita un `stock_minimo`
      por insumo, que la base no tiene), Recetas (A8), lotes por etapas con leche de varias jornadas (A9; `lote_leche`
      ya lo permite) y ventas de varias líneas y bajas (A10). La versión rápida de W2 ya usa las reglas de la base.
-   - **App del analista** (mobile, C1–C3): reemplaza la revisión de calidad del admin.
+   - **App del analista** (C1–C3), variante B: **web móvil con rol analista** (≈ 7–9 h). Ya existen en el backend
+     `/sync/calidad` (normal por defecto, alterado con análisis), `POST/GET /analisis/{id}/foto`, `/sync/pull` del
+     analista y `/sync/push` para altas de productores externos. **Faltan:** (a) que el analista entre desde el
+     navegador; (b) las entregas del día para su rol (hoy `GET /recolecciones` es solo del admin); (c) registrar un
+     productor externo y su entrega **sin firma de Keystore** (el celular firma cada registro; el navegador no tiene
+     Keystore). **Decisión de seguridad pendiente (del cliente):** cómo se vincula el navegador del analista. La
+     propuesta es tratarlo como un "dispositivo" que se activa con el código del admin y entra con PIN; como hay un
+     solo dispositivo activo por usuario, reemplaza al celular. Alternativa: correo y contraseña como el admin.
+   - **Calidad, Alertas, Pagos y Movimientos** con el pulido nuevo (etiquetas con ícono, "Retiene el pago" solo
+     cuando aplica, alertas agrupadas por tipo, filtros con contador, vacíos con ícono).
+   - **Mapa con calles** (Leaflet + OpenStreetMap: CSP para las imágenes, atribución, sin internet solo puntos) y
+     **mapa de rutas** (necesita la referencia de los productores en `GET /productores`).
+   - **Sanción en la app sin señal:** la app pone el nombre en rojo según el último pull; para que cambie el D+1 y
+     el D+8 sin sincronizar, la app debería comparar `desde`/`hasta` con su fecha (cambio de `mobile/` y APK).
+   - **Ver el análisis guardado** (pH, temperatura, grasa, densidad, antibióticos y foto) en Calidad y Productores.
    - **Mapa** (Leaflet) en Recolecciones y **Historial de cambios** (A13b, tabla `auditoria`).
    - **Calidad:** sanciones manuales y productores observados.
    - **Parches 002 y 003** (`docs/pendiente-parche-00*.md`) y la app 0.7.1 con (K), (L) y (M) de
