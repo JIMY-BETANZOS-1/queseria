@@ -30,6 +30,17 @@ export type RecoleccionDetalle = Esquemas["RecoleccionDetalle"];
 export type Alerta = Esquemas["Alerta"];
 export type RevisarAlerta = Esquemas["RevisarAlerta"];
 export type AnularRecoleccion = Esquemas["AnularRecoleccion"];
+export type CalidadAdmin = Esquemas["CalidadAdmin"];
+export type CalidadRevisada = Esquemas["CalidadRevisada"];
+export type PagoPendienteProductor = Esquemas["PagoPendienteProductor"];
+export type PagableDelPeriodo = Esquemas["PagableDelPeriodo"];
+export type Liquidacion = Esquemas["Liquidacion"];
+export type LiquidacionDetalle = Esquemas["LiquidacionDetalle"];
+export type LineaLiquidacion = Esquemas["LineaLiquidacion"];
+export type AcopiadorMes = Esquemas["AcopiadorMes"];
+export type PagoAcopiador = Esquemas["PagoAcopiador"];
+export type PagoAcopiadorNuevo = Esquemas["PagoAcopiadorNuevo"];
+export type PagoAcopiadorCambios = Esquemas["PagoAcopiadorCambios"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 

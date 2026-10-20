@@ -15,6 +15,9 @@ const MENU = [
   { ruta: "/productores", texto: "Productores", exacta: false },
   { ruta: "/alertas", texto: "Alertas", exacta: false },
   { ruta: "/recolecciones", texto: "Recolecciones del día", exacta: false },
+  { ruta: "/calidad", texto: "Calidad", exacta: false },
+  { ruta: "/pagos/productores", texto: "Pagos a productores", exacta: false },
+  { ruta: "/pagos/acopiadores", texto: "Pagos a acopiadores", exacta: false },
 ];
 
 /** Barra superior + menú lateral + pantalla actual. Solo se muestra con sesión (ver RequiereSesion). */

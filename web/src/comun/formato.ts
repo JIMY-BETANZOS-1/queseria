@@ -52,6 +52,27 @@ export function sumarDias(aaaaMmDd: string, dias: number): string {
   return new Date(Date.UTC(a!, m! - 1, d! + dias)).toISOString().slice(0, 10);
 }
 
+/** Semana anterior a la de `hoy`, de lunes a domingo ("AAAA-MM-DD"). */
+export function semanaAnterior(hoy: string): { desde: string; hasta: string } {
+  const [a, m, d] = hoy.split("-").map(Number);
+  const diaSemana = new Date(Date.UTC(a!, m! - 1, d!)).getUTCDay();   // 0 = domingo
+  const lunes = sumarDias(hoy, -((diaSemana + 6) % 7));
+  return { desde: sumarDias(lunes, -7), hasta: sumarDias(lunes, -1) };
+}
+
+/** Primer día del mes de una fecha ("AAAA-MM-DD" o "AAAA-MM") → "AAAA-MM-01". */
+export function primerDiaDelMes(fecha: string): string {
+  return `${fecha.slice(0, 7)}-01`;
+}
+
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre",
+               "noviembre", "diciembre"];
+
+/** "octubre de 2026" para "2026-10-01". */
+export function nombreMes(aaaaMm: string): string {
+  return `${MESES[Number(aaaaMm.slice(5, 7)) - 1] ?? aaaaMm} de ${aaaaMm.slice(0, 4)}`;
+}
+
 const LITROS = new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 });
 
 /** "1,234.5 L": litros con hasta 2 decimales (como numeric(8,2) de la base). */

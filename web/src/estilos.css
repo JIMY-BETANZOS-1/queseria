@@ -563,3 +563,18 @@ a.boton {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------------------------------------------------------- impresión (comprobante de liquidación) */
+@media print {
+  .barra,
+  .menu,
+  .no-imprimir {
+    display: none;
+  }
+
+  .marco,
+  .contenido {
+    display: block;
+    padding: 0;
+  }
+}

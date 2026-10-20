@@ -1,6 +1,7 @@
 // Datos ficticios con la forma exacta de la API (tipos de esquema.d.ts): si el backend cambia un campo, tsc avisa.
 import type {
-  Acopiador, Alerta, Analista, Asignacion, CodigoActivacion, Dispositivo, Productor, ProductorResumen, RecoleccionDetalle, Ruta,
+  Acopiador, AcopiadorMes, Alerta, Analista, Asignacion, CodigoActivacion, Dispositivo, Liquidacion, LiquidacionDetalle,
+  PagableDelPeriodo, PagoPendienteProductor, Productor, ProductorResumen, RecoleccionDetalle, Ruta,
 } from "../api/tipos";
 
 export function acopiador(cambios: Partial<Acopiador> = {}): Acopiador {
@@ -162,6 +163,42 @@ export function alerta(cambios: Partial<Alerta> = {}): Alerta {
     recoleccion_retenida: false,
     ...cambios,
   };
+}
+
+export function pagoPendiente(cambios: Partial<PagoPendienteProductor> = {}): PagoPendienteProductor {
+  return { productor_id: 120, codigo: "P-0120", nombre: "Rosa Condori Huanca", litros_pagables: 100, monto_pagable: 170,
+           monto_en_espera: 34, desde: "2026-10-05", hasta: "2026-10-11", ...cambios };
+}
+
+export function pagable(cambios: Partial<PagableDelPeriodo> = {}): PagableDelPeriodo {
+  return { productor_id: 120, codigo: "P-0120", nombre: "Rosa Condori Huanca", n_recolecciones: 2, litros: 52.5,
+           monto: 89.25, litros_con_sancion: 0, ...cambios };
+}
+
+export function liquidacion(cambios: Partial<Liquidacion> = {}): Liquidacion {
+  return { liquidacion_id: 900, productor_id: 120, productor_codigo: "P-0120", productor: "Rosa Condori Huanca",
+           desde: "2026-10-05", hasta: "2026-10-11", estado: "pendiente", pagada_en: null, n_recolecciones: 2,
+           litros: 52.5, monto: 79.25, litros_con_sancion: 10, descuento_sancion: 10, ...cambios };
+}
+
+export function liquidacionDetalle(cambios: Partial<LiquidacionDetalle> = {}): LiquidacionDetalle {
+  return {
+    ...liquidacion(),
+    lineas: [
+      { recoleccion_id: "0f6c2a4e-0000-4000-8000-000000000101", registrada_en: "2026-10-06T06:15:00-05:00",
+        fecha: "2026-10-06", litros: 42.5, precio_litro: 1.7, con_sancion: false, monto: 72.25 },
+      { recoleccion_id: "0f6c2a4e-0000-4000-8000-000000000102", registrada_en: "2026-10-09T06:20:00-05:00",
+        fecha: "2026-10-09", litros: 10, precio_litro: 0.7, con_sancion: true, monto: 7 },
+    ],
+    ...cambios,
+  };
+}
+
+export function acopiadorMes(cambios: Partial<AcopiadorMes> = {}): AcopiadorMes {
+  return { acopiador_id: 7, nombre_completo: "Juan Carlos Mamani Quispe", activo: true, mes: "2026-10-01", litros: 1200,
+           litros_normales: 1150, recolecciones: 60, sueldo_base_mensual: 900, comision_estimada: 57.5,
+           sueldo_estimado: 957.5, pago_id: null, estado: null, pago_litros_mes: null, pago_sueldo_base: null,
+           pago_comision: null, ajustes: null, total: null, pagado_en: null, gasto_id: null, nota: null, ...cambios };
 }
 
 export function dispositivo(cambios: Partial<Dispositivo> = {}): Dispositivo {

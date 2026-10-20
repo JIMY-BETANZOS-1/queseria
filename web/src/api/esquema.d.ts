@@ -405,6 +405,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recolecciones/sin-revisar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sin Revisar
+         * @description Lista de trabajo de calidad (v_recoleccion_sin_revisar), con el detalle de cada una; las más antiguas primero.
+         */
+        get: operations["sin_revisar_recolecciones_sin_revisar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recolecciones/{recoleccion_id}/calidad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revisar Calidad
+         * @description El admin revisa como lo haría el analista (misma lógica que /sync/calidad; la base acepta al admin en
+         *     calidad_por). Alterado sin análisis, o un análisis fuera de rango, lo rechaza la base.
+         */
+        post: operations["revisar_calidad_recolecciones__recoleccion_id__calidad_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/precios-leche": {
         parameters: {
             query?: never;
@@ -610,6 +651,203 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pagos/productores/pendientes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pendientes
+         * @description Cuentas por pagar: por productor, lo pagable ya y lo que está en espera (sin revisar o retenido).
+         */
+        get: operations["pendientes_pagos_productores_pendientes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pagos/productores/periodo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pagable Del Periodo
+         * @description Vista previa de "Liquidar semana": lo que entraría en la liquidación de cada productor.
+         */
+        get: operations["pagable_del_periodo_pagos_productores_periodo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/liquidaciones/lote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Liquidar Periodo
+         * @description Una liquidación por productor con lo pagable del periodo, todas en una transacción (o ninguna).
+         *     Los montos se congelan en liquidacion_detalle; trg_liq_detalle_validar revisa cada recolección.
+         */
+        post: operations["liquidar_periodo_liquidaciones_lote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/liquidaciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liquidaciones
+         * @description Las más recientes primero. desde/hasta filtran por periodos que se cruzan con el rango.
+         */
+        get: operations["liquidaciones_liquidaciones_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/liquidaciones/{liquidacion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liquidacion
+         * @description Comprobante: la cabecera con sus totales y cada recolección con su monto congelado.
+         */
+        get: operations["liquidacion_liquidaciones__liquidacion_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Eliminar Liquidacion
+         * @description Solo una pendiente: sus recolecciones vuelven a "por pagar".
+         *
+         *     Hueco de la base (parche 003): fn_proteger_liquidacion_pagada protege el detalle, pero al borrar la cabecera el
+         *     ON DELETE CASCADE lo borra cuando la cabecera ya no se ve, así que el trigger no detecta que estaba pagada y la
+         *     base dejaría borrar una liquidación pagada. Mientras no exista un trigger BEFORE DELETE en
+         *     liquidacion_productor, aquí solo se borran las pendientes.
+         */
+        delete: operations["eliminar_liquidacion_liquidaciones__liquidacion_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/liquidaciones/{liquidacion_id}/pagar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar Liquidacion
+         * @description Sin detalle, la base la rechaza (fn_validar_liquidacion). Pagada, ya nada de ella se puede cambiar.
+         */
+        post: operations["pagar_liquidacion_liquidaciones__liquidacion_id__pagar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pagos/acopiadores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Acopiadores Del Mes
+         * @description Cada acopiador activo (o con entregas o pago en el mes): lo estimado y su pago, si existe.
+         */
+        get: operations["acopiadores_del_mes_pagos_acopiadores_get"];
+        put?: never;
+        /**
+         * Registrar Pago
+         * @description Queda pendiente con lo estimado en este momento (litros, base y comisión de v_acopiador_mes) más los ajustes.
+         *     Mes que no es el día 1, mes ya registrado o acopiador inexistente: los rechaza la base.
+         */
+        post: operations["registrar_pago_pagos_acopiadores_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pagos/acopiadores/{pago_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Eliminar Pago
+         * @description Solo pendiente: para volver a registrarlo con lo estimado de nuevo.
+         */
+        delete: operations["eliminar_pago_pagos_acopiadores__pago_id__delete"];
+        options?: never;
+        head?: never;
+        /** Editar Pago */
+        patch: operations["editar_pago_pagos_acopiadores__pago_id__patch"];
+        trace?: never;
+    };
+    "/pagos/acopiadores/{pago_id}/pagar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pagar Acopiador
+         * @description Crea su gasto "Sueldo acopiador" (fecha de hoy en Lima, monto = total) y lo marca pagado, en una transacción.
+         *     Un total de cero o negativo: la base rechaza el gasto (monto > 0) y se responde 409 con ese mensaje.
+         */
+        post: operations["pagar_acopiador_pagos_acopiadores__pago_id__pagar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/salud": {
         parameters: {
             query?: never;
@@ -683,6 +921,55 @@ export interface components {
             sueldo_base_mensual?: number | null;
             /** Comision Por Litro */
             comision_por_litro?: number | null;
+        };
+        /**
+         * AcopiadorMes
+         * @description Un acopiador en el mes: lo estimado (v_acopiador_mes) y, si existe, su pago registrado (pago_acopiador).
+         */
+        AcopiadorMes: {
+            /** Acopiador Id */
+            acopiador_id: number;
+            /** Nombre Completo */
+            nombre_completo: string;
+            /** Activo */
+            activo: boolean;
+            /**
+             * Mes
+             * Format: date
+             */
+            mes: string;
+            /** Litros */
+            litros: number;
+            /** Litros Normales */
+            litros_normales: number;
+            /** Recolecciones */
+            recolecciones: number;
+            /** Sueldo Base Mensual */
+            sueldo_base_mensual: number;
+            /** Comision Estimada */
+            comision_estimada: number;
+            /** Sueldo Estimado */
+            sueldo_estimado: number;
+            /** Pago Id */
+            pago_id: number | null;
+            /** Estado */
+            estado: ("pendiente" | "pagado") | null;
+            /** Pago Litros Mes */
+            pago_litros_mes: number | null;
+            /** Pago Sueldo Base */
+            pago_sueldo_base: number | null;
+            /** Pago Comision */
+            pago_comision: number | null;
+            /** Ajustes */
+            ajustes: number | null;
+            /** Total */
+            total: number | null;
+            /** Pagado En */
+            pagado_en: string | null;
+            /** Gasto Id */
+            gasto_id: number | null;
+            /** Nota */
+            nota: string | null;
         };
         /** AcopiadorNuevo */
         AcopiadorNuevo: {
@@ -815,6 +1102,34 @@ export interface components {
              */
             archivo: string;
         };
+        /**
+         * CalidadAdmin
+         * @description Revisión de calidad hecha por el admin (mientras no exista la app del analista): los mismos campos que
+         *     RevisionCalidad de /sync/calidad. Alterado exige al menos un dato del análisis (lo controla la base).
+         */
+        CalidadAdmin: {
+            /**
+             * Estado
+             * @default normal
+             * @enum {string}
+             */
+            estado: "normal" | "alterado";
+            /** Ph */
+            ph?: number | string | null;
+            /** Temperatura C */
+            temperatura_c?: number | string | null;
+            /** Grasa Pct */
+            grasa_pct?: number | string | null;
+            /** Densidad */
+            densidad?: number | string | null;
+            /** Antibioticos Positivo */
+            antibioticos_positivo?: boolean | null;
+        };
+        /** CalidadRevisada */
+        CalidadRevisada: {
+            recoleccion: components["schemas"]["RecoleccionDetalle"];
+            sancion?: components["schemas"]["SancionCreada"] | null;
+        };
         /** CambiarPin */
         CambiarPin: {
             /** Pin Actual */
@@ -909,6 +1224,116 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * LineaLiquidacion
+         * @description Una recolección de la liquidación, con los montos congelados en liquidacion_detalle.
+         */
+        LineaLiquidacion: {
+            /**
+             * Recoleccion Id
+             * Format: uuid
+             */
+            recoleccion_id: string;
+            /**
+             * Registrada En
+             * Format: date-time
+             */
+            registrada_en: string;
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Litros */
+            litros: number;
+            /** Precio Litro */
+            precio_litro: number;
+            /** Con Sancion */
+            con_sancion: boolean;
+            /** Monto */
+            monto: number;
+        };
+        /**
+         * Liquidacion
+         * @description Fila de v_liquidacion_productor.
+         */
+        Liquidacion: {
+            /** Liquidacion Id */
+            liquidacion_id: number;
+            /** Productor Id */
+            productor_id: number;
+            /** Productor Codigo */
+            productor_codigo: string;
+            /** Productor */
+            productor: string;
+            /**
+             * Desde
+             * Format: date
+             */
+            desde: string;
+            /**
+             * Hasta
+             * Format: date
+             */
+            hasta: string;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "pendiente" | "pagado";
+            /** Pagada En */
+            pagada_en: string | null;
+            /** N Recolecciones */
+            n_recolecciones: number;
+            /** Litros */
+            litros: number;
+            /** Monto */
+            monto: number;
+            /** Litros Con Sancion */
+            litros_con_sancion: number;
+            /** Descuento Sancion */
+            descuento_sancion: number;
+        };
+        /** LiquidacionDetalle */
+        LiquidacionDetalle: {
+            /** Liquidacion Id */
+            liquidacion_id: number;
+            /** Productor Id */
+            productor_id: number;
+            /** Productor Codigo */
+            productor_codigo: string;
+            /** Productor */
+            productor: string;
+            /**
+             * Desde
+             * Format: date
+             */
+            desde: string;
+            /**
+             * Hasta
+             * Format: date
+             */
+            hasta: string;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "pendiente" | "pagado";
+            /** Pagada En */
+            pagada_en: string | null;
+            /** N Recolecciones */
+            n_recolecciones: number;
+            /** Litros */
+            litros: number;
+            /** Monto */
+            monto: number;
+            /** Litros Con Sancion */
+            litros_con_sancion: number;
+            /** Descuento Sancion */
+            descuento_sancion: number;
+            /** Lineas */
+            lineas: components["schemas"]["LineaLiquidacion"][];
+        };
         /** LoginAdmin */
         LoginAdmin: {
             /** Email */
@@ -957,6 +1382,113 @@ export interface components {
             /** Valor */
             valor: string;
         };
+        /**
+         * PagableDelPeriodo
+         * @description Lo que se liquidaría de un productor en el periodo (vista previa): solo lo pagable y no liquidado.
+         */
+        PagableDelPeriodo: {
+            /** Productor Id */
+            productor_id: number;
+            /** Codigo */
+            codigo: string;
+            /** Nombre */
+            nombre: string;
+            /** N Recolecciones */
+            n_recolecciones: number;
+            /** Litros */
+            litros: number;
+            /** Monto */
+            monto: number;
+            /** Litros Con Sancion */
+            litros_con_sancion: number;
+        };
+        /**
+         * PagoAcopiador
+         * @description Fila de pago_acopiador.
+         */
+        PagoAcopiador: {
+            /** Id */
+            id: number;
+            /** Acopiador Id */
+            acopiador_id: number;
+            /**
+             * Mes
+             * Format: date
+             */
+            mes: string;
+            /** Litros Mes */
+            litros_mes: number;
+            /** Sueldo Base */
+            sueldo_base: number;
+            /** Comision */
+            comision: number;
+            /** Ajustes */
+            ajustes: number;
+            /** Total */
+            total: number;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "pendiente" | "pagado";
+            /** Pagado En */
+            pagado_en: string | null;
+            /** Gasto Id */
+            gasto_id: number | null;
+            /** Nota */
+            nota: string | null;
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+        };
+        /** PagoAcopiadorCambios */
+        PagoAcopiadorCambios: {
+            /** Ajustes */
+            ajustes?: number | null;
+            /** Nota */
+            nota?: string | null;
+        };
+        /** PagoAcopiadorNuevo */
+        PagoAcopiadorNuevo: {
+            /** Acopiador Id */
+            acopiador_id: number;
+            /**
+             * Mes
+             * Format: date
+             */
+            mes: string;
+            /**
+             * Ajustes
+             * @default 0
+             */
+            ajustes: number;
+            /** Nota */
+            nota?: string | null;
+        };
+        /**
+         * PagoPendienteProductor
+         * @description Fila de v_pago_pendiente_productor: lo pagable ya y lo que está en espera (sin revisar o retenido).
+         */
+        PagoPendienteProductor: {
+            /** Productor Id */
+            productor_id: number;
+            /** Codigo */
+            codigo: string;
+            /** Nombre */
+            nombre: string;
+            /** Litros Pagables */
+            litros_pagables: number;
+            /** Monto Pagable */
+            monto_pagable: number;
+            /** Monto En Espera */
+            monto_en_espera: number;
+            /** Desde */
+            desde: string | null;
+            /** Hasta */
+            hasta: string | null;
+        };
         /** Parametro */
         Parametro: {
             /** Clave */
@@ -965,6 +1497,19 @@ export interface components {
             valor: string;
             /** Descripcion */
             descripcion: string | null;
+        };
+        /** Periodo */
+        Periodo: {
+            /**
+             * Desde
+             * Format: date
+             */
+            desde: string;
+            /**
+             * Hasta
+             * Format: date
+             */
+            hasta: string;
         };
         /** Precio */
         Precio: {
@@ -2708,6 +3253,75 @@ export interface operations {
             };
         };
     };
+    sin_revisar_recolecciones_sin_revisar_get: {
+        parameters: {
+            query?: {
+                desde?: string | null;
+                hasta?: string | null;
+                registrado_por?: number | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoleccionDetalle"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revisar_calidad_recolecciones__recoleccion_id__calidad_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recoleccion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalidadAdmin"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalidadRevisada"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     historial_precios_leche_get: {
         parameters: {
             query?: never;
@@ -3076,6 +3690,375 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Alerta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pendientes_pagos_productores_pendientes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoPendienteProductor"][];
+                };
+            };
+        };
+    };
+    pagable_del_periodo_pagos_productores_periodo_get: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagableDelPeriodo"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    liquidar_periodo_liquidaciones_lote_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Periodo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Liquidacion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    liquidaciones_liquidaciones_get: {
+        parameters: {
+            query?: {
+                estado?: ("pendiente" | "pagado") | null;
+                productor_id?: number | null;
+                desde?: string | null;
+                hasta?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Liquidacion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    liquidacion_liquidaciones__liquidacion_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                liquidacion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiquidacionDetalle"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    eliminar_liquidacion_liquidaciones__liquidacion_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                liquidacion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pagar_liquidacion_liquidaciones__liquidacion_id__pagar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                liquidacion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Liquidacion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    acopiadores_del_mes_pagos_acopiadores_get: {
+        parameters: {
+            query: {
+                mes: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcopiadorMes"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registrar_pago_pagos_acopiadores_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagoAcopiadorNuevo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoAcopiador"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    eliminar_pago_pagos_acopiadores__pago_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pago_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editar_pago_pagos_acopiadores__pago_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pago_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PagoAcopiadorCambios"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoAcopiador"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pagar_acopiador_pagos_acopiadores__pago_id__pagar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pago_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagoAcopiador"];
                 };
             };
             /** @description Validation Error */

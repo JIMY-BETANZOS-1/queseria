@@ -8,10 +8,15 @@ import Acopiadores from "./pantallas/acopiadores/Acopiadores";
 import AnalistaDetalle from "./pantallas/analistas/AnalistaDetalle";
 import AnalistaNuevo from "./pantallas/analistas/AnalistaNuevo";
 import Analistas from "./pantallas/analistas/Analistas";
+import Calidad from "./pantallas/calidad/Calidad";
 import Entrar from "./pantallas/Entrar";
 import Inicio from "./pantallas/Inicio";
 import RecoleccionesDia from "./pantallas/recolecciones/RecoleccionesDia";
 import NoEncontrada from "./pantallas/NoEncontrada";
+import LiquidacionDetalle from "./pantallas/pagos/LiquidacionDetalle";
+import LiquidarPeriodo from "./pantallas/pagos/LiquidarPeriodo";
+import PagosAcopiadores from "./pantallas/pagos/PagosAcopiadores";
+import PagosProductores from "./pantallas/pagos/PagosProductores";
 import ProductorDetalle from "./pantallas/productores/ProductorDetalle";
 import ProductorNuevo from "./pantallas/productores/ProductorNuevo";
 import Productores from "./pantallas/productores/Productores";
@@ -41,6 +46,11 @@ export default function App() {
         <Route path="productores/:id" element={<ProductorDetalle />} />
         <Route path="alertas" element={<Alertas />} />
         <Route path="recolecciones" element={<RecoleccionesDia />} />
+        <Route path="calidad" element={<Calidad />} />
+        <Route path="pagos/productores" element={<PagosProductores />} />
+        <Route path="pagos/liquidar" element={<LiquidarPeriodo />} />
+        <Route path="pagos/liquidaciones/:id" element={<LiquidacionDetalle />} />
+        <Route path="pagos/acopiadores" element={<PagosAcopiadores />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>
