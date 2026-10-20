@@ -8,7 +8,7 @@ from . import db
 from .config import config
 from .errores import registrar_manejadores
 from .routers import (acopiador, alertas, analisis, auth, configuracion, dashboard, gastos, mermas, movimientos,
-                      pagos, precios, produccion, productores, recolecciones, rutas, sync, usuarios)
+                      pagos, precios, produccion, productores, recetas, recolecciones, rutas, sync, usuarios)
 
 
 @asynccontextmanager
@@ -33,7 +33,8 @@ registrar_manejadores(app)
 for r in (auth.router, rutas.router, usuarios.router_acopiadores, usuarios.router_analistas,
           usuarios.router_usuarios, productores.router, recolecciones.router, precios.router,
           configuracion.router, sync.router, analisis.router, acopiador.router, alertas.router, pagos.router,
-          dashboard.router, gastos.router, produccion.router, mermas.router, movimientos.router):
+          dashboard.router, gastos.router, produccion.router, mermas.router, movimientos.router,
+          recetas.router):
     app.include_router(r)
 
 

@@ -46,6 +46,17 @@ SELECT_VENTA = """
 """
 
 
+# Receta con sus insumos (también la usa el editor, routers/recetas.py)
+SELECT_RECETA = """
+    SELECT r.*, COALESCE((
+             SELECT json_agg(json_build_object('insumo_id', i.id, 'nombre', i.nombre, 'unidad', i.unidad,
+                                               'cantidad', ri.cantidad) ORDER BY i.nombre)
+               FROM receta_insumo ri JOIN insumo i ON i.id = ri.insumo_id
+              WHERE ri.receta_id = r.id), '[]'::json) AS insumos
+      FROM receta r
+"""
+
+
 def _receta(conn, receta_id: int) -> dict:
     fila = db.uno(conn, "SELECT * FROM receta WHERE id = %s", (receta_id,))
     if fila is None:
@@ -56,14 +67,7 @@ def _receta(conn, receta_id: int) -> dict:
 @router.get("/recetas", response_model=list[Receta])
 def recetas(usuario: Usuario = Depends(solo_admin)):
     with db.transaccion(usuario.id) as conn:
-        return db.todos(conn, """
-            SELECT r.*, COALESCE((
-                     SELECT json_agg(json_build_object('insumo_id', i.id, 'nombre', i.nombre, 'unidad', i.unidad,
-                                                       'cantidad', ri.cantidad) ORDER BY i.nombre)
-                       FROM receta_insumo ri JOIN insumo i ON i.id = ri.insumo_id
-                      WHERE ri.receta_id = r.id), '[]'::json) AS insumos
-              FROM receta r ORDER BY r.nombre
-        """)
+        return db.todos(conn, SELECT_RECETA + " ORDER BY r.nombre")
 
 
 SELECT_STOCK = ("SELECT insumo_id, nombre, unidad::text AS unidad, stock, estado, costo_unitario, ultima_actualizacion "

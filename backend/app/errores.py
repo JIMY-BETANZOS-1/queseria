@@ -51,6 +51,7 @@ UNICOS = {
     "liquidacion_detalle_pkey": "Una de esas recolecciones ya está en otra liquidación",
     "uq_pago_acopiador_mes": "Ese acopiador ya tiene un pago registrado para ese mes",
     "insumo_nombre_key": "Ya existe un insumo con ese nombre",
+    "receta_nombre_key": "Ya existe una receta con ese nombre",
 }
 
 CHECKS = {
@@ -78,6 +79,11 @@ CHECKS = {
     "ck_analisis_grasa": "La grasa debe estar entre 0 y 100 %",
     "ck_liq_periodo": "La fecha final del periodo no puede ser anterior a la inicial",
     "merma_leche_litros_check": "Los litros de la merma deben ser mayores que cero",
+    "receta_precio_venta_check": "El precio de venta no puede ser negativo",
+    "receta_litros_base_check": "Los litros base deben ser mayores que cero",
+    "receta_rendimiento_base_check": "El rendimiento debe ser mayor que cero",
+    "receta_dias_vida_util_check": "La vida útil debe ser de al menos un día",
+    "receta_insumo_cantidad_check": "La cantidad de cada insumo debe ser mayor que cero",
     "ck_pago_acopiador_mes": "El mes debe indicarse con su primer día (AAAA-MM-01)",
     "pago_acopiador_sueldo_base_check": "El sueldo base no puede ser negativo",
     "pago_acopiador_comision_check": "La comisión no puede ser negativa",
