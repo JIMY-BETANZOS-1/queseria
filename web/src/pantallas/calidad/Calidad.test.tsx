@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -152,6 +152,77 @@ describe("calidad: por revisar", () => {
       expect(screen.getByRole("status")).toHaveTextContent(
         "Entrega de Rosa Condori Huanca marcada como alterada. La base creó una sanción de precio del 19/10/2026 al 25/10/2026.");
       expect(filas()).toEqual(["Lucía Mamani"]);
+    });
+
+    function simularFoto(respuesta?: () => Response) {
+      const orden: string[] = [];
+      const fotos: { id: string; multipart: boolean; tipo: string; contenido: string }[] = [];
+      servidor.use(http.post(`${API}/analisis/:id/foto`, async ({ params, request }) => {
+        orden.push("foto");
+        const multipart = (request.headers.get("content-type") ?? "").startsWith("multipart/form-data");
+        const archivo = (await request.formData()).get("archivo") as File;
+        // El nombre del archivo no sobrevive al paso de jsdom a fetch de Node (llega "blob"); en el navegador sí va
+        fotos.push({ id: String(params.id), multipart, tipo: archivo.type, contenido: await archivo.text() });
+        return respuesta?.() ?? HttpResponse.json({ recoleccion_id: params.id, foto_url: "fotos/x.jpg" });
+      }));
+      return { orden, fotos };
+    }
+
+    it("con solo una foto: la sube primero (multipart) y luego marca alterada sin otros datos", async () => {
+      const enviados = simular([ROSA]);
+      const { orden, fotos } = simularFoto();
+      servidor.use(http.post(`${API}/recolecciones/:id/calidad`, async ({ request }) => {
+        orden.push("calidad");
+        const cuerpo = (await request.json()) as CalidadAdmin;
+        enviados.push({ id: id(1), cuerpo });
+        return HttpResponse.json({ recoleccion: { ...ROSA, revisada: true, estado_calidad: "alterado" }, sancion: null });
+      }));
+      renderizar("/calidad");
+      const usuario = userEvent.setup();
+      await screen.findByText("Rosa Condori Huanca");
+
+      const ventana = await abrir(usuario, "Rosa Condori Huanca");
+      expect(within(ventana).getByLabelText("Foto (opcional)")).toHaveAttribute("accept", "image/jpeg,image/png,image/webp");
+      await usuario.upload(within(ventana).getByLabelText("Foto (opcional)"),
+                           new File(["imagen"], "leche-cortada.jpg", { type: "image/jpeg" }));
+      expect(ventana).toHaveTextContent("Foto elegida: leche-cortada.jpg (1 KB). Se sube al marcar alterada.");
+      await usuario.click(within(ventana).getByRole("button", { name: "Marcar alterada" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(orden).toEqual(["foto", "calidad"]);
+      expect(fotos).toEqual([{ id: id(1), multipart: true, tipo: "image/jpeg", contenido: "imagen" }]);
+      expect(enviados).toEqual([{ id: id(1), cuerpo: { estado: "alterado" } }]);
+    });
+
+    it("un archivo que no es imagen no se acepta y no se envía nada", async () => {
+      const enviados = simular([ROSA]);
+      const { fotos } = simularFoto();
+      renderizar("/calidad");
+      const usuario = userEvent.setup();
+      await screen.findByText("Rosa Condori Huanca");
+      const ventana = await abrir(usuario, "Rosa Condori Huanca");
+      fireEvent.change(within(ventana).getByLabelText("Foto (opcional)"),
+                       { target: { files: [new File(["texto"], "notas.txt", { type: "text/plain" })] } });
+      expect(within(ventana).getByLabelText("Foto (opcional)")).toHaveAccessibleDescription(
+        /^La foto debe ser una imagen JPEG, PNG o WebP/);
+      await usuario.click(within(ventana).getByRole("button", { name: "Marcar alterada" }));
+      expect(fotos).toEqual([]);
+      expect(enviados).toEqual([]);
+    });
+
+    it("si la foto no se puede subir (p. ej. muy grande), no marca alterada y muestra el mensaje", async () => {
+      const enviados = simular([ROSA]);
+      simularFoto(() => HttpResponse.json({ codigo: "muy_grande", mensaje: "La foto supera el límite de 5 MB" }, { status: 413 }));
+      renderizar("/calidad");
+      const usuario = userEvent.setup();
+      await screen.findByText("Rosa Condori Huanca");
+      const ventana = await abrir(usuario, "Rosa Condori Huanca");
+      await usuario.type(within(ventana).getByLabelText("pH"), "6.1");
+      await usuario.upload(within(ventana).getByLabelText("Foto (opcional)"), new File(["x"], "grande.png", { type: "image/png" }));
+      await usuario.click(within(ventana).getByRole("button", { name: "Marcar alterada" }));
+      expect(await within(ventana).findByRole("alert")).toHaveTextContent("La foto supera el límite de 5 MB");
+      expect(enviados).toEqual([]);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
     it("el error de la base se muestra en la ventana", async () => {

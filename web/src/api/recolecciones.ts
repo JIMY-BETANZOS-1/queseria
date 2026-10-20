@@ -1,6 +1,6 @@
 // Recolecciones (backend/app/routers/recolecciones.py): las de un día y su anulación.
 import { pedir } from "./cliente";
-import type { CalidadAdmin, CalidadRevisada, RecoleccionDetalle } from "./tipos";
+import type { CalidadAdmin, CalidadRevisada, FotoGuardada, RecoleccionDetalle } from "./tipos";
 
 /** Tope de filas por consulta (el máximo que acepta el backend). */
 export const MAX_RECOLECCIONES = 1000;
@@ -30,6 +30,14 @@ export const sinRevisar = () =>
 /** El admin revisa como el analista. Alterada exige al menos un dato del análisis (lo controla la base). */
 export const revisarCalidad = (id: string, datos: CalidadAdmin) =>
   pedir<CalidadRevisada>("POST", `/recolecciones/${id}/calidad`, { cuerpo: datos });
+
+/** Foto del análisis (JPEG, PNG o WebP; el tamaño máximo lo controla el backend). Se sube antes de marcar alterada:
+ * la base acepta la foto sola como análisis y la revisión la conserva. */
+export function subirFotoAnalisis(id: string, archivo: File) {
+  const formulario = new FormData();
+  formulario.append("archivo", archivo, archivo.name);
+  return pedir<FotoGuardada>("POST", `/analisis/${id}/foto`, { formulario });
+}
 
 /** Nunca se borra: queda anulada con su motivo. Ya anulada o ya liquidada → 409. */
 export const anularRecoleccion = (id: string, motivo: string) =>

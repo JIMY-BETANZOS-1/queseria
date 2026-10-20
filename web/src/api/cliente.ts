@@ -31,6 +31,8 @@ export type Consulta = Record<string, string | number | boolean | null | undefin
 
 type Opciones = {
   cuerpo?: unknown;
+  /** Archivos (multipart/form-data): el navegador pone el Content-Type con su separador. */
+  formulario?: FormData;
   consulta?: Consulta;
   /** false: la petición no lleva token y un 401 es un error normal (login). */
   conSesion?: boolean;
@@ -68,7 +70,7 @@ function errorDeRespuesta(status: number, datos: unknown): ErrorApi {
 
 /** Llama a la API y devuelve el JSON de la respuesta (undefined si es 204). */
 export async function pedir<T>(metodo: Metodo, ruta: string, opciones: Opciones = {}): Promise<T> {
-  const { cuerpo, consulta, conSesion = true } = opciones;
+  const { cuerpo, formulario, consulta, conSesion = true } = opciones;
   const cabeceras: Record<string, string> = {};
   let sesion: Sesion | null = null;
 
@@ -88,7 +90,7 @@ export async function pedir<T>(metodo: Metodo, ruta: string, opciones: Opciones 
     r = await fetch(armarUrl(ruta, consulta), {
       method: metodo,
       headers: cabeceras,
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+      body: formulario ?? (cuerpo === undefined ? undefined : JSON.stringify(cuerpo)),
     });
   } catch {
     throw new ErrorApi(0, "sin_conexion", `No se pudo conectar con la API (${API_URL})`);

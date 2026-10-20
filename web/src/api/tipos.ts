@@ -44,6 +44,7 @@ export type PagoAcopiadorCambios = Esquemas["PagoAcopiadorCambios"];
 export type Dashboard = Esquemas["Dashboard"];
 export type Jornada = Esquemas["Jornada"];
 export type Merma = Esquemas["Merma"];
+export type FotoGuardada = Esquemas["FotoGuardada"];
 export type MermaNueva = Esquemas["MermaNueva"];
 export type Movimiento = Esquemas["Movimiento"];
 export type TipoMovimiento = Movimiento["tipo"];
