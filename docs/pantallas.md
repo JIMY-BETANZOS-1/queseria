@@ -41,7 +41,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | A5 | Parcial: **Acopiadores** (W1) y **Pagos a acopiadores** (W2: estimado del mes, registrar con ajustes, marcar pagado). | — |
 | A5b | Completa (W1): **Rutas**. | — |
 | A6 | Mínima (W2): **Calidad**: el admin marca normales en lote o alterada con análisis, mientras no exista la app del analista. | Productores observados, crear o levantar sanciones, % por analista. |
-| A7 | Solo lectura (W2): **Almacén**: stock, costo promedio ponderado, valor del inventario, "sin stock" y "alcanza para ≈ N L de leche" (en la receta que más usa el insumo). | Registrar ingresos y ajustes; stock mínimo por insumo (necesita `stock_minimo` en `db/`). |
+| A7 | W2: **Almacén**: stock, costo promedio ponderado, valor del inventario, "sin stock" y "alcanza para ≈ N L de leche" (en la receta que más usa el insumo); **registrar compras** (la base recalcula el costo promedio) y **crear insumos** (nombre y unidad). | Ajustes de inventario, historial de movimientos; stock mínimo por insumo (necesita `stock_minimo` en `db/`). |
 | A8b | Solo lectura (W2): **Leche de la jornada** (v_leche_jornada), con "sin destino" y "sin leche aprobada". | Registrar merma de leche, ver a qué lotes fue. |
 | A8 | Solo lectura (W2): **Recetas**: unidad de venta, precio, rendimiento y vida útil, insumos por 100 L con su costo de hoy, y "alcanza para" con el stock actual. | Editar recetas. |
 | A9 | Rápida (W2): **Producción** en un paso: receta, leche de una jornada (la más antigua preseleccionada), insumos sugeridos por la receta con "necesita / hay / falta reponer" (bloquea si falta) y cierre con lo producido (propuesto con el rendimiento teórico). | Lote por etapas, leche de varias jornadas, costos propios (luz, mano de obra), bajas. |
@@ -150,6 +150,13 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Comprobante de liquidación:** se imprime con el navegador; un PDF necesita ReportLab (paquete nuevo).
    - **"Alcanza para" en lugar de "por reponer":** la base no tiene stock mínimo por insumo, así que Almacén y Recetas
      muestran cuánta leche cubre el stock de hoy (calculado en la web, redondeado hacia abajo).
+   - **Compras de insumos:** van al flujo de caja del mes de su fecha (`v_flujo_mensual`, "Insumos"); al resultado
+     (`v_resultado_mensual`) entran solo como costo de lo vendido, por diseño de la base. Una compra no se borra ni
+     se edita desde el panel; la unidad de un insumo no se cambia después de crearlo.
+   - **Rarezas de `fn_movimiento_insumo` al comprar:** recalcula el costo del insumo *antes* de los CHECK del
+     movimiento, así que una cantidad 0 da división por cero y un costo negativo choca con el CHECK de `insumo`.
+     El backend traduce ambos a 409 con el mensaje de la regla (`ck_mov_signo`, costo no negativo); la web además
+     exige cantidad y costo mayores que cero.
    - **Código de lote:** `lote_produccion.codigo` (L-AAAA-NNNN) lo genera el backend (`routers/produccion.py`, con un
      candado por año); pendiente: una secuencia o un valor por defecto en la base.
 7. **Siguiente fase (después de la entrega del Bloque W2):**
@@ -158,7 +165,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Leche de varias jornadas en un lote:** la base ya lo permite (`lote_leche`, una fila por jornada, cada una con
      su costo por litro útil); falta que el backend reparta los litros desde la jornada más antigua y que la vista
      previa muestre de qué jornadas sale la leche (unas 2 a 2.5 h). Hoy Producción toma una sola jornada.
-   - **Producción y ventas completas:** Insumos (A7: ingresos y ajustes; "por reponer" necesita un `stock_minimo`
+   - **Producción y ventas completas:** Insumos (A7: ajustes e historial de movimientos; "por reponer" necesita un `stock_minimo`
      por insumo, que la base no tiene), Recetas (A8), lotes por etapas con leche de varias jornadas (A9; `lote_leche`
      ya lo permite) y ventas de varias líneas y bajas (A10). La versión rápida de W2 ya usa las reglas de la base.
    - **App del analista** (mobile, C1–C3): reemplaza la revisión de calidad del admin.
