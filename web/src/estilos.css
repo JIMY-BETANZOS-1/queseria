@@ -673,6 +673,13 @@ a.boton {
   margin-top: 0;
 }
 
+/* Configuración, sola al pie del menú: separada del último grupo */
+.menu-pie {
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--borde);
+}
+
 .pie {
   grid-area: pie;
   padding: 0.6rem 1.5rem;

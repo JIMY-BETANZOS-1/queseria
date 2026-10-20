@@ -10,10 +10,19 @@ import { EstadoApi } from "./EstadoApi";
 type Opcion = { ruta: string; texto: string; exacta: boolean };
 
 // Solo las pantallas ya construidas, agrupadas como se usan en el día. El Dashboard es la pantalla de inicio (/).
-export const MENU: { grupo: string | null; opciones: Opcion[] }[] = [
-  { grupo: null, opciones: [{ ruta: "/", texto: "Dashboard", exacta: true }] },
+// Los bloques sin grupo no llevan título: Dashboard y Productores arriba, Configuración sola al pie.
+export const MENU: { clave: string; grupo: string | null; opciones: Opcion[] }[] = [
   {
-    grupo: "Operación",
+    clave: "inicio",
+    grupo: null,
+    opciones: [
+      { ruta: "/", texto: "Dashboard", exacta: true },
+      { ruta: "/productores", texto: "Productores", exacta: false },
+    ],
+  },
+  {
+    clave: "revision",
+    grupo: "Revisión",
     opciones: [
       { ruta: "/recolecciones", texto: "Recolecciones del día", exacta: false },
       { ruta: "/alertas", texto: "Alertas", exacta: false },
@@ -22,6 +31,16 @@ export const MENU: { grupo: string | null; opciones: Opcion[] }[] = [
     ],
   },
   {
+    clave: "personal",
+    grupo: "Personal",
+    opciones: [
+      { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
+      { ruta: "/rutas", texto: "Rutas", exacta: false },
+      { ruta: "/analistas", texto: "Analistas", exacta: false },
+    ],
+  },
+  {
+    clave: "planta",
     grupo: "Planta",
     opciones: [
       { ruta: "/produccion", texto: "Producción", exacta: false },
@@ -31,15 +50,7 @@ export const MENU: { grupo: string | null; opciones: Opcion[] }[] = [
     ],
   },
   {
-    grupo: "Campo",
-    opciones: [
-      { ruta: "/productores", texto: "Productores", exacta: false },
-      { ruta: "/rutas", texto: "Rutas", exacta: false },
-      { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
-      { ruta: "/analistas", texto: "Analistas", exacta: false },
-    ],
-  },
-  {
+    clave: "dinero",
     grupo: "Dinero",
     opciones: [
       { ruta: "/pagos/productores", texto: "Pagos a productores", exacta: false },
@@ -47,7 +58,7 @@ export const MENU: { grupo: string | null; opciones: Opcion[] }[] = [
       { ruta: "/gastos", texto: "Gastos", exacta: false },
     ],
   },
-  { grupo: "Administración", opciones: [{ ruta: "/configuracion", texto: "Configuración", exacta: false }] },
+  { clave: "pie", grupo: null, opciones: [{ ruta: "/configuracion", texto: "Configuración", exacta: false }] },
 ];
 
 /** Barra superior + menú lateral + pantalla actual + estado de la API al pie. Solo con sesión (ver RequiereSesion). */
@@ -72,8 +83,8 @@ export function Marco() {
         )}
       </header>
       <nav className="menu" aria-label="Menú principal">
-        {MENU.map(({ grupo, opciones }, i) => (
-          <div key={grupo ?? "inicio"}>
+        {MENU.map(({ clave, grupo, opciones }, i) => (
+          <div key={clave} className={clave === "pie" ? "menu-pie" : undefined}>
             {grupo && <h2 className="menu-grupo" id={`${id}-grupo-${i}`}>{grupo}</h2>}
             <ul aria-labelledby={grupo ? `${id}-grupo-${i}` : undefined}>
               {opciones.map((opcion) => (

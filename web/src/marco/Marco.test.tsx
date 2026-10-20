@@ -68,10 +68,23 @@ describe("marco", () => {
 
     expect(screen.getByText("Administrador de Prueba")).toBeInTheDocument();
     expect(screen.getByText("Sesión hasta las 10:29")).toBeInTheDocument();
-    // Agrupado: el Dashboard arriba y luego Operación, Campo, Dinero y Administración
+    // Agrupado: Dashboard y Productores arriba, luego Revisión, Personal, Planta y Dinero; Configuración sola al pie
     const menu = screen.getByRole("navigation", { name: "Menú principal" });
-    expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Operación", "Planta", "Campo", "Dinero", "Administración"]);
-    expect(within(menu).getByRole("list", { name: "Dinero" })).toHaveTextContent("Pagos a productoresPagos a acopiadoresGastos");
+    expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Revisión", "Personal", "Planta", "Dinero"]);
+    // Enlaces exactos de cada grupo (sin sobrantes): Configuración no pertenece a ninguno
+    const enlaces = (grupo: string) => within(within(menu).getByRole("list", { name: grupo })).getAllByRole("link").map((l) => l.textContent);
+    expect(enlaces("Revisión")).toEqual(["Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada"]);
+    expect(enlaces("Personal")).toEqual(["Acopiadores", "Rutas", "Analistas"]);
+    expect(enlaces("Planta")).toEqual(["Producción", "Ventas", "Almacén", "Recetas"]);
+    expect(enlaces("Dinero")).toEqual(["Pagos a productores", "Pagos a acopiadores", "Gastos"]);
+    expect(within(menu).getAllByRole("link").map((l) => l.textContent)).toEqual([
+      "Dashboard", "Productores",
+      "Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada",
+      "Acopiadores", "Rutas", "Analistas",
+      "Producción", "Ventas", "Almacén", "Recetas",
+      "Pagos a productores", "Pagos a acopiadores", "Gastos",
+      "Configuración",
+    ]);
     expect(within(menu).getAllByRole("link")).toHaveLength(17);   // / es el Dashboard; Planta: Producción, Ventas, Almacén, Recetas
   });
 
