@@ -88,6 +88,18 @@ Errores siempre con el formato `{"codigo": "...", "mensaje": "..."}` (los de val
   `registrado_por`, `incluir_anuladas`, `limit`, `offset`), `POST /recolecciones/{id}/anular` (`motivo`; nunca se borra).
 - Alertas: `GET /alertas` (pendientes; `todas`, `tipo`, `recoleccion_id`), `POST /alertas/{id}/revisar` (`resolucion`).
   Revisar `productor_bloqueado` o `firma_invalida` libera la retención del pago (lo decide `v_recoleccion_pago`).
+- Calidad del admin (W2): `GET /recolecciones/sin-revisar`, `POST /recolecciones/{id}/calidad` (normal, o alterado
+  con análisis). Reutiliza la revisión de `/sync/calidad`; la base acepta al admin en `calidad_por`.
+- Pagos a productores (W2): `GET /pagos/productores/pendientes` (`v_pago_pendiente_productor`),
+  `GET /pagos/productores/periodo?desde&hasta` (vista previa), `POST /liquidaciones/lote {desde, hasta}` (una por
+  productor con lo pagable, en una transacción), `GET /liquidaciones`, `GET /liquidaciones/{id}` (comprobante),
+  `POST /liquidaciones/{id}/pagar`, `DELETE /liquidaciones/{id}` (solo pendientes).
+- Pagos a acopiadores (W2): `GET /pagos/acopiadores?mes=`, `POST /pagos/acopiadores`,
+  `PATCH /pagos/acopiadores/{id}` y `DELETE /pagos/acopiadores/{id}` (solo pendientes),
+  `POST /pagos/acopiadores/{id}/pagar` (crea su gasto "Sueldo acopiador" en la misma transacción). Lo que hoy hace el backend y debería hacer la base: `docs/pendiente-parche-003.md`.
+- Dashboard (W2): `GET /dashboard?mes=` y `GET /jornadas?desde&hasta` (`v_leche_jornada`), solo lectura de vistas.
+- Gastos (W2): `GET /categorias-gasto`, `GET /gastos?desde&hasta`, `POST /gastos` ("Sueldo acopiador" → 409: lo crea
+  el pago mensual; monto cero o negativo → 409; sin fecha, hoy en Lima). Sin editar ni eliminar.
 - Precio de la leche: `GET /precios-leche` (historial), `POST /precios-leche` (nueva vigencia; no se edita ni borra).
 - Configuración: `GET /configuracion`, `PUT /configuracion/{clave}` (el valor conserva el formato del actual:
   entero, número, true/false, color).

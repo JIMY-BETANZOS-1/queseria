@@ -19,7 +19,7 @@ npm ci --ignore-scripts
 fijadas a mano en `package.json`, así que no se pierde nada. **Pendiente:** al actualizar npm o Vitest,
 probar sin esa línea (`npm install --dry-run`) y quitarla si ya no hace falta.
 
-## Pantallas (Bloque W1)
+## Pantallas (Bloques W1 y W2)
 | Pantalla | Qué permite |
 |---|---|
 | Entrar | Correo y contraseña del admin. |
@@ -29,6 +29,13 @@ probar sin esa línea (`npm install --dry-run`) y quitarla si ya no hace falta.
 | Productores | Lista con las altas de campo pendientes primero; crear y editar (el tipo no se cambia); aprobar altas de campo; últimas 50 entregas con su estado de pago. |
 | Alertas | Pendientes o todas, por tipo o por recolección; revisar con resolución obligatoria; marca "Retiene el pago". |
 | Recolecciones del día | Un día en hora de Lima con resumen por persona y anular con motivo obligatorio. Cada alerta enlaza a su recolección. |
+| Dashboard (W2) | Lo que requiere atención (con enlaces), la leche y el dinero del mes (flujo y resultado de la base) y un gráfico de los últimos 14 días en SVG, sin paquetes ni estilos en línea. |
+| Calidad (W2) | Por revisar: el admin marca normales en lote o alterada con su análisis, mientras no exista la app del analista. |
+| Leche de la jornada (W2) | Solo lectura por día: recolectada, descartada, por revisar, aprobada, en lotes, merma, disponible y costo por litro útil. |
+| Pagos a productores (W2) | Por pagar, liquidar periodo (vista previa con lo que queda en espera), comprobante imprimible, marcar pagada y eliminar pendientes. |
+| Pagos a acopiadores (W2) | Sueldo estimado del mes, registrar con ajustes, marcar pagado (registra el gasto "Sueldo acopiador"), editar o eliminar pendientes. |
+| Gastos (W2) | Listar por rango con total por categoría y registrar (sin editar ni eliminar; "Sueldo acopiador" lo crea solo el pago mensual). |
+| Configuración (W2) | Precio de la leche con historial (vigente y programado) y parámetros con cuándo se aplica cada uno. |
 
 Todas las fechas y horas se muestran en hora de Lima, sin importar la zona horaria del PC.
 
@@ -36,6 +43,8 @@ Todas las fechas y horas se muestran en hora de Lima, sin importar la zona horar
 - **Quién revisó una alerta.** `GET /alertas` trae `revisada_por` solo como id, y no hay endpoint con los
   nombres de los administradores. El panel muestra el nombre solo si es el admin de la sesión; si no,
   "usuario n.º X".
+- **Comprobante en PDF.** El de la liquidación se imprime con el navegador (el menú y los botones no salen); un PDF
+  necesitaría ReportLab en el backend, que no está instalado.
 - **Quién anuló una recolección y por qué.** La base guarda `anulada_por` y `motivo_anulacion`, pero
   `v_recoleccion_detalle` solo expone `anulada_en`: la fila anulada muestra solo la fecha. Propuesta en
   [`docs/pendiente-parche-002.md`](../docs/pendiente-parche-002.md).

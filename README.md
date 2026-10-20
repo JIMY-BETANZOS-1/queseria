@@ -32,5 +32,7 @@ una base que ya tiene datos de trabajo; lo mismo vale para `backend\scripts\test
 3. App de campo: ver `mobile/`.
 
 El panel web reemplaza el uso diario de `/docs` para el admin: usuarios móviles y sus celulares, rutas,
-productores y altas de campo, alertas y recolecciones del día (Bloque W1). Lo que todavía no tiene se sigue
-haciendo por `/docs`; el estado por pantalla está en [`docs/pantallas.md`](docs/pantallas.md).
+productores y altas de campo, alertas y recolecciones del día (Bloque W1); dashboard, calidad, pagos a
+productores y acopiadores, gastos, leche de la jornada y configuración (Bloque W2). Producción y ventas
+(insumos, recetas, lotes, ventas), la app del analista, el mapa y el historial de cambios son la siguiente
+fase. El estado por pantalla está en [`docs/pantallas.md`](docs/pantallas.md).

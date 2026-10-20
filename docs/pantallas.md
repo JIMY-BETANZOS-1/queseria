@@ -29,20 +29,27 @@ Convención: **lee** = consulta; **escribe** = inserta/actualiza (las reglas las
 | A13 | Configuración | Parámetros (sanción, GPS, alertas…), historial de precios de leche, usuarios, celulares vinculados y códigos de activación. | lee/escribe `configuracion`, `precio_leche`, `usuario`, `dispositivo`, `codigo_activacion` |
 | A13b | Configuración › Historial de cambios | Solo lectura: quién cambió qué y cuándo (precios, sanciones, pagos, calidad, anulaciones…), filtrable por tabla, usuario y fecha, con el antes/después. | lee `auditoria` |
 
-### Estado en el panel web (Bloque W1)
+### Estado en el panel web (Bloques W1 y W2)
 El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se sigue haciendo por `/docs`.
 
-| # | En W1 | Queda para W2 |
-|---|-------|---------------|
-| A1 | Completa. | — |
-| A2 | — | Todo. |
-| A3 | Parcial: **Alertas** (pendientes o todas, revisar con resolución) y **Recolecciones del día** (resumen por persona, tabla con ubicación como texto, anular con motivo). | Mapa (Leaflet), rangos de fechas. |
-| A4 | Parcial: **Productores** (lista con altas de campo pendientes primero, crear y editar, aprobar altas, últimas 50 entregas con estado de pago). El tipo no se edita. | Historial completo por fechas, litros por periodo, sanciones. |
-| A5 | Parcial: **Acopiadores** (datos, color, vehículo, sueldo, comisión, activo, acceso al celular). | Sueldo estimado y pago mensual. |
-| A5b | Completa: **Rutas** (crear, editar, desactivar, asignar, cambiar o quitar acopiador, historial). | — |
-| A6–A12 | — | Todo. |
-| A13 | Parcial: **Analistas** y el acceso móvil de todos (código de activación, celulares). | Parámetros, precios de la leche. |
-| A13b | — | Todo. |
+| # | En el panel | Falta (siguiente fase) |
+|---|-------------|------------------------|
+| A1 | Completa (W1). | — |
+| A2 | Mínimo (W2): **Dashboard** del mes con lo que requiere atención, leche, dinero (flujo y resultado de la base) y gráfico de 14 días en SVG. | Ingresos reales (llegan con Ventas), más gráficos. |
+| A3 | Parcial (W1): **Alertas** y **Recolecciones del día** (resumen por persona, ubicación como texto, anular con motivo). | Mapa (Leaflet), rangos de fechas. |
+| A4 | Parcial (W1): **Productores** (altas de campo pendientes primero, crear y editar, aprobar, últimas 50 entregas con su pago). El tipo no se edita. | Historial completo por fechas, litros por periodo. |
+| A5 | Parcial: **Acopiadores** (W1) y **Pagos a acopiadores** (W2: estimado del mes, registrar con ajustes, marcar pagado). | — |
+| A5b | Completa (W1): **Rutas**. | — |
+| A6 | Mínima (W2): **Calidad**: el admin marca normales en lote o alterada con análisis, mientras no exista la app del analista. | Productores observados, crear o levantar sanciones, % por analista. |
+| A7 | — | **Insumos**: stock y costo promedio, ingresos y ajustes. |
+| A8b | Solo lectura (W2): **Leche de la jornada** (v_leche_jornada), con "sin destino" y "sin leche aprobada". | Registrar merma de leche, ver a qué lotes fue. |
+| A8 | — | **Recetas**: precio, rendimiento, vida útil e insumos por 100 L. |
+| A9 | — | **Lotes**: crear, asignar leche, consumir insumos, costos, cerrar. |
+| A10 | — | **Ventas**: al contado desde lotes con saldo, bajas, clientes. |
+| A11 | Completa (W2): **Pagos a productores**: por pagar, liquidar periodo (con lo que queda en espera), comprobante imprimible, marcar pagada, eliminar pendientes. | Comprobante en PDF (ReportLab no está instalado). |
+| A12 | Mínima (W2): **Gastos**: listar por rango y registrar (sin editar ni eliminar; sin "Sueldo acopiador"). | Editar o anular un gasto. |
+| A13 | Parcial: **Analistas** y acceso móvil (W1); **Configuración** con precio de la leche y parámetros (W2). | — |
+| A13b | — | **Historial de cambios** (auditoría, solo lectura). |
 
 ---
 
@@ -121,3 +128,32 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Despliegue:** `frame-ancestors` solo vale como cabecera HTTP (ver `web/README.md`), y la nota de
      `legacy-peer-deps` en `web/.npmrc`.
    - **Verificaciones con el celular pendientes:** las 4 del ciclo de activación del paso 4 (`web/README.md`).
+6. **Panel web (W2)**, decisiones y límites conocidos:
+   - **El admin hace de analista** en Calidad mientras no exista la app del analista: la base acepta al admin en
+     `calidad_por` y la revisión reutiliza la lógica de `/sync/calidad`. Es una decisión de negocio para la
+     entrega; la app del analista la reemplaza.
+   - **Pagos (parche 003, `docs/pendiente-parche-003.md`):** el gasto del pago mensual del acopiador lo crea el
+     backend porque falta el trigger que anuncia `schema.sql:1458`; la base **deja borrar una liquidación pagada**
+     (el CASCADE esquiva `fn_proteger_liquidacion_pagada`) y no protege un pago de acopiador pagado. Hasta el
+     parche, el backend lo impide.
+   - **Liquidar el mismo periodo dos veces:** una entrega revisada después de liquidar su periodo no puede entrar
+     en otra liquidación de ese mismo periodo para ese productor (UNIQUE de la base): se paga en otro periodo. La
+     vista previa lo avisa.
+   - **Corte semanal:** dato pendiente del cliente. "Liquidar periodo" propone la semana anterior de lunes a
+     domingo, editable.
+   - **Pérdidas del resultado:** `v_resultado_mensual` cuenta como pérdida de leche lo pagado en días sin ninguna
+     leche aprobada, incluidos los días cuya leche aún no se revisó. El Dashboard lo aclara.
+   - **Gastos:** "Sueldo acopiador" solo lo crea el pago mensual (el backend rechaza registrarlo a mano, para no
+     contarlo dos veces). Sin editar ni eliminar.
+   - **Configuración:** un precio de la leche nuevo cambia también el monto de lo aún no liquidado desde su fecha
+     (lo liquidado queda congelado) y el historial no se edita ni se borra. `empresa_nombre` todavía no se usa.
+   - **Comprobante de liquidación:** se imprime con el navegador; un PDF necesita ReportLab (paquete nuevo).
+7. **Siguiente fase (después de la entrega del Bloque W2):**
+   - **Producción y ventas:** Insumos (A7), Recetas (A8), Lotes (A9) y Ventas (A10). Las reglas ya están en la
+     base y probadas (`fn_lote_leche`, `fn_validar_lote`, `fn_saldo_lote`, costo por litro útil, resultado
+     mensual); falta su pantalla y sus endpoints. Con Ventas, el Dashboard muestra ingresos reales.
+   - **App del analista** (mobile, C1–C3): reemplaza la revisión de calidad del admin.
+   - **Mapa** (Leaflet) en Recolecciones y **Historial de cambios** (A13b, tabla `auditoria`).
+   - **Leche de la jornada:** registrar merma. **Calidad:** sanciones manuales y productores observados.
+   - **Parches 002 y 003** (`docs/pendiente-parche-00*.md`) y la app 0.7.1 con (K), (L) y (M) de
+     `docs/sincronizacion.md`.
