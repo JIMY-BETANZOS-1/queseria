@@ -70,9 +70,9 @@ describe("marco", () => {
     expect(screen.getByText("Sesión hasta las 10:29")).toBeInTheDocument();
     // Agrupado: el Dashboard arriba y luego Operación, Campo, Dinero y Administración
     const menu = screen.getByRole("navigation", { name: "Menú principal" });
-    expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Operación", "Campo", "Dinero", "Administración"]);
+    expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Operación", "Planta", "Campo", "Dinero", "Administración"]);
     expect(within(menu).getByRole("list", { name: "Dinero" })).toHaveTextContent("Pagos a productoresPagos a acopiadoresGastos");
-    expect(within(menu).getAllByRole("link")).toHaveLength(13);   // Inicio dejó de existir: / es el Dashboard
+    expect(within(menu).getAllByRole("link")).toHaveLength(15);   // / es el Dashboard; Planta suma Producción y Ventas
   });
 
   it("/ es el Dashboard y el estado de la API va al pie; /dashboard lleva a / con su consulta", async () => {

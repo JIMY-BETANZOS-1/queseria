@@ -118,8 +118,8 @@ export default function Dashboard() {
                 </Dato>
               </div>
               <p className="texto-suave">
-                Ventas y lotes todavía no se registran desde el panel (próxima fase): mientras tanto, los ingresos aparecen en
-                cero. Flujo y resultado los calcula la base (v_flujo_mensual, v_resultado_mensual).
+                Los ingresos son las ventas registradas en Ventas; el costo de lo vendido sale de los lotes de Producción.
+                Flujo y resultado los calcula la base (v_flujo_mensual, v_resultado_mensual).
               </p>
             </section>
           </>

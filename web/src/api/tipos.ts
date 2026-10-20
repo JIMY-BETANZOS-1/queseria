@@ -49,6 +49,15 @@ export type PrecioNuevo = Esquemas["PrecioNuevo"];
 export type Gasto = Esquemas["Gasto"];
 export type GastoNuevo = Esquemas["GastoNuevo"];
 export type CategoriaGasto = Esquemas["CategoriaGasto"];
+export type Receta = Esquemas["Receta"];
+export type PreviaProduccion = Esquemas["PreviaProduccion"];
+export type ProduccionRapida = Esquemas["ProduccionRapida"];
+export type Lote = Esquemas["Lote"];
+export type LoteDisponible = Esquemas["LoteDisponible"];
+export type Cliente = Esquemas["Cliente"];
+export type ClienteNuevo = Esquemas["ClienteNuevo"];
+export type VentaRapida = Esquemas["VentaRapida"];
+export type Venta = Esquemas["Venta"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 

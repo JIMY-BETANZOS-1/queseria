@@ -22,6 +22,13 @@ export const MENU: { grupo: string | null; opciones: Opcion[] }[] = [
     ],
   },
   {
+    grupo: "Planta",
+    opciones: [
+      { ruta: "/produccion", texto: "Producción", exacta: false },
+      { ruta: "/ventas", texto: "Ventas", exacta: false },
+    ],
+  },
+  {
     grupo: "Campo",
     opciones: [
       { ruta: "/productores", texto: "Productores", exacta: false },

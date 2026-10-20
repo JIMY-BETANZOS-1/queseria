@@ -94,7 +94,7 @@ describe("dashboard", () => {
     expect(document.querySelectorAll(".tarjeta-dato.atencion")).toHaveLength(0);
   });
 
-  it("leche y dinero del mes, con la nota de que ventas y lotes son de la próxima fase", async () => {
+  it("leche y dinero del mes, con la nota de dónde salen ingresos y costos", async () => {
     simular();
     renderizar("/");
     await screen.findByText("Requiere atención");
@@ -112,7 +112,9 @@ describe("dashboard", () => {
     expect(tarjeta("Resultado (utilidad neta)")).toHaveTextContent(
       "La base cuenta como pérdida lo pagado en los días sin ninguna leche aprobada: un día con leche aún sin revisar " +
       "entra ahí hasta que se revise.");
-    expect(screen.getByText(/Ventas y lotes todavía no se registran desde el panel/)).toBeInTheDocument();
+    expect(screen.getByText(/Los ingresos son las ventas registradas en Ventas/)).toHaveTextContent(
+      "el costo de lo vendido sale de los lotes de Producción");
+    expect(screen.queryByText(/próxima fase/)).not.toBeInTheDocument();
   });
 
   it("sin leche por revisar en el mes, las pérdidas de leche no llevan la aclaración", async () => {

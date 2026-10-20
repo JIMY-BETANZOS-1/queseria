@@ -930,6 +930,136 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/recetas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recetas */
+        get: operations["recetas_recetas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/produccion/previa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Previa
+         * @description Lo que se necesita y lo que hay, antes de confirmar. No escribe nada.
+         */
+        get: operations["previa_produccion_previa_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/produccion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Producir
+         * @description Crea el lote, le asigna la leche, consume los insumos sugeridos y lo cierra, todo en una transacción.
+         */
+        post: operations["producir_produccion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lotes */
+        get: operations["lotes_lotes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lotes/disponibles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lotes Disponibles
+         * @description Cerrados y con saldo, el que vence primero arriba (orden de v_lote_disponible).
+         */
+        get: operations["lotes_disponibles_lotes_disponibles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/clientes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Clientes */
+        get: operations["clientes_clientes_get"];
+        put?: never;
+        /** Crear Cliente */
+        post: operations["crear_cliente_clientes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ventas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ventas */
+        get: operations["ventas_ventas_get"];
+        put?: never;
+        /** Vender */
+        post: operations["vender_ventas_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/salud": {
         parameters: {
             query?: never;
@@ -1256,6 +1386,37 @@ export interface components {
             /** Manual */
             manual: boolean;
         };
+        /** Cliente */
+        Cliente: {
+            /** Id */
+            id: number;
+            /** Nombre */
+            nombre: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "natural" | "empresa";
+            /** Documento */
+            documento: string | null;
+            /** Celular */
+            celular: string | null;
+        };
+        /** ClienteNuevo */
+        ClienteNuevo: {
+            /** Nombre */
+            nombre: string;
+            /**
+             * Tipo
+             * @default natural
+             * @enum {string}
+             */
+            tipo: "natural" | "empresa";
+            /** Documento */
+            documento?: string | null;
+            /** Celular */
+            celular?: string | null;
+        };
         /** CodigoActivacion */
         CodigoActivacion: {
             /** Codigo */
@@ -1428,6 +1589,35 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** InsumoDeReceta */
+        InsumoDeReceta: {
+            /** Insumo Id */
+            insumo_id: number;
+            /** Nombre */
+            nombre: string;
+            /** Unidad */
+            unidad: string;
+            /** Cantidad */
+            cantidad: number;
+        };
+        /**
+         * InsumoNecesario
+         * @description Consumo sugerido (conveniencia del backend: cantidad de la receta × litros ÷ litros_base). La base valida el stock.
+         */
+        InsumoNecesario: {
+            /** Insumo Id */
+            insumo_id: number;
+            /** Nombre */
+            nombre: string;
+            /** Unidad */
+            unidad: string;
+            /** Necesita */
+            necesita: number;
+            /** Hay */
+            hay: number;
+            /** Falta */
+            falta: number;
         };
         /**
          * Jornada
@@ -1602,10 +1792,92 @@ export interface components {
             /** Pin */
             pin: string;
         };
+        /**
+         * Lote
+         * @description Fila de v_lote_resumen (lo principal).
+         */
+        Lote: {
+            /** Lote Id */
+            lote_id: number;
+            /** Codigo */
+            codigo: string;
+            /** Receta Id */
+            receta_id: number;
+            /** Receta */
+            receta: string;
+            /**
+             * Fecha Produccion
+             * Format: date
+             */
+            fecha_produccion: string;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "en_proceso" | "cerrado";
+            /** Litros Leche */
+            litros_leche: number;
+            /** Cantidad Producida */
+            cantidad_producida: number | null;
+            /** Cantidad Vendida */
+            cantidad_vendida: number;
+            /** Saldo */
+            saldo: number | null;
+            /** Ingresos */
+            ingresos: number;
+            /** Costo Leche */
+            costo_leche: number;
+            /** Costo Insumos */
+            costo_insumos: number;
+            /** Costo Total */
+            costo_total: number;
+            /** Costo Por Unidad */
+            costo_por_unidad: number | null;
+            /** Rendimiento Teorico */
+            rendimiento_teorico: number | null;
+            /** Desviacion Rendimiento Pct */
+            desviacion_rendimiento_pct: number | null;
+            /** Fecha Vencimiento */
+            fecha_vencimiento: string | null;
+        };
         /** LoteCalidad */
         LoteCalidad: {
             /** Revisiones */
             revisiones: unknown[];
+        };
+        /**
+         * LoteDisponible
+         * @description Fila de v_lote_disponible: cerrado y con saldo, el que vence primero arriba.
+         */
+        LoteDisponible: {
+            /** Lote Id */
+            lote_id: number;
+            /** Codigo */
+            codigo: string;
+            /** Receta */
+            receta: string;
+            /**
+             * Fecha Produccion
+             * Format: date
+             */
+            fecha_produccion: string;
+            /** Saldo */
+            saldo: number;
+            /** Fecha Vencimiento */
+            fecha_vencimiento: string | null;
+            /** Dias Para Vencer */
+            dias_para_vencer: number | null;
+            /** Vencido */
+            vencido: boolean;
+            /** Por Vencer */
+            por_vencer: boolean;
+            /**
+             * Unidad Venta
+             * @enum {string}
+             */
+            unidad_venta: "unidad" | "kilo";
+            /** Precio Venta */
+            precio_venta: number | null;
         };
         /**
          * LotePush
@@ -1831,6 +2103,33 @@ export interface components {
             normal: number | null;
             /** Sancion */
             sancion: number | null;
+        };
+        /** PreviaProduccion */
+        PreviaProduccion: {
+            /** Leche Disponible */
+            leche_disponible: number;
+            /** Costo Litro */
+            costo_litro: number | null;
+            /** Rendimiento Estimado */
+            rendimiento_estimado: number | null;
+            /** Insumos */
+            insumos: components["schemas"]["InsumoNecesario"][];
+        };
+        /** ProduccionRapida */
+        ProduccionRapida: {
+            /** Receta Id */
+            receta_id: number;
+            /**
+             * Fecha Leche
+             * Format: date
+             */
+            fecha_leche: string;
+            /** Litros */
+            litros: number;
+            /** Cantidad Producida */
+            cantidad_producida: number;
+            /** Fecha Produccion */
+            fecha_produccion?: string | null;
         };
         /**
          * Productor
@@ -2101,6 +2400,30 @@ export interface components {
             productores: components["schemas"]["ProductorPull"][];
             /** Productor Ids Vigentes */
             productor_ids_vigentes: number[];
+        };
+        /** Receta */
+        Receta: {
+            /** Id */
+            id: number;
+            /** Nombre */
+            nombre: string;
+            /**
+             * Unidad Venta
+             * @enum {string}
+             */
+            unidad_venta: "unidad" | "kilo";
+            /** Precio Venta */
+            precio_venta: number | null;
+            /** Litros Base */
+            litros_base: number;
+            /** Rendimiento Base */
+            rendimiento_base: number | null;
+            /** Dias Vida Util */
+            dias_vida_util: number | null;
+            /** Activa */
+            activa: boolean;
+            /** Insumos */
+            insumos: components["schemas"]["InsumoDeReceta"][];
         };
         /**
          * RecoleccionDetalle
@@ -2545,6 +2868,50 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** Venta */
+        Venta: {
+            /** Venta Id */
+            venta_id: number;
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Cliente Id */
+            cliente_id: number;
+            /** Cliente */
+            cliente: string;
+            /** Lote Id */
+            lote_id: number;
+            /** Codigo Lote */
+            codigo_lote: string;
+            /** Receta */
+            receta: string;
+            /** Cantidad */
+            cantidad: number;
+            /** Precio Unitario */
+            precio_unitario: number;
+            /** Subtotal */
+            subtotal: number;
+        };
+        /**
+         * VentaRapida
+         * @description Venta al contado de un lote cerrado con saldo (una línea).
+         */
+        VentaRapida: {
+            /** Cliente Id */
+            cliente_id: number;
+            /** Lote Id */
+            lote_id: number;
+            /** Cantidad */
+            cantidad: number;
+            /** Precio Unitario */
+            precio_unitario: number;
+            /** Fecha */
+            fecha?: string | null;
+            /** Observacion */
+            observacion?: string | null;
         };
     };
     responses: never;
@@ -4493,6 +4860,250 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Gasto"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recetas_recetas_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receta"][];
+                };
+            };
+        };
+    };
+    previa_produccion_previa_get: {
+        parameters: {
+            query: {
+                receta_id: number;
+                fecha_leche: string;
+                litros: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviaProduccion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    producir_produccion_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProduccionRapida"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lote"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lotes_lotes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lote"][];
+                };
+            };
+        };
+    };
+    lotes_disponibles_lotes_disponibles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoteDisponible"][];
+                };
+            };
+        };
+    };
+    clientes_clientes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cliente"][];
+                };
+            };
+        };
+    };
+    crear_cliente_clientes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClienteNuevo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cliente"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ventas_ventas_get: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Venta"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    vender_ventas_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VentaRapida"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Venta"];
                 };
             };
             /** @description Validation Error */

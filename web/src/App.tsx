@@ -12,6 +12,8 @@ import Calidad from "./pantallas/calidad/Calidad";
 import Configuracion from "./pantallas/configuracion/Configuracion";
 import Dashboard from "./pantallas/dashboard/Dashboard";
 import Entrar from "./pantallas/Entrar";
+import Produccion from "./pantallas/produccion/Produccion";
+import Ventas from "./pantallas/produccion/Ventas";
 import Gastos from "./pantallas/gastos/Gastos";
 import LecheJornada from "./pantallas/jornadas/LecheJornada";
 import RecoleccionesDia from "./pantallas/recolecciones/RecoleccionesDia";
@@ -60,6 +62,8 @@ export default function App() {
         <Route path="jornadas" element={<LecheJornada />} />
         <Route path="configuracion" element={<Configuracion />} />
         <Route path="gastos" element={<Gastos />} />
+        <Route path="produccion" element={<Produccion />} />
+        <Route path="ventas" element={<Ventas />} />
         <Route path="pagos/productores" element={<PagosProductores />} />
         <Route path="pagos/liquidar" element={<LiquidarPeriodo />} />
         <Route path="pagos/liquidaciones/:id" element={<LiquidacionDetalle />} />
