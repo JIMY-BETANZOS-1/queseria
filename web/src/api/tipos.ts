@@ -41,6 +41,8 @@ export type AcopiadorMes = Esquemas["AcopiadorMes"];
 export type PagoAcopiador = Esquemas["PagoAcopiador"];
 export type PagoAcopiadorNuevo = Esquemas["PagoAcopiadorNuevo"];
 export type PagoAcopiadorCambios = Esquemas["PagoAcopiadorCambios"];
+export type Dashboard = Esquemas["Dashboard"];
+export type Jornada = Esquemas["Jornada"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 

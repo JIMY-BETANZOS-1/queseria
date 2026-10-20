@@ -848,6 +848,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/jornadas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jornadas
+         * @description Días con leche entre desde y hasta (v_leche_jornada); los días sin recolecciones no tienen fila.
+         */
+        get: operations["jornadas_jornadas_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dashboard
+         * @description Resumen del mes de `mes` (cualquier día del mes) y lo pendiente de atención.
+         */
+        get: operations["dashboard_dashboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/salud": {
         parameters: {
             query?: never;
@@ -997,6 +1037,18 @@ export interface components {
              */
             comision_por_litro: number;
         };
+        /**
+         * Acopiadores
+         * @description El mes en v_acopiador_mes y pago_acopiador.
+         */
+        Acopiadores: {
+            /** Sueldo Estimado */
+            sueldo_estimado: number;
+            /** Pagado */
+            pagado: number;
+            /** Pagos Pendientes */
+            pagos_pendientes: number;
+        };
         /** Activar */
         Activar: {
             /** Codigo */
@@ -1094,6 +1146,22 @@ export interface components {
             /** Desde */
             desde?: string | null;
         };
+        /**
+         * Atencion
+         * @description Lo que el admin tiene que revisar hoy (no depende del mes).
+         */
+        Atencion: {
+            /** Alertas Pendientes */
+            alertas_pendientes: number;
+            /** Alertas Que Retienen */
+            alertas_que_retienen: number;
+            /** Altas Por Aprobar */
+            altas_por_aprobar: number;
+            /** Entregas Sin Revisar */
+            entregas_sin_revisar: number;
+            /** Productores Observados */
+            productores_observados: number;
+        };
         /** Body_subir_foto_analisis__recoleccion_id__foto_post */
         Body_subir_foto_analisis__recoleccion_id__foto_post: {
             /**
@@ -1146,6 +1214,20 @@ export interface components {
              * Format: date-time
              */
             expira_en: string;
+        };
+        /** Dashboard */
+        Dashboard: {
+            /**
+             * Mes
+             * Format: date
+             */
+            mes: string;
+            leche: components["schemas"]["LecheMes"];
+            flujo: components["schemas"]["Flujo"];
+            resultado: components["schemas"]["Resultado"];
+            por_pagar: components["schemas"]["PorPagar"];
+            acopiadores: components["schemas"]["Acopiadores"];
+            atencion: components["schemas"]["Atencion"];
         };
         /** Dispositivo */
         Dispositivo: {
@@ -1209,6 +1291,26 @@ export interface components {
             /** Sancion Hasta */
             sancion_hasta: string | null;
         };
+        /**
+         * Flujo
+         * @description Fila de v_flujo_mensual (en cero si el mes no tiene movimientos).
+         */
+        Flujo: {
+            /** Ingresos */
+            ingresos: number;
+            /** Egreso Leche */
+            egreso_leche: number;
+            /** Egreso Insumos */
+            egreso_insumos: number;
+            /** Egreso Lotes */
+            egreso_lotes: number;
+            /** Egreso Operativo */
+            egreso_operativo: number;
+            /** Total Invertido */
+            total_invertido: number;
+            /** Saldo Caja */
+            saldo_caja: number;
+        };
         /** FotoGuardada */
         FotoGuardada: {
             /**
@@ -1223,6 +1325,55 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * Jornada
+         * @description Fila de v_leche_jornada: la leche de un día (Lima) y su destino.
+         */
+        Jornada: {
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Litros Recolectados */
+            litros_recolectados: number;
+            /** Litros Descartados */
+            litros_descartados: number;
+            /** Litros Por Revisar */
+            litros_por_revisar: number;
+            /** Litros Aprobados */
+            litros_aprobados: number;
+            /** Litros Usados */
+            litros_usados: number;
+            /** Litros Merma */
+            litros_merma: number;
+            /** Litros Disponibles */
+            litros_disponibles: number;
+            /** Costo Pagado */
+            costo_pagado: number;
+            /** Costo Litro Util */
+            costo_litro_util: number | null;
+            /** Dias Antiguedad */
+            dias_antiguedad: number;
+            /** Sin Destino */
+            sin_destino: boolean;
+        };
+        /**
+         * LecheMes
+         * @description Suma de v_leche_jornada en los días del mes.
+         */
+        LecheMes: {
+            /** Litros Recolectados */
+            litros_recolectados: number;
+            /** Litros Descartados */
+            litros_descartados: number;
+            /** Litros Por Revisar */
+            litros_por_revisar: number;
+            /** Litros Aprobados */
+            litros_aprobados: number;
+            /** Costo Pagado */
+            costo_pagado: number;
         };
         /**
          * LineaLiquidacion
@@ -1510,6 +1661,20 @@ export interface components {
              * Format: date
              */
             hasta: string;
+        };
+        /**
+         * PorPagar
+         * @description Totales de v_pago_pendiente_productor y de las liquidaciones aún sin pagar.
+         */
+        PorPagar: {
+            /** Monto Pagable */
+            monto_pagable: number;
+            /** Monto En Espera */
+            monto_en_espera: number;
+            /** Liquidaciones Pendientes */
+            liquidaciones_pendientes: number;
+            /** Monto Liquidaciones Pendientes */
+            monto_liquidaciones_pendientes: number;
         };
         /** Precio */
         Precio: {
@@ -2028,6 +2193,24 @@ export interface components {
              * Format: date-time
              */
             servidor_ahora: string;
+        };
+        /**
+         * Resultado
+         * @description Fila de v_resultado_mensual (en cero si el mes no tiene movimientos).
+         */
+        Resultado: {
+            /** Ingresos */
+            ingresos: number;
+            /** Costo Ventas */
+            costo_ventas: number;
+            /** Perdida Producto */
+            perdida_producto: number;
+            /** Perdida Leche */
+            perdida_leche: number;
+            /** Gasto Operativo */
+            gasto_operativo: number;
+            /** Utilidad Neta */
+            utilidad_neta: number;
         };
         /** ResultadoProductor */
         ResultadoProductor: {
@@ -4059,6 +4242,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PagoAcopiador"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    jornadas_jornadas_get: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Jornada"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dashboard_dashboard_get: {
+        parameters: {
+            query: {
+                mes: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dashboard"];
                 };
             };
             /** @description Validation Error */

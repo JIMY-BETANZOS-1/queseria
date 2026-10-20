@@ -9,6 +9,7 @@ import AnalistaDetalle from "./pantallas/analistas/AnalistaDetalle";
 import AnalistaNuevo from "./pantallas/analistas/AnalistaNuevo";
 import Analistas from "./pantallas/analistas/Analistas";
 import Calidad from "./pantallas/calidad/Calidad";
+import Dashboard from "./pantallas/dashboard/Dashboard";
 import Entrar from "./pantallas/Entrar";
 import Inicio from "./pantallas/Inicio";
 import RecoleccionesDia from "./pantallas/recolecciones/RecoleccionesDia";
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="alertas" element={<Alertas />} />
         <Route path="recolecciones" element={<RecoleccionesDia />} />
         <Route path="calidad" element={<Calidad />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="pagos/productores" element={<PagosProductores />} />
         <Route path="pagos/liquidar" element={<LiquidarPeriodo />} />
         <Route path="pagos/liquidaciones/:id" element={<LiquidacionDetalle />} />

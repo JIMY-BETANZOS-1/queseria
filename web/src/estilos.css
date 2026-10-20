@@ -578,3 +578,59 @@ a.boton {
     padding: 0;
   }
 }
+
+/* ---------------------------------------------------------------- dashboard */
+.tarjetas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.tarjeta-dato {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tarjeta-dato .cifra {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.tarjeta-dato.atencion {
+  border-color: var(--atencion-texto);
+}
+
+.grafico {
+  width: 100%;
+  max-width: 760px;
+  height: auto;
+}
+
+.grafico text {
+  font-size: 10px;
+  fill: var(--texto-suave);
+}
+
+.barra-aprobada {
+  fill: var(--ok-texto);
+}
+
+.barra-por-revisar {
+  fill: #d97706;
+}
+
+.barra-descartada {
+  fill: var(--error-texto);
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.9rem;
+}

@@ -9,6 +9,7 @@ import { useSesion } from "../sesion/useSesion";
 // Solo las pantallas ya construidas: cada paso de W1 agrega la suya
 const MENU = [
   { ruta: "/", texto: "Inicio", exacta: true },
+  { ruta: "/dashboard", texto: "Dashboard", exacta: false },
   { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
   { ruta: "/analistas", texto: "Analistas", exacta: false },
   { ruta: "/rutas", texto: "Rutas", exacta: false },
