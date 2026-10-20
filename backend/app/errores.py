@@ -50,6 +50,7 @@ UNICOS = {
     "uq_liq_periodo": "Ese productor ya tiene una liquidación de ese mismo periodo",
     "liquidacion_detalle_pkey": "Una de esas recolecciones ya está en otra liquidación",
     "uq_pago_acopiador_mes": "Ese acopiador ya tiene un pago registrado para ese mes",
+    "insumo_nombre_key": "Ya existe un insumo con ese nombre",
 }
 
 CHECKS = {
@@ -80,6 +81,11 @@ CHECKS = {
     "pago_acopiador_sueldo_base_check": "El sueldo base no puede ser negativo",
     "pago_acopiador_comision_check": "La comisión no puede ser negativa",
     "gasto_operativo_monto_check": "El monto del gasto debe ser mayor que cero",
+    "ck_mov_signo": "La cantidad de un ingreso debe ser mayor que cero",
+    "ck_mov_costo": "Un ingreso necesita un costo unitario mayor que cero",
+    "movimiento_insumo_costo_unitario_check": "El costo unitario no puede ser negativo",
+    # fn_movimiento_insumo actualiza el costo promedio del insumo antes de que se evalúen los CHECK del movimiento
+    "insumo_costo_unitario_check": "El costo unitario no puede ser negativo",
     "ck_cliente_documento": "El documento debe ser un DNI (8 dígitos) o RUC (11 dígitos)",
     "ck_cliente_celular": "El celular debe tener 9 dígitos",
 }

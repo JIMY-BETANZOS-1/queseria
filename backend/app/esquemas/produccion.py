@@ -36,6 +36,24 @@ class InsumoStock(BaseModel):
     ultima_actualizacion: datetime | None
 
 
+class InsumoNuevo(Entrada):
+    nombre: str = Field(min_length=1)
+    unidad: Literal["kg", "g", "l", "ml", "unidad"]
+
+
+class IngresoInsumo(Entrada):
+    """Compra de un insumo. Cantidad y costo los valida la base (ck_mov_signo, ck_mov_costo: ambos mayores que cero)."""
+    cantidad: float
+    costo_unitario: float
+    fecha: date | None = None     # por defecto, ahora; con fecha, el mediodía de ese día en Lima
+    nota: str | None = None
+
+
+class IngresoRegistrado(BaseModel):
+    movimiento_id: int
+    insumo: InsumoStock           # como quedó: stock y costo promedio recalculados por la base
+
+
 class InsumoNecesario(BaseModel):
     """Consumo sugerido (conveniencia del backend: cantidad de la receta × litros ÷ litros_base). La base valida el stock."""
     insumo_id: int

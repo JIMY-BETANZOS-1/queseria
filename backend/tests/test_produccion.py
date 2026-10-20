@@ -148,9 +148,64 @@ def test_insumos_es_la_vista_de_stock(client, admin, db):
     assert filas[sin["insumo_id"]]["ultima_actualizacion"] is None
 
 
+def test_crear_insumo_y_registrar_compra(client, admin, db):
+    h = cab(admin)
+    nombre = f"Cultivo prueba {uuid.uuid4().hex[:6]}"
+    r = client.post("/insumos", json={"nombre": nombre, "unidad": "g"}, headers=h)
+    assert r.status_code == 201, r.text
+    nuevo = r.json()
+    assert nuevo["stock"] == 0 and nuevo["estado"] == "sin_stock" and nuevo["costo_unitario"] == 0
+    r = client.post("/insumos", json={"nombre": nombre, "unidad": "g"}, headers=h)
+    assert r.status_code == 409 and r.json()["mensaje"] == "Ya existe un insumo con ese nombre"
+
+    # Primer ingreso: fija el costo; el segundo lo promedia (lo hace fn_movimiento_insumo)
+    r = client.post(f"/insumos/{nuevo['insumo_id']}/ingresos", json={"cantidad": 100, "costo_unitario": 0.5}, headers=h)
+    assert r.status_code == 201, r.text
+    assert r.json()["insumo"]["stock"] == 100 and r.json()["insumo"]["costo_unitario"] == 0.5
+    r = client.post(f"/insumos/{nuevo['insumo_id']}/ingresos", json={"cantidad": 50, "costo_unitario": 0.8, "nota": "Factura 12"},
+                    headers=h)
+    insumo = r.json()["insumo"]
+    assert insumo["stock"] == 150 and insumo["costo_unitario"] == 0.6 and insumo["estado"] == "disponible"
+    mov = db.execute("SELECT tipo, usuario_id, nota, fecha FROM movimiento_insumo WHERE id = %s",
+                     (r.json()["movimiento_id"],)).fetchone()
+    assert mov["tipo"] == "ingreso" and mov["usuario_id"] == int(admin["id"]) and mov["nota"] == "Factura 12"
+
+
+def test_compra_con_fecha_cuenta_en_el_flujo_de_su_mes_y_no_en_el_resultado(client, admin, db):
+    h = cab(admin)
+    insumo = client.post("/insumos", json={"nombre": f"Sal prueba {uuid.uuid4().hex[:6]}", "unidad": "kg"}, headers=h).json()
+    antes = client.get("/dashboard?mes=2001-03-01", headers=h).json()
+    r = client.post(f"/insumos/{insumo['insumo_id']}/ingresos", json={"cantidad": 20, "costo_unitario": 1.5, "fecha": "2001-03-10"},
+                    headers=h)
+    assert r.status_code == 201, r.text
+    fecha_lima = db.execute("SELECT (fecha AT TIME ZONE 'America/Lima') AS f FROM movimiento_insumo WHERE id = %s",
+                            (r.json()["movimiento_id"],)).fetchone()["f"]
+    assert fecha_lima.date().isoformat() == "2001-03-10" and fecha_lima.hour == 12
+    despues = client.get("/dashboard?mes=2001-03-01", headers=h).json()
+    assert round(despues["flujo"]["egreso_insumos"] - antes["flujo"]["egreso_insumos"], 2) == 30
+    # El inventario sin vender no es gasto (v_resultado_mensual): el resultado no cambia
+    assert despues["resultado"]["utilidad_neta"] == antes["resultado"]["utilidad_neta"]
+
+
+def test_lo_que_rechaza_la_base_al_comprar_vuelve_como_409(client, admin):
+    h = cab(admin)
+    insumo = client.post("/insumos", json={"nombre": f"Envase prueba {uuid.uuid4().hex[:6]}", "unidad": "unidad"}, headers=h).json()
+    url = f"/insumos/{insumo['insumo_id']}/ingresos"
+    r = client.post(url, json={"cantidad": 0, "costo_unitario": 1}, headers=h)
+    assert r.status_code == 409 and r.json()["mensaje"] == "La cantidad de un ingreso debe ser mayor que cero"
+    r = client.post(url, json={"cantidad": 5, "costo_unitario": 0}, headers=h)
+    assert r.status_code == 409 and r.json()["mensaje"] == "Un ingreso necesita un costo unitario mayor que cero"
+    r = client.post(url, json={"cantidad": 5, "costo_unitario": -1}, headers=h)
+    assert r.status_code == 409 and r.json()["mensaje"] == "El costo unitario no puede ser negativo"
+    assert client.post("/insumos/999999999/ingresos", json={"cantidad": 5, "costo_unitario": 1}, headers=h).status_code == 404
+    assert client.post("/insumos", json={"nombre": "X", "unidad": "litros"}, headers=h).status_code == 422
+
+
 def test_solo_admin(client, admin):
     t = cab(movil_con_celular(client, admin, "acopiador")["token"])
     for metodo, ruta in [("get", "/recetas"), ("get", "/insumos"), ("get", "/lotes"), ("get", "/lotes/disponibles"), ("get", "/clientes")]:
         assert getattr(client, metodo)(ruta, headers=t).status_code == 403
     assert client.post("/produccion", json={}, headers=t).status_code == 403
+    assert client.post("/insumos", json={}, headers=t).status_code == 403
+    assert client.post("/insumos/1/ingresos", json={}, headers=t).status_code == 403
     assert client.post("/ventas", json={}, headers=t).status_code == 403

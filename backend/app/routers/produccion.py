@@ -10,13 +10,14 @@ y el código del lote L-AAAA-NNNN. Pendiente: la base no tiene secuencia para lo
 """
 from datetime import date
 
+import psycopg
 from fastapi import APIRouter, Depends, Query
 
 from .. import db
 from ..deps import Usuario, solo_admin
-from ..errores import no_encontrado
-from ..esquemas.produccion import (Cliente, ClienteNuevo, InsumoStock, Lote, LoteDisponible, PreviaProduccion,
-                                   ProduccionRapida, Receta, Venta, VentaRapida)
+from ..errores import CHECKS, conflicto, no_encontrado
+from ..esquemas.produccion import (Cliente, ClienteNuevo, IngresoInsumo, IngresoRegistrado, InsumoNuevo, InsumoStock,
+                                   Lote, LoteDisponible, PreviaProduccion, ProduccionRapida, Receta, Venta, VentaRapida)
 from .rutas import HOY_LIMA
 
 router = APIRouter(tags=["producción y ventas"])
@@ -65,12 +66,53 @@ def recetas(usuario: Usuario = Depends(solo_admin)):
         """)
 
 
+SELECT_STOCK = ("SELECT insumo_id, nombre, unidad::text AS unidad, stock, estado, costo_unitario, ultima_actualizacion "
+                "FROM v_insumo_stock")
+
+
 @router.get("/insumos", response_model=list[InsumoStock])
 def insumos(usuario: Usuario = Depends(solo_admin)):
-    """Almacén (solo lectura): v_insumo_stock, solo insumos activos. La base no tiene stock mínimo por insumo."""
+    """Almacén: v_insumo_stock, solo insumos activos. La base no tiene stock mínimo por insumo."""
     with db.transaccion(usuario.id) as conn:
-        return db.todos(conn, "SELECT insumo_id, nombre, unidad::text AS unidad, stock, estado, costo_unitario, "
-                              "ultima_actualizacion FROM v_insumo_stock ORDER BY nombre")
+        return db.todos(conn, SELECT_STOCK + " ORDER BY nombre")
+
+
+@router.post("/insumos", response_model=InsumoStock, status_code=201)
+def crear_insumo(datos: InsumoNuevo, usuario: Usuario = Depends(solo_admin)):
+    """Nace sin stock: su costo promedio lo fija el primer ingreso. Nombre repetido: 409 (UNIQUE de la base)."""
+    with db.transaccion(usuario.id) as conn:
+        nuevo = db.uno(conn, "INSERT INTO insumo (nombre, unidad) VALUES (%s, %s) RETURNING id", (datos.nombre, datos.unidad))
+        return db.uno(conn, SELECT_STOCK + " WHERE insumo_id = %s", (nuevo["id"],))
+
+
+@router.post("/insumos/{insumo_id}/ingresos", response_model=IngresoRegistrado, status_code=201)
+def registrar_ingreso(insumo_id: int, datos: IngresoInsumo, usuario: Usuario = Depends(solo_admin)):
+    """Compra de insumo: un movimiento 'ingreso'. fn_movimiento_insumo recalcula el costo promedio ponderado; los CHECK
+    de la base (cantidad y costo mayores que cero) vuelven como 409 con su mensaje, como en Pagos. No se borra."""
+    with db.transaccion(usuario.id) as conn:
+        if db.uno(conn, "SELECT 1 FROM insumo WHERE id = %s AND activo", (insumo_id,)) is None:
+            raise no_encontrado("El insumo no existe")
+        try:
+            with conn.transaction():
+                mov = db.uno(conn, """
+                    INSERT INTO movimiento_insumo (insumo_id, tipo, cantidad, costo_unitario, usuario_id, fecha, nota)
+                    VALUES (%(insumo)s, 'ingreso', %(cantidad)s, %(costo)s, %(usuario)s,
+                            CASE WHEN %(fecha)s::date IS NULL THEN now()
+                                 ELSE (%(fecha)s::date + time '12:00') AT TIME ZONE 'America/Lima' END,
+                            %(nota)s)
+                    RETURNING id
+                """, {"insumo": insumo_id, "cantidad": datos.cantidad, "costo": datos.costo_unitario, "usuario": usuario.id,
+                      "fecha": datos.fecha, "nota": datos.nota})
+        except psycopg.errors.CheckViolation as e:
+            nombre = e.diag.constraint_name or ""
+            if nombre in CHECKS:
+                raise conflicto(CHECKS[nombre]) from e
+            raise
+        except psycopg.errors.DivisionByZero as e:
+            # Con cantidad 0 y stock 0, fn_movimiento_insumo (BEFORE INSERT) divide por stock + cantidad antes de que
+            # la base evalúe ck_mov_signo: el error real es el de ese CHECK (pendiente en la base, docs/pantallas.md)
+            raise conflicto(CHECKS["ck_mov_signo"]) from e
+        return {"movimiento_id": mov["id"], "insumo": db.uno(conn, SELECT_STOCK + " WHERE insumo_id = %s", (insumo_id,))}
 
 
 @router.get("/produccion/previa", response_model=PreviaProduccion)
