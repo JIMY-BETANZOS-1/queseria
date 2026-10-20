@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <!-- Patrón Holstein propio (manchas negras sobre blanco). Respaldo del fondo de Entrar si falta login-vacas.jpg. -->
+  <rect width="240" height="240" fill="#ffffff"/>
+  <path d="M18 22c22-14 58-6 62 16s-14 42-40 40S-4 36 18 22z" fill="#1b1b1b"/>
+  <path d="M150 14c26-6 52 10 48 32s-34 26-52 16-22-42 4-48z" fill="#1b1b1b"/>
+  <path d="M96 104c30-10 64 6 60 36s-40 38-64 26-26-52 4-62z" fill="#1b1b1b"/>
+  <path d="M196 122c18-8 40 4 38 24s-26 28-40 18-14-34 2-42z" fill="#1b1b1b"/>
+  <path d="M20 168c20-8 46 2 46 22s-24 34-44 28-22-42-2-50z" fill="#1b1b1b"/>
+  <path d="M140 200c16-6 34 2 34 16s-18 24-32 20-16-30-2-36z" fill="#1b1b1b"/>
+</svg>

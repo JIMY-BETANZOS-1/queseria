@@ -97,6 +97,21 @@ describe("marco", () => {
     expect(screen.getByText("Sesión hasta las 10:29")).toBeInTheDocument();
   });
 
+  it("con JWT_MINUTOS_ADMIN=720 (12 h) el aviso aparece recién en los últimos 5 minutos", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    vi.setSystemTime(Date.UTC(2026, 9, 18, 13, 0, 0));    // 08:00 en Lima
+    guardarSesion(respuestaLogin(undefined, 720));       // vence 19:59:30 Lima; el aviso, desde las 19:54:30
+    renderizar("/");
+    act(() => {
+      vi.advanceTimersByTime(714 * 60_000 + 29_000);     // 19:54:29
+    });
+    expect(screen.queryByText(/Sesión hasta las/)).not.toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1_000);                      // 19:54:30
+    });
+    expect(screen.getByText("Sesión hasta las 19:59")).toBeInTheDocument();
+  });
+
   it("cada enlace y cada grupo del menú lleva su ícono decorativo sin cambiar su nombre", () => {
     guardarSesion(respuestaLogin());
     renderizar("/almacen");

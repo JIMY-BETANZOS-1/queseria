@@ -1,11 +1,10 @@
 import { useId, useState, type FormEvent } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
 import { entrar, ErrorApi } from "../api/cliente";
 import { useTitulo } from "../comun/useTitulo";
 import { motivoCierre } from "../sesion/almacen";
 import { useSesion } from "../sesion/useSesion";
-import { rutaVolver } from "../sesion/volver";
 
 type Faltan = { email?: string; password?: string };
 
@@ -13,7 +12,6 @@ type Faltan = { email?: string; password?: string };
 export default function Entrar() {
   useTitulo("Entrar");
   const sesion = useSesion();
-  const [parametros] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [faltan, setFaltan] = useState<Faltan>({});
@@ -21,9 +19,9 @@ export default function Entrar() {
   const [enviando, setEnviando] = useState(false);
   const id = useId();
 
-  // Con sesión (recién entró o ya la tenía) se va a donde estaba, solo si es una ruta interna segura
+  // Con sesión (recién entró o ya la tenía) siempre va a Inicio, aunque traiga ?volver=
   if (sesion !== null && Date.now() < sesion.vence_en) {
-    return <Navigate to={rutaVolver(parametros.get("volver"))} replace />;
+    return <Navigate to="/" replace />;
   }
 
   async function enviar(evento: FormEvent<HTMLFormElement>) {
@@ -54,6 +52,7 @@ export default function Entrar() {
   return (
     <div className="entrar">
       <form className="tarjeta entrar-tarjeta" onSubmit={enviar} noValidate>
+        <img className="entrar-logo" src="/logo.svg" alt="" width="64" height="64" />
         <h1>Quesería Huata</h1>
         <p className="texto-suave">Panel del administrador</p>
 

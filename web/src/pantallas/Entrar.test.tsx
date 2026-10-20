@@ -31,14 +31,22 @@ async function llenarYEnviar(correo = CORREO, clave = CLAVE) {
 }
 
 describe("Entrar", () => {
-  it("con datos correctos entra y vuelve a la pantalla de ?volver=", async () => {
+  it("con datos correctos entra y cae siempre en Inicio, aunque traiga un ?volver= válido", async () => {
     loginResponde(() => HttpResponse.json(respuestaLogin()));
-    renderizar("/entrar?volver=%2Fno-existe%3Ffecha%3D2026-10-18");
+    renderizar("/entrar?volver=%2Falmacen%3Ffecha%3D2026-10-18");
 
     await llenarYEnviar();
-    await waitFor(() => expect(ubicacion()).toBe("/no-existe?fecha=2026-10-18"));
+    await waitFor(() => expect(ubicacion()).toBe("/"));
+    expect(await screen.findByRole("heading", { name: "Inicio" })).toBeInTheDocument();
     // El título se pone en un efecto, después del cambio de ruta
-    await waitFor(() => expect(document.title).toBe("Página no encontrada · Quesería Huata"));
+    await waitFor(() => expect(document.title).toBe("Inicio · Quesería Huata"));
+  });
+
+  it("la tarjeta lleva el logo (decorativo: el nombre ya está en el título)", () => {
+    renderizar("/entrar");
+    const logo = screen.getByRole("heading", { name: "Quesería Huata" }).closest("form")!.querySelector("img.entrar-logo");
+    expect(logo).toHaveAttribute("src", "/logo.svg");
+    expect(logo).toHaveAttribute("alt", "");
   });
 
   it.each(["//sitio-ajeno.example", "/\\sitio-ajeno.example", "https://sitio-ajeno.example"])(
@@ -125,11 +133,11 @@ describe("Entrar", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("con sesión vigente, /entrar lleva directo a ?volver=", () => {
+  it("con sesión vigente, /entrar lleva directo a Inicio (ignora ?volver=)", () => {
     guardarSesion(respuestaLogin());
     renderizar("/entrar?volver=%2Fotra");
 
-    expect(ubicacion()).toBe("/otra");
+    expect(ubicacion()).toBe("/");
   });
 
   it("la contraseña no queda en la URL, el almacenamiento, la página ni la consola", async () => {
