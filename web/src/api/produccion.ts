@@ -2,10 +2,17 @@
 // lote cerrado con saldo y sin vencer) las aplica la base; sus errores llegan como 409 con su mensaje.
 import { pedir } from "./cliente";
 import type {
-  Cliente, ClienteNuevo, IngresoInsumo, IngresoRegistrado, InsumoNuevo, InsumoStock, Lote, LoteDisponible, PreviaProduccion, ProduccionRapida, Receta, Venta, VentaRapida,
+  Cliente, ClienteNuevo, IngresoInsumo, IngresoRegistrado, InsumoEnReceta, InsumoNuevo, InsumoStock, Lote, LoteDisponible,
+  PreviaProduccion, ProduccionRapida, Receta, RecetaCambios, RecetaNueva, Venta, VentaRapida,
 } from "./tipos";
 
 export const listarRecetas = () => pedir<Receta[]>("GET", "/recetas");
+/** Editor (backend/app/routers/recetas.py): con lotes ya hechos no cambian unidad, litros base, rendimiento ni vida útil. */
+export const crearReceta = (datos: RecetaNueva) => pedir<Receta>("POST", "/recetas", { cuerpo: datos });
+export const cambiarReceta = (id: number, cambios: RecetaCambios) => pedir<Receta>("PATCH", `/recetas/${id}`, { cuerpo: cambios });
+/** Reemplaza el conjunto completo de insumos. */
+export const ponerInsumosReceta = (id: number, insumos: InsumoEnReceta[]) =>
+  pedir<Receta>("PUT", `/recetas/${id}/insumos`, { cuerpo: { insumos } });
 /** Almacén (solo lectura): stock, costo promedio y último movimiento de cada insumo activo. */
 export const listarInsumos = () => pedir<InsumoStock[]>("GET", "/insumos");
 /** Nace sin stock: su costo promedio lo fija la primera compra. */

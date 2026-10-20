@@ -28,15 +28,15 @@ const INSUMOS: InsumoStock[] = [
 // Queso paria: cuajo 20 ml y sal 1.5 kg por 100 L. Yogurt (base 50 L): azúcar 4 kg y cuajo 5 ml por 50 L.
 const RECETAS: Receta[] = [
   { id: 1, nombre: "Queso paria", unidad_venta: "unidad", precio_venta: 20, litros_base: 100, rendimiento_base: 11,
-    dias_vida_util: 30, activa: true,
+    dias_vida_util: 30, activa: true, n_lotes: 2,
     insumos: [{ insumo_id: 1, nombre: "Cuajo líquido", unidad: "ml", cantidad: 20 },
               { insumo_id: 3, nombre: "Sal", unidad: "kg", cantidad: 1.5 }] },
   { id: 4, nombre: "Yogurt", unidad_venta: "kilo", precio_venta: 7, litros_base: 50, rendimiento_base: 52.5,
-    dias_vida_util: null, activa: true,
+    dias_vida_util: null, activa: true, n_lotes: 0,
     insumos: [{ insumo_id: 6, nombre: "Azúcar", unidad: "kg", cantidad: 4 },
               { insumo_id: 1, nombre: "Cuajo líquido", unidad: "ml", cantidad: 5 }] },
   { id: 9, nombre: "Receta vieja", unidad_venta: "unidad", precio_venta: null, litros_base: 100, rendimiento_base: null,
-    dias_vida_util: null, activa: false, insumos: [] },
+    dias_vida_util: null, activa: false, n_lotes: 0, insumos: [] },
 ];
 
 function simular() {

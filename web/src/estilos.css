@@ -1282,3 +1282,23 @@ td.acciones .boton + .boton {
   width: 0.85rem;
   height: 0.85rem;
 }
+
+/* Editor de recetas */
+.acciones-receta {
+  display: flex;
+  gap: var(--esp-1);
+}
+
+.casilla {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-1);
+  margin: var(--esp-1) 0 var(--esp-2);
+}
+
+.vista-previa {
+  margin: var(--esp-2) 0 var(--esp-1);
+  padding: var(--esp-1) var(--esp-2);
+  border-left: 4px solid var(--acento);
+  background: var(--acento-claro);
+}

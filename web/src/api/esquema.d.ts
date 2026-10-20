@@ -940,7 +940,8 @@ export interface paths {
         /** Recetas */
         get: operations["recetas_recetas_get"];
         put?: never;
-        post?: never;
+        /** Crear */
+        post: operations["crear_recetas_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1143,6 +1144,44 @@ export interface paths {
          */
         get: operations["movimientos_movimientos_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recetas/{receta_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cambiar */
+        patch: operations["cambiar_recetas__receta_id__patch"];
+        trace?: never;
+    };
+    "/recetas/{receta_id}/insumos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reemplazar Insumos
+         * @description Reemplaza el conjunto completo (una lista vacía deja la receta sin insumos). Los lotes ya hechos no cambian:
+         *     su consumo quedó en sus movimientos.
+         */
+        put: operations["reemplazar_insumos_recetas__receta_id__insumos_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1711,6 +1750,13 @@ export interface components {
             /** Cantidad */
             cantidad: number;
         };
+        /** InsumoEnReceta */
+        InsumoEnReceta: {
+            /** Insumo Id */
+            insumo_id: number;
+            /** Cantidad */
+            cantidad: number;
+        };
         /**
          * InsumoNecesario
          * @description Consumo sugerido (conveniencia del backend: cantidad de la receta × litros ÷ litros_base). La base valida el stock.
@@ -1761,6 +1807,11 @@ export interface components {
             costo_unitario: number;
             /** Ultima Actualizacion */
             ultima_actualizacion: string | null;
+        };
+        /** InsumosDeReceta */
+        InsumosDeReceta: {
+            /** Insumos */
+            insumos: components["schemas"]["InsumoEnReceta"][];
         };
         /**
          * Jornada
@@ -2652,6 +2703,60 @@ export interface components {
             activa: boolean;
             /** Insumos */
             insumos: components["schemas"]["InsumoDeReceta"][];
+            /** N Lotes */
+            n_lotes: number;
+        };
+        /**
+         * RecetaCambios
+         * @description Solo los campos enviados. Con lotes ya hechos no cambian unidad_venta, litros_base, rendimiento_base ni
+         *     dias_vida_util (ver routers/recetas.py).
+         */
+        RecetaCambios: {
+            /** Nombre */
+            nombre?: string | null;
+            /** Unidad Venta */
+            unidad_venta?: ("unidad" | "kilo") | null;
+            /** Precio Venta */
+            precio_venta?: number | null;
+            /** Litros Base */
+            litros_base?: number | null;
+            /** Rendimiento Base */
+            rendimiento_base?: number | null;
+            /** Dias Vida Util */
+            dias_vida_util?: number | null;
+            /** Activa */
+            activa?: boolean | null;
+        };
+        /** RecetaNueva */
+        RecetaNueva: {
+            /** Nombre */
+            nombre: string;
+            /**
+             * Unidad Venta
+             * @enum {string}
+             */
+            unidad_venta: "unidad" | "kilo";
+            /** Precio Venta */
+            precio_venta?: number | null;
+            /**
+             * Litros Base
+             * @default 100
+             */
+            litros_base: number;
+            /** Rendimiento Base */
+            rendimiento_base?: number | null;
+            /** Dias Vida Util */
+            dias_vida_util?: number | null;
+            /**
+             * Activa
+             * @default true
+             */
+            activa: boolean;
+            /**
+             * Insumos
+             * @default []
+             */
+            insumos: components["schemas"]["InsumoEnReceta"][];
         };
         /**
          * RecoleccionDetalle
@@ -5127,6 +5232,39 @@ export interface operations {
             };
         };
     };
+    crear_recetas_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecetaNueva"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     insumos_insumos_get: {
         parameters: {
             query?: never;
@@ -5523,6 +5661,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Movimiento"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cambiar_recetas__receta_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receta_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecetaCambios"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reemplazar_insumos_recetas__receta_id__insumos_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receta_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InsumosDeReceta"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receta"];
                 };
             };
             /** @description Validation Error */

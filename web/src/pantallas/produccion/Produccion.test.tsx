@@ -24,11 +24,11 @@ afterEach(() => {
 
 const RECETAS: Receta[] = [
   { id: 1, nombre: "Queso paria", unidad_venta: "unidad", precio_venta: 20, litros_base: 100, rendimiento_base: 11,
-    dias_vida_util: 30, activa: true, insumos: [] },
+    dias_vida_util: 30, activa: true, n_lotes: 0, insumos: [] },
   { id: 4, nombre: "Yogurt", unidad_venta: "kilo", precio_venta: 7, litros_base: 100, rendimiento_base: 105,
-    dias_vida_util: 21, activa: true, insumos: [] },
+    dias_vida_util: 21, activa: true, n_lotes: 0, insumos: [] },
   { id: 9, nombre: "Receta vieja", unidad_venta: "unidad", precio_venta: 1, litros_base: 100, rendimiento_base: 1,
-    dias_vida_util: null, activa: false, insumos: [] },
+    dias_vida_util: null, activa: false, n_lotes: 0, insumos: [] },
 ];
 
 function jornada(fecha: string, disponibles: number): Jornada {

@@ -1,14 +1,17 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { listarInsumos, listarRecetas } from "../../api/produccion";
+import type { Receta } from "../../api/tipos";
 import { litros, soles } from "../../comun/formato";
 import { Insignia } from "../../comun/Insignia";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
 import { alcanceReceta } from "./alcance";
 import { unidadDe } from "./Produccion";
+import { VentanaReceta } from "./VentanaReceta";
 
-/** A8 (solo lectura) · Recetas con su rendimiento, vida útil, insumos por 100 L, costo de insumos y para cuánta leche alcanza. */
+/** A8 · Recetas con su rendimiento, vida útil, insumos por 100 L, costo de insumos y para cuánta leche alcanza; crear,
+ * editar y duplicar (solo afecta a la producción futura). */
 export default function Recetas() {
   useTitulo("Recetas");
   const id = useId();
@@ -17,16 +20,21 @@ export default function Recetas() {
   const insumos = useCarga(listarInsumos, []);
   const stock = new Map(insumos.carga.estado === "listo" ? insumos.carga.datos.map((i) => [i.insumo_id, i.stock]) : []);
   const costo = new Map(insumos.carga.estado === "listo" ? insumos.carga.datos.map((i) => [i.insumo_id, i.costo_unitario]) : []);
+  const [ventana, setVentana] = useState<{ modo: "crear" | "editar"; receta?: Receta } | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const abrir = (v: { modo: "crear" | "editar"; receta?: Receta }) => { setAviso(null); setVentana(v); };
 
   return (
     <>
       <div className="encabezado">
         <h1>Recetas</h1>
+        <button type="button" className="boton boton-primario" onClick={() => abrir({ modo: "crear" })}>Nueva receta</button>
       </div>
       <p className="texto-suave">
-        Solo lectura. Cantidades por 100 L de leche; los quesos rinden unidades y el yogurt kilos. El costo de insumos usa
-        el costo promedio de hoy del almacén (sin la leche). Editar recetas es de la Fase 2.
+        Cantidades por 100 L de leche; los quesos rinden unidades y el yogurt kilos. El costo de insumos usa el costo
+        promedio de hoy del almacén (sin la leche). Los cambios solo afectan a la producción que viene.
       </p>
+      {aviso !== null && <p className="aviso aviso-ok" role="status">{aviso}</p>}
 
       {recetas.carga.estado === "cargando" && <p>Cargando recetas…</p>}
       {recetas.carga.estado === "error" && (
@@ -44,7 +52,19 @@ export default function Recetas() {
         const rinde = r.rendimiento_base == null ? null : Math.round((r.rendimiento_base / r.litros_base) * 100 * 100) / 100;
         return (
           <section key={r.id} className="seccion" aria-labelledby={`${id}-${n}`}>
-            <h2 id={`${id}-${n}`}>{r.nombre}{!r.activa && <> <Insignia tono="neutro">Inactiva</Insignia></>}</h2>
+            <div className="encabezado-seccion">
+              <h2 id={`${id}-${n}`}>{r.nombre}{!r.activa && <> <Insignia tono="neutro">Inactiva</Insignia></>}</h2>
+              <div className="acciones-receta">
+                <button type="button" className="boton boton-secundario" aria-label={`Editar ${r.nombre}`}
+                        onClick={() => abrir({ modo: "editar", receta: r })}>
+                  Editar
+                </button>
+                <button type="button" className="boton boton-secundario" aria-label={`Duplicar ${r.nombre} como nueva`}
+                        onClick={() => abrir({ modo: "crear", receta: r })}>
+                  Duplicar como nueva
+                </button>
+              </div>
+            </div>
             <p>
               Se vende por {r.unidad_venta === "kilo" ? "kilo" : "unidad"}
               {r.precio_venta != null && <> a {soles(r.precio_venta)}</>}
@@ -81,6 +101,17 @@ export default function Recetas() {
           </section>
         );
       })}
+
+      {ventana !== null && (
+        <VentanaReceta modo={ventana.modo} receta={ventana.receta}
+                       insumos={insumos.carga.estado === "listo" ? insumos.carga.datos : []}
+                       onCerrar={() => setVentana(null)}
+                       onHecho={(r) => {
+                         setVentana(null);
+                         setAviso(ventana.modo === "editar" ? `Receta ${r.nombre} guardada.` : `Receta ${r.nombre} creada.`);
+                         recetas.recargar();
+                       }} />
+      )}
     </>
   );
 }
