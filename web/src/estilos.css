@@ -1061,3 +1061,213 @@ a.boton {
 .kardex-unidad {
   color: var(--texto-suave);
 }
+
+/* Etiquetas de estado con ícono, vacíos con ícono y filtros como botones con contador */
+.icono.icono-estado {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
+.vacio-bloque {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--esp-1);
+  padding: var(--esp-4) var(--esp-2);
+  color: var(--texto-suave);
+  text-align: center;
+}
+
+.vacio-bloque p {
+  margin: 0;
+}
+
+.icono.vacio-icono {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.encabezado-seccion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-2);
+  margin-bottom: var(--esp-2);
+}
+
+.encabezado-seccion h2 {
+  margin: 0;
+}
+
+.filtro-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-1);
+  margin-bottom: var(--esp-2);
+}
+
+.encabezado-seccion .filtro-botones {
+  margin-bottom: 0;
+}
+
+.filtro-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-1);
+  padding: 6px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  cursor: pointer;
+}
+
+.filtro-boton:hover {
+  border-color: var(--primario);
+}
+
+.filtro-boton[aria-pressed="true"] {
+  border-color: var(--primario);
+  background: var(--primario);
+  color: var(--sobre-primario);
+  font-weight: 600;
+}
+
+.filtro-boton:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+}
+
+.contador {
+  min-width: 1.4rem;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--neutro-fondo);
+  color: var(--texto);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.filtro-boton[aria-pressed="true"] .contador {
+  background: var(--primario-oscuro);
+  color: var(--sobre-primario);
+}
+
+.distancia {
+  color: var(--texto-suave);
+}
+
+.distancia.lejos {
+  color: var(--atencion-texto);
+  font-weight: 600;
+}
+
+td.acciones {
+  white-space: nowrap;
+}
+
+td.acciones .boton + .boton {
+  margin-left: var(--esp-1);
+}
+
+/* Mapa de entregas (SVG propio, sin fondo de calles) */
+.mapa {
+  margin: 0;
+}
+
+.mapa-svg {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}
+
+.mapa-fondo {
+  fill: var(--fondo);
+}
+
+.mapa-tramo line {
+  stroke: var(--texto-suave);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.mapa-tramo text {
+  font-size: 13px;
+  fill: var(--texto-suave);
+}
+
+.mapa-tramo.lejos line {
+  stroke: var(--atencion-borde);
+  stroke-width: 3;
+}
+
+.mapa-tramo.lejos text {
+  fill: var(--atencion-texto);
+  font-weight: 700;
+}
+
+.mapa-ref {
+  fill: none;
+  stroke: var(--primario-oscuro);
+  stroke-width: 2.5;
+}
+
+.mapa-punto {
+  stroke: var(--superficie);
+  stroke-width: 2;
+}
+
+.mapa-punto.aproximada {
+  stroke: var(--texto);
+  stroke-dasharray: 3 2;
+}
+
+.mapa-punto.simulada {
+  stroke: var(--error-texto);
+  stroke-width: 3;
+}
+
+.mapa-marca {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--error-texto);
+}
+
+.mapa-escala line {
+  stroke: var(--texto);
+  stroke-width: 3;
+}
+
+.mapa-escala text {
+  font-size: 12px;
+  fill: var(--texto);
+}
+
+.mapa-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  margin: var(--esp-1) 0 var(--esp-2);
+  color: var(--texto-suave);
+  font-size: 0.9rem;
+}
+
+.enlaces-mapa a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: var(--esp-2);
+  white-space: nowrap;
+}
+
+.enlaces-mapa .icono {
+  width: 0.85rem;
+  height: 0.85rem;
+}

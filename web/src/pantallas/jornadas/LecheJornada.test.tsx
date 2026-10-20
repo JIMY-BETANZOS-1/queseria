@@ -55,6 +55,11 @@ describe("leche de la jornada", () => {
     expect(filas[1]).toEqual(["15/10/2026", "300 L", "20 L", "0 L", "280 L", "250 L", "10 L", "20 L", "S/ 510.00", "S/ 1.8214", "Sin destino", "Registrar merma"]);
     expect(filas[2]).toEqual(["Total", "351 L", "20 L", "51 L", "280 L", "250 L", "10 L", "20 L", "S/ 596.70", "", "", ""]);
     expect(screen.getByText(/1 jornada tiene leche aprobada sin lote ni merma/)).toBeInTheDocument();
+    // Estados con ícono: sin destino (rojo) y sin leche aprobada (ámbar)
+    const tabla = screen.getAllByRole("table")[0]!;
+    expect(within(tabla).getByText("Sin destino")).toHaveClass("insignia-error");
+    expect(within(tabla).getByText("Sin destino").querySelector("svg.icono-estado")).toHaveAttribute("aria-hidden", "true");
+    expect(within(tabla).getByText("Sin leche aprobada")).toHaveClass("insignia-atencion");
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Leche del día");
     await waitFor(() => expect(document.title).toBe("Leche del día · Quesería Huata"));
   });
@@ -64,6 +69,7 @@ describe("leche de la jornada", () => {
     renderizar("/jornadas");
     const usuario = userEvent.setup();
     await screen.findByText(/No hubo leche/);
+    expect(screen.getByText(/No hubo leche/).closest(".vacio-bloque")?.querySelector("svg.vacio-icono")).not.toBeNull();
 
     await usuario.clear(screen.getByLabelText("Desde"));
     await usuario.type(screen.getByLabelText("Desde"), "2026-10-10");

@@ -2655,7 +2655,7 @@ export interface components {
         };
         /**
          * RecoleccionDetalle
-         * @description Fila de v_recoleccion_detalle.
+         * @description Fila de v_recoleccion_detalle más la referencia del productor y la distancia (recolecciones.SELECT_DETALLE).
          */
         RecoleccionDetalle: {
             /**
@@ -2720,6 +2720,12 @@ export interface components {
             origen_ubicacion: "gps" | "ultima_conocida" | "ninguna";
             /** Ubicacion Simulada */
             ubicacion_simulada: boolean;
+            /** Latitud Ref */
+            latitud_ref: number | null;
+            /** Longitud Ref */
+            longitud_ref: number | null;
+            /** Distancia Ref M */
+            distancia_ref_m: number | null;
             /** Alertas Pendientes */
             alertas_pendientes: number;
             /** Monto */

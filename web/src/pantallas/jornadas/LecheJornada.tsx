@@ -5,7 +5,7 @@ import { jornadas } from "../../api/dashboard";
 import type { Jornada } from "../../api/tipos";
 import { Campo } from "../../comun/Campo";
 import { fecha, hoyLima, litros, soles, sumarDias } from "../../comun/formato";
-import { Insignia } from "../../comun/Insignia";
+import { Estado, Vacio } from "../../comun/Estado";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
 import { VentanaMerma } from "./VentanaMerma";
@@ -77,7 +77,7 @@ export default function LecheJornada() {
         </p>
       )}
       {carga.estado === "listo" && valido && (filas.length === 0 ? (
-        <p className="texto-suave">No hubo leche entre el {fecha(desde)} y el {fecha(hasta)}.</p>
+        <Vacio icono="jornada">No hubo leche entre el {fecha(desde)} y el {fecha(hasta)}.</Vacio>
       ) : (
         <>
           <p>
@@ -121,8 +121,9 @@ export default function LecheJornada() {
                   <td className="numero">{soles(j.costo_pagado)}</td>
                   <td className="numero">{j.costo_litro_util === null ? "—" : soles(j.costo_litro_util, 4)}</td>
                   <td>
-                    {j.sin_destino ? <Insignia tono="error">Sin destino</Insignia>
-                      : j.litros_aprobados === 0 ? <Insignia tono="atencion">Sin leche aprobada</Insignia> : ""}
+                    {j.sin_destino ? <Estado tono="error">Sin destino</Estado>
+                      : j.litros_aprobados === 0 ? <Estado tono="atencion">Sin leche aprobada</Estado>
+                      : j.litros_disponibles > 0 ? <Estado tono="ok" icono="jornada">Disponible</Estado> : ""}
                   </td>
                   <td>
                     {j.litros_disponibles > 0 && (

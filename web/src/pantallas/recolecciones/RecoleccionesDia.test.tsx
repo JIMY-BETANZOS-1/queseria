@@ -352,3 +352,97 @@ describe("piezas", () => {
     expect(textoUbicacion(r)).toBe(texto);
   });
 });
+
+describe("vista mapa, filtros y etiquetas", () => {
+  // 17/10: una entrega a 512 m de su referencia (con GPS) y otra cerca
+  const LEJANA = recoleccion({ recoleccion_id: id(20), registrada_en: "2026-10-17T06:15:00-05:00", fecha: "2026-10-17",
+                               productor: "Rosa Lejana", productor_id: 140, latitud: -15.5954, longitud: -69.9,
+                               latitud_ref: -15.6, longitud_ref: -69.9, distancia_ref_m: 512 });
+  const CERCANA = recoleccion({ recoleccion_id: id(21), registrada_en: "2026-10-17T07:00:00-05:00", fecha: "2026-10-17",
+                                productor: "Pablo Cerca", productor_id: 141, distancia_ref_m: 40 });
+
+  function conUmbral() {
+    servidor.use(http.get(`${API}/configuracion`, () => HttpResponse.json([
+      { clave: "max_distancia_productor_m", valor: "300", descripcion: "Alerta si la recolección queda más lejos" }])));
+  }
+
+  it("Lista | Mapa en la URL: el mapa muestra las del día (sin anuladas) y vuelve a la lista", async () => {
+    simular({ "2026-10-18": DIA });
+    renderizar("/recolecciones");
+    const usuario = userEvent.setup();
+    await screen.findByRole("table", { name: "Resumen por persona" });
+    const vista = screen.getByRole("group", { name: "Vista" });
+    expect(within(vista).getByRole("button", { name: "Lista" })).toHaveAttribute("aria-pressed", "true");
+
+    await usuario.click(within(vista).getByRole("button", { name: "Mapa" }));
+    expect(ubicacion()).toBe("/recolecciones?vista=mapa");
+    // ANALISTA, ANA y JUAN_1 tienen ubicación; JUAN_2 no; la anulada no va al mapa
+    expect(screen.getByRole("img", { name: "Mapa de 3 entregas con ubicación y la referencia de su productor" })).toBeInTheDocument();
+    const tabla = screen.getByRole("table", { name: "Entregas en el mapa" });
+    expect(within(tabla).queryByText("Marta Anulada")).not.toBeInTheDocument();
+    expect(screen.getByText(/^Sin ubicación \(1\):/)).toHaveTextContent("Pedro Quispe 06:40");
+
+    await usuario.click(within(vista).getByRole("button", { name: "Lista" }));
+    expect(ubicacion()).toBe("/recolecciones");
+    expect(screen.queryByRole("img", { name: /^Mapa de/ })).not.toBeInTheDocument();
+  });
+
+  it("filtros como botones con contador; el elegido va a la URL; sin resultados, un vacío con frase", async () => {
+    simular({ "2026-10-18": DIA, "2026-10-17": [CERCANA] });
+    renderizar("/recolecciones");
+    const usuario = userEvent.setup();
+    await screen.findByRole("table", { name: "Resumen por persona" });
+    const filtros = screen.getByRole("group", { name: "Filtrar entregas" });
+    const cuentas = within(filtros).getAllByRole("button").map((b) => [b.firstChild?.textContent, b.querySelector(".contador")?.textContent]);
+    expect(cuentas).toEqual([["Todas", "5"], ["Por revisar", "1"], ["Con alertas", "2"], ["Anuladas", "1"]]);
+
+    await usuario.click(within(filtros).getByRole("button", { name: /^Con alertas/ }));
+    expect(ubicacion()).toBe("/recolecciones?filtro=con_alertas");
+    expect(within(filtros).getByRole("button", { name: /^Con alertas/ })).toHaveAttribute("aria-pressed", "true");
+    const productores = within(entregas()).getAllByRole("row").slice(1).map((f) => within(f).getAllByRole("link")[0]?.textContent);
+    expect(productores).toEqual(["Lucía Mamani", "Pedro Quispe"]);   // en el orden del servidor
+
+    await usuario.click(screen.getByRole("button", { name: "Día anterior" }));
+    await usuario.click(within(screen.getByRole("group", { name: "Filtrar entregas" })).getByRole("button", { name: /^Anuladas/ }));
+    expect(await screen.findByText("Ninguna entrega con ese filtro.")).toBeInTheDocument();
+  });
+
+  it("la ubicación dice a cuánto quedó de su referencia (lejos, en ámbar) y 'Mapa' abre la entrega con su enlace", async () => {
+    conUmbral();
+    simular({ "2026-10-17": [CERCANA, LEJANA] });
+    renderizar("/recolecciones?fecha=2026-10-17");
+    const usuario = userEvent.setup();
+    await waitFor(() => expect(within(fila("Rosa Lejana")).getByText("· a 512 m")).toHaveClass("distancia", "lejos"));
+    expect(within(fila("Pablo Cerca")).getByText("· a 40 m")).not.toHaveClass("lejos");
+
+    await usuario.click(within(fila("Rosa Lejana")).getByRole("button", { name: "Ver en el mapa la entrega de Rosa Lejana de las 06:15" }));
+    const ventana = screen.getByRole("dialog", { name: "Entrega de Rosa Lejana · 06:15" });
+    expect(within(ventana).getByRole("img", { name: "Mapa de 1 entrega con ubicación y la referencia de su productor" })).toBeInTheDocument();
+    expect(within(ventana).getByText("Lejos")).toBeInTheDocument();
+    const enlace = within(ventana).getByRole("link", { name: "Ver en Google Maps la entrega de Rosa Lejana" });
+    expect(enlace).toHaveAttribute("href", "https://www.google.com/maps?q=-15.595400,-69.900000");
+    expect(enlace).toHaveAttribute("target", "_blank");
+    expect(enlace).toHaveAttribute("rel", "noopener noreferrer");
+    await usuario.click(within(ventana).getByRole("button", { name: "Cerrar" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("etiquetas de estado con ícono: calidad (normal, por revisar, alterada) y pago", async () => {
+    simular({ "2026-10-18": DIA });
+    renderizar("/recolecciones");
+    await screen.findByRole("table", { name: "Resumen por persona" });
+    // Columna Calidad (la 6.ª) y columna Pago: "Por revisar" puede estar en ambas
+    const calidad = (productor: string) => within(fila(productor)).getAllByRole("cell")[5]!;
+    const etiqueta = (productor: string, texto: string) =>
+      within(texto === "Pagable" ? fila(productor) : calidad(productor)).getByText(texto);
+    expect(etiqueta("Rosa Condori Huanca", "Normal")).toHaveClass("insignia-ok");
+    expect(etiqueta("Pedro Quispe", "Por revisar")).toHaveClass("insignia-atencion");
+    expect(etiqueta("Lucía Mamani", "Alterada")).toHaveClass("insignia-error");
+    expect(etiqueta("Rosa Condori Huanca", "Pagable")).toHaveClass("insignia-ok");
+    for (const texto of ["Normal", "Pagable"]) {
+      expect(etiqueta("Rosa Condori Huanca", texto).querySelector("svg.icono-estado")).toHaveAttribute("aria-hidden", "true");
+    }
+    // Sin GPS pero con la referencia de su productor: también tiene botón de mapa
+    expect(within(fila("Pedro Quispe")).queryByRole("button", { name: /^Ver en el mapa/ })).toBeInTheDocument();
+  });
+});

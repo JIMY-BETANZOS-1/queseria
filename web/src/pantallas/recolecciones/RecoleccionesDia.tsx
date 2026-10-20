@@ -1,19 +1,30 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
+import { listarParametros } from "../../api/configuracion";
 import { MAX_RECOLECCIONES, recoleccionesDelDia } from "../../api/recolecciones";
 import type { RecoleccionDetalle } from "../../api/tipos";
+import { Estado, FiltroBotones, Vacio } from "../../comun/Estado";
 import { fecha as fechaTexto, fechaHoraLima, horaLima, hoyLima, litros, sumarDias } from "../../comun/formato";
-import { Insignia } from "../../comun/Insignia";
+import { Modal } from "../../comun/Modal";
 import { MuestraColor } from "../../comun/MuestraColor";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
-import { EstadoPago } from "../productores/EstadoPago";
+import { estadoPago } from "../productores/EstadoPago";
 import { AnularRecoleccion } from "./AnularRecoleccion";
+import { MapaEntregas, metros } from "./MapaEntregas";
 import { ResumenPorPersona } from "./ResumenPorPersona";
 import { textoUbicacion } from "./ubicacion";
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
+type Filtro = "todas" | "por_revisar" | "con_alertas" | "anuladas";
+const FILTROS: { valor: Filtro; texto: string; cumple: (r: RecoleccionDetalle) => boolean }[] = [
+  { valor: "todas", texto: "Todas", cumple: () => true },
+  { valor: "por_revisar", texto: "Por revisar", cumple: (r) => r.anulada_en === null && !r.revisada },
+  { valor: "con_alertas", texto: "Con alertas", cumple: (r) => r.alertas_pendientes > 0 },
+  { valor: "anuladas", texto: "Anuladas", cumple: (r) => r.anulada_en !== null },
+];
 
 /** A3 (parcial) · Recolecciones de un día (hora de Lima), resumen por persona y anulación con motivo. */
 export default function RecoleccionesDia() {
@@ -30,6 +41,14 @@ export default function RecoleccionesDia() {
   const [aAnular, setAAnular] = useState<RecoleccionDetalle | null>(null);
   const [recienAnulada, setRecienAnulada] = useState<RecoleccionDetalle | null>(null);
   const filaDestacada = useRef<HTMLTableRowElement>(null);
+  const vista = parametros.get("vista") === "mapa" ? "mapa" : "lista";
+  const filtro = FILTROS.find((f) => f.valor === parametros.get("filtro"))?.valor ?? "todas";
+  const [enMapa, setEnMapa] = useState<RecoleccionDetalle | null>(null);
+  // Umbral de "lejos" para resaltar en el mapa: el mismo parámetro que usa la base para su alerta
+  const parametrosBase = useCarga(listarParametros, []);
+  const umbralTexto = parametrosBase.carga.estado === "listo"
+    ? parametrosBase.carga.datos.find((x) => x.clave === "max_distancia_productor_m")?.valor : undefined;
+  const umbral = umbralTexto !== undefined && Number.isFinite(Number(umbralTexto)) ? Number(umbralTexto) : null;
 
   function cambiar(valores: Record<string, string | null>) {
     setRecienAnulada(null);
@@ -53,7 +72,9 @@ export default function RecoleccionesDia() {
 
   // Llegando desde una alerta no se filtra por persona: la fila buscada siempre se ve
   const todas = carga.estado === "listo" ? carga.datos : [];
-  const filas = destacada === null && persona !== null ? todas.filter((r) => r.registrado_por === persona) : todas;
+  const dePersona = destacada === null && persona !== null ? todas.filter((r) => r.registrado_por === persona) : todas;
+  const cumple = FILTROS.find((f) => f.valor === filtro)!.cumple;
+  const filas = destacada === null ? dePersona.filter(cumple) : dePersona;
 
   return (
     <>
@@ -90,7 +111,7 @@ export default function RecoleccionesDia() {
         </p>
       )}
       {carga.estado === "listo" && (todas.length === 0 ? (
-        <p className="texto-suave">No hubo recolecciones el {fechaTexto(fecha)}.</p>
+        <Vacio icono="recolecciones">No hubo recolecciones el {fechaTexto(fecha)}.</Vacio>
       ) : (
         <>
           {todas.length >= MAX_RECOLECCIONES && (
@@ -117,7 +138,17 @@ export default function RecoleccionesDia() {
           )}
 
           <section className="seccion" aria-labelledby={`${id}-detalle`}>
-            <h2 id={`${id}-detalle`}>Entregas</h2>
+            <div className="encabezado-seccion">
+              <h2 id={`${id}-detalle`}>Entregas</h2>
+              <FiltroBotones etiqueta="Vista" valor={vista}
+                             opciones={[{ valor: "lista", texto: "Lista" }, { valor: "mapa", texto: "Mapa" }]}
+                             onCambiar={(v) => cambiar({ vista: v === "mapa" ? "mapa" : null })} />
+            </div>
+            {destacada === null && (
+              <FiltroBotones etiqueta="Filtrar entregas" valor={filtro}
+                             opciones={FILTROS.map((f) => ({ valor: f.valor, texto: f.texto, cuenta: dePersona.filter(f.cumple).length }))}
+                             onCambiar={(v) => cambiar({ filtro: v === "todas" ? null : v })} />
+            )}
             {destacada !== null && (
               <p className="aviso aviso-atencion">
                 Se destaca la recolección de la alerta.{" "}
@@ -126,6 +157,11 @@ export default function RecoleccionesDia() {
                 </button>
               </p>
             )}
+            {filas.length === 0 ? (
+              <Vacio icono="recolecciones">Ninguna entrega con ese filtro.</Vacio>
+            ) : vista === "mapa" ? (
+              <MapaEntregas filas={filas.filter((r) => r.anulada_en === null)} umbral={umbral} />
+            ) : (
             <table className="tabla">
               <thead>
                 <tr>
@@ -135,7 +171,6 @@ export default function RecoleccionesDia() {
                   <th>Registró</th>
                   <th className="numero">Litros</th>
                   <th>Calidad</th>
-                  <th>Revisada</th>
                   <th>Ubicación</th>
                   <th className="numero">Alertas</th>
                   <th>Pago</th>
@@ -152,17 +187,24 @@ export default function RecoleccionesDia() {
                       <td>{horaLima(r.registrada_en)}</td>
                       <td>
                         <Link to={`/productores/${r.productor_id}`}>{r.productor}</Link> <span className="codigo">({r.productor_codigo})</span>
-                        {r.productor_pendiente && <> <Insignia tono="atencion">Pendiente de aprobación</Insignia></>}
+                        {r.productor_pendiente && <> <Estado tono="atencion">Pendiente de aprobación</Estado></>}
                         {r.observacion && <><br /><span className="texto-suave">{r.observacion}</span></>}
                       </td>
                       <td>{r.ruta ?? "Externo"}</td>
                       <td>{r.color_hex && <MuestraColor color={r.color_hex} />} {r.registrado_por_nombre}</td>
                       <td className="numero">{litros(r.litros)}</td>
-                      <td>{r.estado_calidad === "alterado" ? <Insignia tono="error">Alterada</Insignia> : "Normal"}</td>
-                      <td>{r.revisada ? "Sí" : "No"}</td>
                       <td>
-                        {textoUbicacion(r)}
-                        {r.ubicacion_simulada && <> <Insignia tono="error">Simulada</Insignia></>}
+                        {r.estado_calidad === "alterado" ? <Estado tono="error">Alterada</Estado>
+                          : r.revisada ? <Estado tono="ok">Normal</Estado> : <Estado tono="atencion">Por revisar</Estado>}
+                      </td>
+                      <td>
+                        <span>{textoUbicacion(r)}</span>
+                        {r.distancia_ref_m !== null && r.distancia_ref_m > 0 && (
+                          <span className={umbral !== null && r.distancia_ref_m > umbral ? "distancia lejos" : "distancia"}>
+                            {" "}· a {metros(r.distancia_ref_m)}
+                          </span>
+                        )}
+                        {r.ubicacion_simulada && <> <Estado tono="error">Simulada</Estado></>}
                       </td>
                       <td className="numero">
                         {r.alertas_pendientes > 0 && (
@@ -173,11 +215,18 @@ export default function RecoleccionesDia() {
                         )}
                       </td>
                       <td>
-                        <EstadoPago recoleccion={r} />
+                        <Estado tono={estadoPago(r).tono}>{estadoPago(r).texto}</Estado>
                         {/* El backend solo devuelve anulada_en: ni quién la anuló ni el motivo (v_recoleccion_detalle) */}
                         {r.anulada_en !== null && <><br /><span className="texto-suave">el {fechaHoraLima(r.anulada_en)}</span></>}
                       </td>
-                      <td>
+                      <td className="acciones">
+                        {(r.latitud !== null || r.latitud_ref !== null) && (
+                          <button type="button" className="boton boton-secundario"
+                                  aria-label={`Ver en el mapa la entrega de ${r.productor} de las ${horaLima(r.registrada_en)}`}
+                                  onClick={() => setEnMapa(r)}>
+                            Mapa
+                          </button>
+                        )}
                         {r.anulada_en === null && (r.liquidada
                           ? <span className="texto-suave">Liquidada: no se anula</span>
                           : (
@@ -191,9 +240,17 @@ export default function RecoleccionesDia() {
                 })}
               </tbody>
             </table>
+            )}
           </section>
         </>
       ))}
+
+      {enMapa !== null && (
+        <Modal titulo={`Entrega de ${enMapa.productor} · ${horaLima(enMapa.registrada_en)}`} onCerrar={() => setEnMapa(null)}
+               acciones={<button type="button" className="boton boton-secundario" onClick={() => setEnMapa(null)}>Cerrar</button>}>
+          <MapaEntregas filas={[enMapa]} umbral={umbral} />
+        </Modal>
+      )}
 
       {aAnular !== null && carga.estado === "listo" && (
         <AnularRecoleccion
