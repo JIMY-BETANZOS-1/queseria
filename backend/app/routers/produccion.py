@@ -15,8 +15,8 @@ from fastapi import APIRouter, Depends, Query
 from .. import db
 from ..deps import Usuario, solo_admin
 from ..errores import no_encontrado
-from ..esquemas.produccion import (Cliente, ClienteNuevo, Lote, LoteDisponible, PreviaProduccion, ProduccionRapida,
-                                   Receta, Venta, VentaRapida)
+from ..esquemas.produccion import (Cliente, ClienteNuevo, InsumoStock, Lote, LoteDisponible, PreviaProduccion,
+                                   ProduccionRapida, Receta, Venta, VentaRapida)
 from .rutas import HOY_LIMA
 
 router = APIRouter(tags=["producción y ventas"])
@@ -63,6 +63,14 @@ def recetas(usuario: Usuario = Depends(solo_admin)):
                       WHERE ri.receta_id = r.id), '[]'::json) AS insumos
               FROM receta r ORDER BY r.nombre
         """)
+
+
+@router.get("/insumos", response_model=list[InsumoStock])
+def insumos(usuario: Usuario = Depends(solo_admin)):
+    """Almacén (solo lectura): v_insumo_stock, solo insumos activos. La base no tiene stock mínimo por insumo."""
+    with db.transaccion(usuario.id) as conn:
+        return db.todos(conn, "SELECT insumo_id, nombre, unidad::text AS unidad, stock, estado, costo_unitario, "
+                              "ultima_actualizacion FROM v_insumo_stock ORDER BY nombre")
 
 
 @router.get("/produccion/previa", response_model=PreviaProduccion)

@@ -135,9 +135,22 @@ def test_venta_al_contado_desde_lote_cerrado_con_saldo(client, admin, db, leche)
     assert venta["venta_id"] in [v["venta_id"] for v in client.get(f"/ventas?desde={hoy}&hasta={hoy}", headers=h).json()]
 
 
+def test_insumos_es_la_vista_de_stock(client, admin, db):
+    con = receta_de_prueba(db, admin, stock=100)
+    sin = receta_de_prueba(db, admin, stock=0)
+    filas = {i["insumo_id"]: i for i in client.get("/insumos", headers=cab(admin)).json()}
+    vista = {v["insumo_id"]: v for v in db.execute("SELECT * FROM v_insumo_stock").fetchall()}
+    assert set(filas) == set(vista)                                  # mismos insumos (los activos)
+    assert filas[con["insumo_id"]]["stock"] == 100 and filas[con["insumo_id"]]["estado"] == "disponible"
+    assert filas[con["insumo_id"]]["costo_unitario"] == 0.5 and filas[con["insumo_id"]]["unidad"] == "g"
+    assert filas[con["insumo_id"]]["ultima_actualizacion"] is not None
+    assert filas[sin["insumo_id"]]["stock"] == 0 and filas[sin["insumo_id"]]["estado"] == "sin_stock"
+    assert filas[sin["insumo_id"]]["ultima_actualizacion"] is None
+
+
 def test_solo_admin(client, admin):
     t = cab(movil_con_celular(client, admin, "acopiador")["token"])
-    for metodo, ruta in [("get", "/recetas"), ("get", "/lotes"), ("get", "/lotes/disponibles"), ("get", "/clientes")]:
+    for metodo, ruta in [("get", "/recetas"), ("get", "/insumos"), ("get", "/lotes"), ("get", "/lotes/disponibles"), ("get", "/clientes")]:
         assert getattr(client, metodo)(ruta, headers=t).status_code == 403
     assert client.post("/produccion", json={}, headers=t).status_code == 403
     assert client.post("/ventas", json={}, headers=t).status_code == 403

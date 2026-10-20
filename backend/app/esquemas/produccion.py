@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -23,6 +23,17 @@ class Receta(BaseModel):
     dias_vida_util: int | None
     activa: bool
     insumos: list[InsumoDeReceta]
+
+
+class InsumoStock(BaseModel):
+    """Fila de v_insumo_stock: stock (suma de movimientos), costo promedio ponderado y último ingreso o ajuste."""
+    insumo_id: int
+    nombre: str
+    unidad: str
+    stock: float
+    estado: Literal["disponible", "sin_stock"]
+    costo_unitario: float
+    ultima_actualizacion: datetime | None
 
 
 class InsumoNecesario(BaseModel):
