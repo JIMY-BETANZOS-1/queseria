@@ -78,12 +78,17 @@ describe("almacén", () => {
 
     expect(ubicacion()).toBe("/almacen");
     const tabla = await screen.findByRole("table", { name: "Insumos" });
-    await waitFor(() => expect(celdas(tabla, "Cuajo líquido")[4]).toBe("≈ 750 L (Queso paria)"));
-    expect(celdas(tabla, "Cuajo líquido").slice(1, 4)).toEqual(["150 ml", "S/ 0.0800 / ml", "S/ 12.00"]);
-    expect(celdas(tabla, "Cuajo líquido")[5]).toBe("03/10/2026 09:00");
-    expect(celdas(tabla, "Azúcar")[0]).toBe("Azúcar Sin stock");
-    expect(celdas(tabla, "Azúcar")[4]).toBe("≈ 0 L (Yogurt)");
-    expect(celdas(tabla, "Etiquetas")[4]).toBe("Ninguna receta lo usa");
+    // Tipo kardex: Insumo | Stock (cantidad grande) | Estado (etiqueta) | Costo promedio | Valor | Último | Acciones
+    await waitFor(() => expect(celdas(tabla, "Cuajo líquido")[2]).toBe("Alcanza para ≈ 750 L (Queso paria)"));
+    expect(celdas(tabla, "Cuajo líquido")[1]).toBe("150 ml");
+    expect(celdas(tabla, "Cuajo líquido").slice(3, 6)).toEqual(["S/ 0.0800 / ml", "S/ 12.00", "03/10/2026 09:00"]);
+    const cuajo = within(tabla).getByText("Cuajo líquido").closest("tr")!;
+    expect(cuajo.querySelector(".kardex-cantidad")).toHaveTextContent("150");
+    expect(within(cuajo).getByText("Alcanza para ≈ 750 L")).toHaveClass("insignia-ok");
+    expect(celdas(tabla, "Azúcar")[0]).toBe("Azúcar");
+    expect(celdas(tabla, "Azúcar")[2]).toBe("Sin stock");
+    expect(within(within(tabla).getByText("Azúcar").closest("tr")!).getByText("Sin stock")).toHaveClass("insignia-error");
+    expect(celdas(tabla, "Etiquetas")[2]).toBe("Ninguna receta lo usa");
     expect(celdas(tabla, "Sal")[5]).toBe("—");
     expect(screen.getByText(/Valor del inventario/).closest("p")).toHaveTextContent("Valor del inventario: S/ 97.00 · 1 insumo sin stock");
     await waitFor(() => expect(document.title).toBe("Almacén · Quesería Huata"));
@@ -95,7 +100,7 @@ describe("almacén", () => {
     renderizar("/almacen");
     const tabla = await screen.findByRole("table", { name: "Insumos" });
     expect(celdas(tabla, "Sal")[1]).toBe("50 kg");
-    expect(celdas(tabla, "Sal")[4]).toBe("");
+    expect(celdas(tabla, "Sal")[2]).toBe("");
   });
 });
 

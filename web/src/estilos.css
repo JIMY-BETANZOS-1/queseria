@@ -1047,3 +1047,17 @@ a.boton {
     grid-template-columns: 1fr;
   }
 }
+
+/* Almacén tipo kardex: cantidad grande, unidad suave, estado como etiqueta */
+.kardex-insumo {
+  font-weight: 600;
+}
+
+.kardex-cantidad {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.kardex-unidad {
+  color: var(--texto-suave);
+}

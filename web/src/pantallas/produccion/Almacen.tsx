@@ -57,9 +57,9 @@ export default function Almacen() {
               <tr>
                 <th>Insumo</th>
                 <th className="numero">Stock</th>
+                <th>Estado</th>
                 <th className="numero">Costo promedio</th>
                 <th className="numero">Valor</th>
-                <th>Alcanza para</th>
                 <th>Último ingreso o ajuste</th>
                 <th><span className="solo-lector">Acciones</span></th>
               </tr>
@@ -69,18 +69,22 @@ export default function Almacen() {
                 const alcance = recetas.carga.estado === "listo" ? alcanceInsumo(i.insumo_id, i.stock, activas) : undefined;
                 return (
                   <tr key={i.insumo_id}>
-                    <td>
-                      {i.nombre}
-                      {i.estado === "sin_stock" && <> <Insignia tono="error">Sin stock</Insignia></>}
+                    <td className="kardex-insumo">{i.nombre}</td>
+                    {/* Tipo kardex: la cantidad en grande y el estado como etiqueta */}
+                    <td className="numero">
+                      <span className="kardex-cantidad">{i.stock}</span> <span className="kardex-unidad">{i.unidad}</span>
                     </td>
-                    <td className="numero">{i.stock} {i.unidad}</td>
+                    <td>
+                      {i.estado === "sin_stock" ? <Insignia tono="error">Sin stock</Insignia>
+                        : alcance === undefined ? ""
+                        : alcance === null ? <Insignia tono="neutro">Ninguna receta lo usa</Insignia>
+                        : <>
+                          <Insignia tono={alcance.litros > 0 ? "ok" : "atencion"}>Alcanza para ≈ {litros(alcance.litros)}</Insignia>
+                          {" "}<span className="texto-suave">({alcance.receta})</span>
+                        </>}
+                    </td>
                     <td className="numero">{soles(i.costo_unitario, 4)} / {i.unidad}</td>
                     <td className="numero">{soles(Math.max(0, i.stock) * i.costo_unitario)}</td>
-                    <td>
-                      {alcance === undefined ? "" : alcance === null
-                        ? <span className="texto-suave">Ninguna receta lo usa</span>
-                        : <>≈ {litros(alcance.litros)} <span className="texto-suave">({alcance.receta})</span></>}
-                    </td>
                     <td>{i.ultima_actualizacion ? fechaHoraLima(i.ultima_actualizacion) : "—"}</td>
                     <td>
                       <button type="button" className="boton boton-secundario" aria-label={`Registrar compra de ${i.nombre}`}
