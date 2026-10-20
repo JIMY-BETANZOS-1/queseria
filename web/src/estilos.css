@@ -69,7 +69,23 @@ a {
 }
 
 .barra-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   font-weight: 600;
+}
+
+.barra-logo {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+}
+
+/* Íconos propios (comun/Iconos.tsx): el color es el del texto */
+.icono {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
 }
 
 .barra-sesion {
@@ -92,7 +108,9 @@ a {
 }
 
 .menu-opcion {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding: 0.55rem 0.75rem;
   border-radius: var(--radio);
   color: var(--texto);
@@ -661,16 +679,55 @@ a.boton {
 }
 
 .menu-grupo {
-  margin: 1rem 0.75rem 0.3rem;
-  font-size: 0.75rem;
+  margin: 0.6rem 0 0.15rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--texto-suave);
+  color: var(--texto);
 }
 
 .menu-grupo:first-child {
   margin-top: 0;
+}
+
+/* El título del grupo es el botón que lo pliega o despliega */
+.menu-grupo-boton {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--fondo);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-grupo-boton:hover,
+.menu-grupo-boton[aria-expanded="true"] {
+  border-color: var(--primario);
+  color: var(--primario-oscuro);
+}
+
+.menu-grupo-boton:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+}
+
+.menu-grupo-texto {
+  flex: 1;
+}
+
+.menu-grupo-flecha {
+  width: 0.9rem;
+  height: 0.9rem;
+  transition: transform 0.15s;
+}
+
+.menu-grupo-boton[aria-expanded="true"] .menu-grupo-flecha {
+  transform: rotate(90deg);
 }
 
 /* Configuración, sola al pie del menú: separada del último grupo */

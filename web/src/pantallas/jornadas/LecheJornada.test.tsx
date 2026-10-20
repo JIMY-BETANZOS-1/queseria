@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Jornada, MermaNueva } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -43,8 +44,7 @@ describe("leche de la jornada", () => {
                               costo_litro_util: null, dias_antiguedad: 0 }),
     ]);
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("navigation", { name: "Menú principal" }))
-      .getByRole("link", { name: "Leche de la jornada" }));
+    await irPorMenu(userEvent.setup(), "Revisión", "Leche de la jornada");
 
     expect(ubicacion()).toBe("/jornadas");
     expect(await screen.findByText(/2 días con leche/)).toBeInTheDocument();

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Analista } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { analista } from "../../pruebas/fabricas";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -26,8 +27,7 @@ describe("lista de analistas", () => {
   it("el menú lleva a Analistas", async () => {
     lista([analista()]);
     renderizar("/");
-    await userEvent.setup().click(
-      within(screen.getByRole("navigation", { name: "Menú principal" })).getByRole("link", { name: "Analistas" }));
+    await irPorMenu(userEvent.setup(), "Personal", "Analistas");
 
     expect(ubicacion()).toBe("/analistas");
     expect(await screen.findByRole("heading", { name: "Analistas" })).toBeInTheDocument();

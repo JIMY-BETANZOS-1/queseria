@@ -68,9 +68,35 @@ describe("marco", () => {
 
     expect(screen.getByText("Administrador de Prueba")).toBeInTheDocument();
     expect(screen.getByText("Sesión hasta las 10:29")).toBeInTheDocument();
+    // Logo (provisional, se reemplaza en web/public/logo.svg): decorativo, el nombre ya está en el texto
+    const logo = screen.getByRole("banner").querySelector("img");
+    expect(logo).toHaveAttribute("src", "/logo.svg");
+    expect(logo).toHaveAttribute("alt", "");
+  });
+
+  it("cada enlace y cada grupo del menú lleva su ícono decorativo sin cambiar su nombre", () => {
+    guardarSesion(respuestaLogin());
+    renderizar("/almacen");
+    const menu = screen.getByRole("navigation", { name: "Menú principal" });
+    const almacen = within(menu).getByRole("link", { name: "Almacén" });
+    expect(almacen.querySelector("svg.icono")).toHaveAttribute("aria-hidden", "true");
+    const planta = within(menu).getByRole("button", { name: "Planta" });
+    expect(planta.querySelectorAll("svg.icono[aria-hidden='true']")).toHaveLength(2);   // el del grupo y la flecha
+    for (const enlace of within(menu).getAllByRole("link")) expect(enlace.querySelector("svg.icono")).not.toBeNull();
+  });
+
+  it("en / todos los grupos arrancan plegados; desplegados muestran sus enlaces exactos y los 18 en orden", async () => {
+    guardarSesion(respuestaLogin());
+    renderizar("/");
+    const usuario = userEvent.setup();
     // Agrupado: Dashboard y Productores arriba, luego Revisión, Personal, Planta y Dinero; Configuración sola al pie
     const menu = screen.getByRole("navigation", { name: "Menú principal" });
-    expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Revisión", "Personal", "Planta", "Dinero"]);
+    const grupos = ["Revisión", "Personal", "Planta", "Dinero"];
+    expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(grupos);
+    for (const g of grupos) expect(within(menu).getByRole("button", { name: g })).toHaveAttribute("aria-expanded", "false");
+    expect(within(menu).getAllByRole("link").map((l) => l.textContent)).toEqual(["Dashboard", "Productores", "Configuración"]);
+
+    for (const g of grupos) await usuario.click(within(menu).getByRole("button", { name: g }));
     // Enlaces exactos de cada grupo (sin sobrantes): Configuración no pertenece a ninguno
     const enlaces = (grupo: string) => within(within(menu).getByRole("list", { name: grupo })).getAllByRole("link").map((l) => l.textContent);
     expect(enlaces("Revisión")).toEqual(["Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada"]);
@@ -85,7 +111,37 @@ describe("marco", () => {
       "Pagos a productores", "Pagos a acopiadores", "Gastos", "Movimientos",
       "Configuración",
     ]);
-    expect(within(menu).getAllByRole("link")).toHaveLength(18);   // / es el Dashboard; Dinero termina en Movimientos
+
+    // Volver a pulsar pliega
+    await usuario.click(within(menu).getByRole("button", { name: "Planta" }));
+    expect(within(menu).getByRole("button", { name: "Planta" })).toHaveAttribute("aria-expanded", "false");
+    expect(within(menu).queryByRole("list", { name: "Planta" })).not.toBeInTheDocument();
+  });
+
+  it("solo el grupo de la pantalla actual arranca abierto, y al navegar el menú se vuelve a plegar", async () => {
+    guardarSesion(respuestaLogin());
+    renderizar("/almacen");
+    const usuario = userEvent.setup();
+    const menu = screen.getByRole("navigation", { name: "Menú principal" });
+    const abiertos = () => within(menu).getAllByRole("button").filter((b) => b.getAttribute("aria-expanded") === "true")
+      .map((b) => b.textContent);
+    expect(abiertos()).toEqual(["Planta"]);
+
+    await usuario.click(within(menu).getByRole("button", { name: "Dinero" }));
+    expect(abiertos()).toEqual(["Planta", "Dinero"]);
+    await usuario.click(within(menu).getByRole("link", { name: "Gastos" }));
+    expect(ubicacion()).toBe("/gastos");
+    expect(abiertos()).toEqual(["Dinero"]);
+    await usuario.click(within(menu).getByRole("link", { name: "Productores" }));
+    expect(abiertos()).toEqual([]);
+  });
+
+  it("una pantalla a la que se llega desde Pagos (liquidación) abre el grupo Dinero", () => {
+    guardarSesion(respuestaLogin());
+    renderizar("/pagos/liquidaciones/12");
+    const menu = screen.getByRole("navigation", { name: "Menú principal" });
+    expect(within(menu).getByRole("button", { name: "Dinero" })).toHaveAttribute("aria-expanded", "true");
+    expect(within(menu).getByRole("button", { name: "Planta" })).toHaveAttribute("aria-expanded", "false");
   });
 
   it("/ es el Dashboard y el estado de la API va al pie; /dashboard lleva a / con su consulta", async () => {

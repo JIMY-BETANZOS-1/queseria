@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ruta, RutaNueva as DatosNueva } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { ruta } from "../../pruebas/fabricas";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -26,8 +27,7 @@ describe("lista de rutas", () => {
   it("el menú lleva a Rutas", async () => {
     lista([ruta()]);
     renderizar("/");
-    await userEvent.setup().click(
-      within(screen.getByRole("navigation", { name: "Menú principal" })).getByRole("link", { name: "Rutas" }));
+    await irPorMenu(userEvent.setup(), "Personal", "Rutas");
 
     expect(ubicacion()).toBe("/rutas");
     expect(await screen.findByRole("link", { name: "Ruta 4 - Collana" })).toHaveAttribute("href", "/rutas/21");

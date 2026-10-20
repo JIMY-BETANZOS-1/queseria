@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cliente, ClienteNuevo, Jornada, Lote, LoteDisponible, PreviaProduccion, ProduccionRapida, Receta, Venta,
               VentaRapida } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -81,7 +82,7 @@ describe("producción", () => {
   it("el menú (grupo Planta) lleva a Producción; solo recetas activas y jornadas con leche disponible", async () => {
     simularProduccion();
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("list", { name: "Planta" })).getByRole("link", { name: "Producción" }));
+    await irPorMenu(userEvent.setup(), "Planta", "Producción");
 
     expect(ubicacion()).toBe("/produccion");
     const recetas = within(await screen.findByLabelText("Receta")).getAllByRole("option").map((o) => o.textContent);

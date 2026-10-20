@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { CalidadAdmin, RecoleccionDetalle } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { recoleccion } from "../../pruebas/fabricas";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -51,8 +52,7 @@ describe("calidad: por revisar", () => {
   it("el menú lleva a Calidad; lista de la más antigua a la más reciente, con su estado de pago", async () => {
     simular([ROSA, PEDRO, LUCIA]);
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("navigation", { name: "Menú principal" }))
-      .getByRole("link", { name: "Calidad" }));
+    await irPorMenu(userEvent.setup(), "Revisión", "Calidad");
 
     expect(ubicacion()).toBe("/calidad");
     expect(await screen.findByText("Rosa Condori Huanca")).toBeInTheDocument();

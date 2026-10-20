@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Alerta, RevisarAlerta } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { alerta, productor, recoleccion } from "../../pruebas/fabricas";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -76,8 +77,7 @@ describe("alertas", () => {
   it("el menú lleva a Alertas: pendientes, las más antiguas primero, con resumen por tipo", async () => {
     const enviado = simular([SIN_GPS, BLOQUEADO, FIRMA, DUPLICADO, REVISADA_MIA]);
     renderizar("/");
-    await userEvent.setup().click(
-      within(screen.getByRole("navigation", { name: "Menú principal" })).getByRole("link", { name: "Alertas" }));
+    await irPorMenu(userEvent.setup(), "Revisión", "Alertas");
 
     expect(ubicacion()).toBe("/alertas");
     expect(await screen.findByText("4 pendientes")).toBeInTheDocument();

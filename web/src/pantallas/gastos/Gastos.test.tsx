@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CategoriaGasto, Gasto, GastoNuevo } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { acopiador } from "../../pruebas/fabricas";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -63,8 +64,7 @@ describe("gastos", () => {
   it("el menú lleva a Gastos: el mes actual en Lima, con total por categoría y marca del pago mensual", async () => {
     const enviado = simular();
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("navigation", { name: "Menú principal" }))
-      .getByRole("link", { name: "Gastos" }));
+    await irPorMenu(userEvent.setup(), "Dinero", "Gastos");
 
     expect(ubicacion()).toBe("/gastos");
     const tabla = await screen.findByRole("table", { name: "Gastos" });

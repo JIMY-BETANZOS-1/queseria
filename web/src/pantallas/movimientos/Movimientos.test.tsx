@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Movimiento } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -119,7 +120,7 @@ describe("menú", () => {
   it("Dinero lleva a Movimientos", async () => {
     simular([]);
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("list", { name: "Dinero" })).getByRole("link", { name: "Movimientos" }));
+    await irPorMenu(userEvent.setup(), "Dinero", "Movimientos");
     expect(ubicacion()).toBe("/movimientos");
     expect(await screen.findByText("No hay movimientos en octubre de 2026.")).toBeInTheDocument();
   });

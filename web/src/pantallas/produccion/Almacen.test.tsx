@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { IngresoInsumo, InsumoNuevo, InsumoStock, Receta } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -73,7 +74,7 @@ describe("almacén", () => {
   it("el menú (Planta) lleva al Almacén: stock, costo, valor, alcanza para y sin stock", async () => {
     simular();
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("list", { name: "Planta" })).getByRole("link", { name: "Almacén" }));
+    await irPorMenu(userEvent.setup(), "Planta", "Almacén");
 
     expect(ubicacion()).toBe("/almacen");
     const tabla = await screen.findByRole("table", { name: "Insumos" });
@@ -102,7 +103,7 @@ describe("recetas", () => {
   it("el menú lleva a Recetas: unidad, precio, rendimiento y vida útil, insumos por 100 L con su costo y alcance", async () => {
     simular();
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("list", { name: "Planta" })).getByRole("link", { name: "Recetas" }));
+    await irPorMenu(userEvent.setup(), "Planta", "Recetas");
 
     expect(ubicacion()).toBe("/recetas");
     const paria = (await screen.findByRole("heading", { name: "Queso paria" })).closest("section")!;

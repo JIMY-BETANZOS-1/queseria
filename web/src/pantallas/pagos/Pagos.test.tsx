@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AcopiadorMes, PagoAcopiadorCambios, PagoAcopiadorNuevo, RecoleccionDetalle } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { acopiadorMes, liquidacion, liquidacionDetalle, pagable, pagoPendiente, recoleccion } from "../../pruebas/fabricas";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -149,8 +150,7 @@ describe("pagos a productores", () => {
     );
     renderizar("/");
     const usuario = userEvent.setup();
-    await usuario.click(within(screen.getByRole("navigation", { name: "Menú principal" }))
-      .getByRole("link", { name: "Pagos a productores" }));
+    await irPorMenu(usuario, "Dinero", "Pagos a productores");
 
     expect(await screen.findByText("S/ 200.50")).toBeInTheDocument();
     expect(screen.getByText(/S\/ 34.00 en espera/)).toBeInTheDocument();
@@ -297,8 +297,7 @@ describe("pagos a acopiadores", () => {
   it("el menú lleva a la pantalla: mes actual en Lima, estimado y sin registrar", async () => {
     const enviado = simular([acopiadorMes()]);
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("navigation", { name: "Menú principal" }))
-      .getByRole("link", { name: "Pagos a acopiadores" }));
+    await irPorMenu(userEvent.setup(), "Dinero", "Pagos a acopiadores");
 
     expect(await screen.findByText("Juan Carlos Mamani Quispe")).toBeInTheDocument();
     expect(enviado.consultas).toEqual(["?mes=2026-10-01"]);

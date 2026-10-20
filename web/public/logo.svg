@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Quesería Huata">
+  <!-- Logo PROVISIONAL: reemplazar este archivo (web/public/logo.svg) por el del cliente con el mismo nombre. -->
+  <rect width="64" height="64" rx="14" fill="#1f6f5c"/>
+  <path d="M14 42 L32 16 L50 42 Z" fill="#f4c542"/>
+  <circle cx="27" cy="34" r="3" fill="#1f6f5c"/>
+  <circle cx="37" cy="37" r="2.2" fill="#1f6f5c"/>
+  <text x="32" y="56" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="#ffffff" text-anchor="middle">HUATA</text>
+</svg>

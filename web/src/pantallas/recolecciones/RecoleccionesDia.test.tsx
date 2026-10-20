@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnularRecoleccion, RecoleccionDetalle } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { alerta, recoleccion } from "../../pruebas/fabricas";
+import { irPorMenu } from "../../pruebas/menu";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
@@ -92,8 +93,7 @@ describe("recolecciones del día", () => {
   it("el menú lleva a la pantalla; por defecto es hoy en Lima y pide ese día con las anuladas", async () => {
     const enviado = simular({ "2026-10-18": DIA });
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("navigation", { name: "Menú principal" }))
-      .getByRole("link", { name: "Recolecciones del día" }));
+    await irPorMenu(userEvent.setup(), "Revisión", "Recolecciones del día");
 
     expect(ubicacion()).toBe("/recolecciones");
     expect(await screen.findByRole("heading", { name: "Entregas" })).toBeInTheDocument();
