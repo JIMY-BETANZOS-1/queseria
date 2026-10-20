@@ -77,6 +77,7 @@ CHECKS = {
     "ck_analisis_ph": "El pH debe estar entre 0 y 14",
     "ck_analisis_grasa": "La grasa debe estar entre 0 y 100 %",
     "ck_liq_periodo": "La fecha final del periodo no puede ser anterior a la inicial",
+    "merma_leche_litros_check": "Los litros de la merma deben ser mayores que cero",
     "ck_pago_acopiador_mes": "El mes debe indicarse con su primer día (AAAA-MM-01)",
     "pago_acopiador_sueldo_base_check": "El sueldo base no puede ser negativo",
     "pago_acopiador_comision_check": "La comisión no puede ser negativa",
