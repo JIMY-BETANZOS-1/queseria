@@ -550,6 +550,15 @@ a.boton {
   width: 100%;
 }
 
+.tabla tr[aria-current="true"] {
+  background: var(--atencion-fondo);
+  outline: 2px solid var(--atencion-texto);
+}
+
+.tabla tr.anulada td {
+  color: var(--texto-suave);
+}
+
 .tabla .numero {
   text-align: right;
   font-variant-numeric: tabular-nums;

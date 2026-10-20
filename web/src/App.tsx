@@ -10,6 +10,7 @@ import AnalistaNuevo from "./pantallas/analistas/AnalistaNuevo";
 import Analistas from "./pantallas/analistas/Analistas";
 import Entrar from "./pantallas/Entrar";
 import Inicio from "./pantallas/Inicio";
+import RecoleccionesDia from "./pantallas/recolecciones/RecoleccionesDia";
 import NoEncontrada from "./pantallas/NoEncontrada";
 import ProductorDetalle from "./pantallas/productores/ProductorDetalle";
 import ProductorNuevo from "./pantallas/productores/ProductorNuevo";
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="productores/nuevo" element={<ProductorNuevo />} />
         <Route path="productores/:id" element={<ProductorDetalle />} />
         <Route path="alertas" element={<Alertas />} />
+        <Route path="recolecciones" element={<RecoleccionesDia />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>

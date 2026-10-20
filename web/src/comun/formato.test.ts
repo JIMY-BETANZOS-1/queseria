@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fecha, fechaHoraLima, horaLima, hoyLima, litros, soles } from "./formato";
+import { fecha, fechaHoraLima, horaLima, hoyLima, litros, soles, sumarDias } from "./formato";
 
 describe("horaLima", () => {
   it("convierte a hora de Lima (UTC−5) sin importar la zona del PC", () => {
@@ -46,6 +46,15 @@ describe("hoyLima", () => {
 
   it("sin argumento usa la hora actual", () => {
     expect(hoyLima()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("sumarDias", () => {
+  it("cruza meses y años, y no depende de la zona del PC", () => {
+    expect(sumarDias("2026-10-18", -1)).toBe("2026-10-17");
+    expect(sumarDias("2026-10-31", 1)).toBe("2026-11-01");
+    expect(sumarDias("2027-01-01", -1)).toBe("2026-12-31");
+    expect(sumarDias("2028-02-28", 1)).toBe("2028-02-29");
   });
 });
 

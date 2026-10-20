@@ -29,6 +29,7 @@ export type TipoProductor = Productor["tipo"];
 export type RecoleccionDetalle = Esquemas["RecoleccionDetalle"];
 export type Alerta = Esquemas["Alerta"];
 export type RevisarAlerta = Esquemas["RevisarAlerta"];
+export type AnularRecoleccion = Esquemas["AnularRecoleccion"];
 export type CodigoActivacion = Esquemas["CodigoActivacion"];
 export type Dispositivo = Esquemas["Dispositivo"];
 

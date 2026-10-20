@@ -46,6 +46,12 @@ export function hoyLima(ahora: number | Date = Date.now()): string {
   return `${partes.year}-${partes.month}-${partes.day}`;
 }
 
+/** Suma días a una fecha "AAAA-MM-DD" sin pasar por la zona horaria del PC. */
+export function sumarDias(aaaaMmDd: string, dias: number): string {
+  const [a, m, d] = aaaaMmDd.split("-").map(Number);
+  return new Date(Date.UTC(a!, m! - 1, d! + dias)).toISOString().slice(0, 10);
+}
+
 const LITROS = new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 });
 
 /** "1,234.5 L": litros con hasta 2 decimales (como numeric(8,2) de la base). */

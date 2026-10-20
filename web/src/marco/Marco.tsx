@@ -14,6 +14,7 @@ const MENU = [
   { ruta: "/rutas", texto: "Rutas", exacta: false },
   { ruta: "/productores", texto: "Productores", exacta: false },
   { ruta: "/alertas", texto: "Alertas", exacta: false },
+  { ruta: "/recolecciones", texto: "Recolecciones del día", exacta: false },
 ];
 
 /** Barra superior + menú lateral + pantalla actual. Solo se muestra con sesión (ver RequiereSesion). */

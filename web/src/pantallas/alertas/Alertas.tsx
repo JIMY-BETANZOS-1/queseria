@@ -133,6 +133,8 @@ export default function Alertas() {
                       {" · "}
                       <Link to={`/productores/${a.productor_id}`}>{a.productor}</Link> ({a.productor_codigo})
                       {" · "}{litros(a.litros)}
+                      {" · "}
+                      <Link to={`/recolecciones?fecha=${a.fecha}&recoleccion=${a.recoleccion_id}`}>Ver recolección</Link>
                       <br />
                       <span className="texto-suave">
                         {a.color_hex && <MuestraColor color={a.color_hex} />} {a.registrado_por_nombre}
