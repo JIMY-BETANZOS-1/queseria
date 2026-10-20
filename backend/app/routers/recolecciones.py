@@ -15,19 +15,29 @@ from .sync import _revisar
 
 router = APIRouter(prefix="/recolecciones", tags=["recolecciones"])
 
+# Detalle de la recolección más la ubicación de referencia de su productor y la distancia entre ambas, calculada con
+# la misma función de la base que usa la alerta lejos_del_productor (fn_distancia_m). Sin GPS o sin referencia: null.
+SELECT_DETALLE = """
+    SELECT d.*, p.latitud_ref, p.longitud_ref,
+           CASE WHEN d.latitud IS NOT NULL AND p.latitud_ref IS NOT NULL
+                THEN round(fn_distancia_m(p.latitud_ref, p.longitud_ref, d.latitud, d.longitud), 1)
+           END AS distancia_ref_m
+      FROM v_recoleccion_detalle d
+      JOIN productor p ON p.id = d.productor_id
+"""
+
 
 def buscar(conn, *, desde: date | None = None, hasta: date | None = None, ruta_id: int | None = None,
            productor_id: int | None = None, registrado_por: int | None = None,
            incluir_anuladas: bool = False, limit: int = 200, offset: int = 0) -> list[dict]:
-    return db.todos(conn, """
-        SELECT * FROM v_recoleccion_detalle
-         WHERE (%(desde)s::date IS NULL OR fecha >= %(desde)s)
-           AND (%(hasta)s::date IS NULL OR fecha <= %(hasta)s)
-           AND (%(ruta)s::bigint IS NULL OR ruta_id = %(ruta)s)
-           AND (%(prod)s::bigint IS NULL OR productor_id = %(prod)s)
-           AND (%(reg)s::bigint IS NULL OR registrado_por = %(reg)s)
-           AND (%(anuladas)s OR anulada_en IS NULL)
-         ORDER BY registrada_en DESC
+    return db.todos(conn, SELECT_DETALLE + """
+         WHERE (%(desde)s::date IS NULL OR d.fecha >= %(desde)s)
+           AND (%(hasta)s::date IS NULL OR d.fecha <= %(hasta)s)
+           AND (%(ruta)s::bigint IS NULL OR d.ruta_id = %(ruta)s)
+           AND (%(prod)s::bigint IS NULL OR d.productor_id = %(prod)s)
+           AND (%(reg)s::bigint IS NULL OR d.registrado_por = %(reg)s)
+           AND (%(anuladas)s OR d.anulada_en IS NULL)
+         ORDER BY d.registrada_en DESC
          LIMIT %(limit)s OFFSET %(offset)s
     """, {"desde": desde, "hasta": hasta, "ruta": ruta_id, "prod": productor_id, "reg": registrado_por,
           "anuladas": incluir_anuladas, "limit": limit, "offset": offset})
@@ -55,7 +65,7 @@ def anular(recoleccion_id: UUID, datos: AnularRecoleccion, usuario: Usuario = De
             if db.uno(conn, "SELECT 1 FROM recoleccion WHERE id = %s", (recoleccion_id,)) is None:
                 raise no_encontrado("La recolección no existe")
             raise conflicto("La recolección ya está anulada")
-        return db.uno(conn, "SELECT * FROM v_recoleccion_detalle WHERE recoleccion_id = %s", (recoleccion_id,))
+        return db.uno(conn, SELECT_DETALLE + " WHERE d.recoleccion_id = %s", (recoleccion_id,))
 
 
 # ----------------------------------------------------------------- calidad (admin)
@@ -64,8 +74,7 @@ def sin_revisar(desde: date | None = None, hasta: date | None = None, registrado
                 limit: int = Query(500, ge=1, le=1000), usuario: Usuario = Depends(solo_admin)):
     """Lista de trabajo de calidad (v_recoleccion_sin_revisar), con el detalle de cada una; las más antiguas primero."""
     with db.transaccion(usuario.id) as conn:
-        return db.todos(conn, """
-            SELECT d.* FROM v_recoleccion_detalle d
+        return db.todos(conn, SELECT_DETALLE + """
               JOIN v_recoleccion_sin_revisar s ON s.recoleccion_id = d.recoleccion_id
              WHERE (%(desde)s::date IS NULL OR d.fecha >= %(desde)s)
                AND (%(hasta)s::date IS NULL OR d.fecha <= %(hasta)s)
@@ -87,5 +96,5 @@ def revisar_calidad(recoleccion_id: UUID, datos: CalidadAdmin, usuario: Usuario 
     if resultado["estado"] == "duplicado":
         raise conflicto("La recolección ya estaba revisada")
     with db.transaccion(usuario.id) as conn:
-        detalle = db.uno(conn, "SELECT * FROM v_recoleccion_detalle WHERE recoleccion_id = %s", (recoleccion_id,))
+        detalle = db.uno(conn, SELECT_DETALLE + " WHERE d.recoleccion_id = %s", (recoleccion_id,))
     return {"recoleccion": detalle, "sancion": resultado["sancion"]}

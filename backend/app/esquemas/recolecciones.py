@@ -10,7 +10,7 @@ from .sync import SancionCreada
 
 
 class RecoleccionDetalle(BaseModel):
-    """Fila de v_recoleccion_detalle."""
+    """Fila de v_recoleccion_detalle más la referencia del productor y la distancia (recolecciones.SELECT_DETALLE)."""
     recoleccion_id: UUID
     registrada_en: datetime
     fecha: date
@@ -33,6 +33,11 @@ class RecoleccionDetalle(BaseModel):
     precision_m: float | None
     origen_ubicacion: Literal["gps", "ultima_conocida", "ninguna"]
     ubicacion_simulada: bool
+    # Ubicación de referencia del productor y distancia (m) a la de la entrega, con fn_distancia_m; null sin GPS o
+    # sin referencia
+    latitud_ref: float | None
+    longitud_ref: float | None
+    distancia_ref_m: float | None
     alertas_pendientes: int
     monto: float | None
     retenida: bool | None
