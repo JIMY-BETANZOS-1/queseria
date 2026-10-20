@@ -29,6 +29,21 @@ Convención: **lee** = consulta; **escribe** = inserta/actualiza (las reglas las
 | A13 | Configuración | Parámetros (sanción, GPS, alertas…), historial de precios de leche, usuarios, celulares vinculados y códigos de activación. | lee/escribe `configuracion`, `precio_leche`, `usuario`, `dispositivo`, `codigo_activacion` |
 | A13b | Configuración › Historial de cambios | Solo lectura: quién cambió qué y cuándo (precios, sanciones, pagos, calidad, anulaciones…), filtrable por tabla, usuario y fecha, con el antes/después. | lee `auditoria` |
 
+### Estado en el panel web (Bloque W1)
+El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se sigue haciendo por `/docs`.
+
+| # | En W1 | Queda para W2 |
+|---|-------|---------------|
+| A1 | Completa. | — |
+| A2 | — | Todo. |
+| A3 | Parcial: **Alertas** (pendientes o todas, revisar con resolución) y **Recolecciones del día** (resumen por persona, tabla con ubicación como texto, anular con motivo). | Mapa (Leaflet), rangos de fechas. |
+| A4 | Parcial: **Productores** (lista con altas de campo pendientes primero, crear y editar, aprobar altas, últimas 50 entregas con estado de pago). El tipo no se edita. | Historial completo por fechas, litros por periodo, sanciones. |
+| A5 | Parcial: **Acopiadores** (datos, color, vehículo, sueldo, comisión, activo, acceso al celular). | Sueldo estimado y pago mensual. |
+| A5b | Completa: **Rutas** (crear, editar, desactivar, asignar, cambiar o quitar acopiador, historial). | — |
+| A6–A12 | — | Todo. |
+| A13 | Parcial: **Analistas** y el acceso móvil de todos (código de activación, celulares). | Parámetros, precios de la leche. |
+| A13b | — | Todo. |
+
 ---
 
 ## (b) App del acopiador (móvil, offline)
@@ -78,15 +93,31 @@ Convención: **lee** = consulta; **escribe** = inserta/actualiza (las reglas las
   incremental leyendo `recoleccion.actualizado_en` (Fase 2, ver `docs/sincronizacion.md`).
 
 ### Pendientes (no bloquean; se revisan en la fase indicada)
-0. **Antes de entregar celulares**: un usuario del seed pendiente de activar, límites de la
-   rehidratación de B3, hora automática del celular, la leche de un alta rechazada y el DNI repetido de
-   externos que el celular no conoce. (PIN triviales, PIN repetido, PIN inicial del admin y PIN de 4
-   dígitos: resueltos en el Bloque 6.)
+0. **Antes de entregar celulares**: límites de la rehidratación de B3 (y que B3 cuente las anuladas, (K)),
+   hora automática del celular, la leche de un alta rechazada, el DNI repetido de externos que el celular
+   no conoce, el borrado silencioso del pull (L) y el aviso "Sin señal" que no se apaga (M). (PIN triviales, PIN repetido, PIN inicial del admin y PIN
+   de 4 dígitos: resueltos en el Bloque 6. Usuario pendiente de activar: resuelto para usuarios nuevos en
+   el Bloque W1, los del seed siguen igual.)
    Lista completa en `docs/sincronizacion.md`, sección "Pendientes antes de producción".
-1. **Observaciones del esquema** (Fase 2): el acopiador puede registrar productores de rutas que no son suyas
-   y se puede anular una recolección ya liquidada. Detalle en `docs/sincronizacion.md`.
+1. **Observaciones del esquema** (Fase 2): el acopiador puede registrar productores de rutas que no son suyas.
+   (Anular una recolección ya liquidada: resuelto por el parche 001.) Detalle en `docs/sincronizacion.md`.
 2. **`productor`** (tabla): el mapa solo lista `v_productor_resumen`, pero Proveedores (A4) escribe en `productor`.
 3. **`v_recoleccion_pago`**: no figura en el mapa; la usa Pagos (A11) para elegir qué recolecciones entran a la liquidación.
 4. **Funciones internas** (`fn_precio_leche`, `fn_en_sancion`, `fn_leche_disponible`, `fn_saldo_lote`,
    `fn_costo_litro_jornada`, `fn_distancia_m`, `fn_lote_abierto`): las usan triggers y vistas; ninguna pantalla las
    necesita. `fn_leche_disponible` y `fn_saldo_lote` pueden servir para validar en el formulario antes de guardar.
+5. **Panel web (Bloque W1)**, decisiones y límites conocidos:
+   - **El tipo de productor no se edita.** `fn_validar_recoleccion` exige `de_ruta` al acopiador y `externo`
+     al analista: cambiarlo haría rechazar en el push la leche que los celulares tengan sin enviar. Si el tipo
+     está mal, se desactiva y se crea otro. (El `PATCH` del backend sí lo acepta.)
+   - **Altas de campo duplicadas:** no hay fusión ni "rechazar alta"; solo se desactivan, y su leche sigue
+     retenida por "no aprobado". Se suma a (H) e (I) de `docs/sincronizacion.md`.
+   - **Ruta inactiva en "Rutas vigentes" del acopiador:** `SELECT_ACOPIADOR` (`backend/app/routers/usuarios.py`)
+     no filtra `r.activa` y `RutaVigente` no trae ese dato, así que el detalle del acopiador muestra como
+     vigente una ruta inactiva que su celular no ve (el pull sí filtra `r.activa`). Arreglarlo es un cambio de
+     backend.
+   - **Quién revisó una alerta y quién anuló una recolección (y por qué):** el backend no lo devuelve. Propuesta
+     en `docs/pendiente-parche-002.md`.
+   - **Despliegue:** `frame-ancestors` solo vale como cabecera HTTP (ver `web/README.md`), y la nota de
+     `legacy-peer-deps` en `web/.npmrc`.
+   - **Verificaciones con el celular pendientes:** las 4 del ciclo de activación del paso 4 (`web/README.md`).

@@ -42,7 +42,8 @@ productores y 500 recolecciones por lote.
 - El `tipo` lo fija la API según el rol: acopiador → `de_ruta` (necesita `ruta_id`), analista →
   `externo` (necesita `documento` y `celular`, sin ruta).
 - `creado_por` es el usuario del token. Los que da de alta un acopiador nacen **no aprobados**: su
-  leche se recibe, pero el pago queda retenido hasta que el admin los apruebe.
+  leche se recibe, pero el pago queda retenido hasta que el admin los apruebe (panel web › Productores,
+  desde el Bloque W1).
 - Si el `uuid_cliente` ya existe, la respuesta es `duplicado` y trae el `productor_id` y el `codigo` reales.
 
 **Recolecciones**
@@ -235,7 +236,10 @@ servidor ya tiene. Sin red no arma totales de días anteriores (ver `docs/pendie
 - `POST /alertas/{id}/revisar` `{resolucion}`: marca la alerta como revisada. Si era
   `productor_bloqueado` o `firma_invalida`, se libera la retención (`v_recoleccion_pago`). Ya revisada → 409.
 - `POST /recolecciones/{id}/anular` `{motivo}`: nunca se borra. La base levanta la sanción que la
-  recolección originó. Ya anulada → 409.
+  recolección originó. Ya anulada → 409. Ya liquidada → 409 (parche 001, ver la observación 2).
+- Desde el Bloque W1 todo esto se hace en el panel web (Alertas, Recolecciones del día, Productores), no
+  en `/docs`. La anulación guarda quién y por qué, pero `v_recoleccion_detalle` solo expone `anulada_en`:
+  ver `docs/pendiente-parche-002.md`.
 
 ## Observaciones del esquema (sin cambios, para revisar más adelante)
 
@@ -243,8 +247,11 @@ servidor ya tiene. Sin red no arma totales de días anteriores (ver `docs/pendie
    no que su ruta esté asignada al acopiador que registra. Por decisión, el backend no lo valida:
    rechazarlo offline perdería leche real, por ejemplo cuando una ruta se reasigna a mitad del día. Si
    se quiere controlar, la forma correcta es una alerta nueva en el esquema (`fuera_de_ruta`).
-2. **Anular una recolección ya liquidada.** El esquema no lo impide, ni siquiera si la liquidación
-   está pagada. El backend tampoco lo impide (la regla debe vivir en la base).
+2. **Anular una recolección ya liquidada — RESUELTO en la base (parche 001).**
+   `fn_proteger_recoleccion_liquidada` (`schema.sql:1699`) rechaza anular una recolección que está en una
+   liquidación, o cambiarle litros, productor, calidad u hora: el backend lo devuelve como 409 con el
+   mensaje de la base. Para corregirla hay que sacarla primero de su liquidación, mientras siga pendiente.
+   El panel web no ofrece "Anular" en las liquidadas.
 
 ## Observaciones de la app Android (Fase 3A)
 
@@ -336,11 +343,13 @@ existen. La app avisa antes con las mismas reglas (`ReglasPin.kt`), pero decide 
 422 `pin_repetido` (y 422 `pin_trivial`) **antes** de verificar el PIN actual, así que no gasta intento.
 El endpoint queda en el backend, sin pantalla en la app.
 
-**(D) Seed que ejercite la activación — PARCIAL.** Ya no hay cambio obligatorio que probar (ver (C)).
-`db/seed.sql` sigue dando el PIN `1234` (trivial) a los tres usuarios móviles con `pin_actualizado_en =
-now()`: siguen entrando, porque el login no revisa trivialidad. Falta, si se quiere, un usuario del seed
-**pendiente de activar** (`pin_hash` NULL) para probar B1 sin crear uno a mano; es un cambio en `db/` que
-necesita aprobación.
+**(D) Usuario pendiente de activar para probar B1 — RESUELTO para usuarios nuevos (Bloque W1), sin tocar
+`db/`.** Cualquier acopiador o analista creado desde el panel web (Acopiadores, Analistas) nace "pendiente de
+activar" (`pin_hash` NULL) y el admin le genera el código desde ahí. **Los usuarios del seed no cambian:**
+`db/seed.sql` les da un PIN de ejemplo (trivial) con `pin_actualizado_en = now()`, así que siguen entrando
+con él, porque el login no revisa trivialidad. Rosa Elena Condori Apaza (acopiadora) y Edwin Ramiro Huanca
+Ticona (analista) todavía no pasaron por la activación nueva; para hacerlo, el admin les genera un código
+desde la web. Cambiar el seed sigue siendo un cambio en `db/` que necesita aprobación.
 
 **(E) PIN inicial del admin — RESUELTO de otra forma en el Bloque 6.** El admin ya no define ningún PIN:
 el usuario nace "pendiente de activar" (`pin_hash` NULL, migración `db/migraciones/2026-10-bloque6-pin-null.sql`,
@@ -356,7 +365,8 @@ anteriores, que solo vive en el servidor (desde el Bloque 7 el acopiador **ve** 
 días anteriores, que no hace falta porque B3 es solo de hoy); y **(3) solo lo que registró ESE acopiador** — si a un productor
 le recibió leche otro acopiador (ruta reasignada a mitad del día), B3 lo seguirá mostrando como
 pendiente y puede recibirle leche dos veces el mismo día sin aviso. De ahí sale también que una
-recolección anulada en el servidor que este celular registró siga sumando en B3 hasta el día siguiente.
+recolección anulada en el servidor que este celular registró siga sumando en B3 hasta el día siguiente
+(detalle en (K)).
 Si alguno de los dos molesta en campo, lo correcto es ampliar `GET /acopiador/mi-dia` (un parámetro de
 fecha, o incluir lo de toda la ruta y no solo lo propio), no parchearlo en el celular.
 
@@ -364,7 +374,7 @@ fecha, o incluir lo de toda la ruta y no solo lo propio), no parchearlo en el ce
 recolección, pero **nunca bloquea el registro**. Con la hora puesta a mano y mal, la recolección cae en
 otra jornada: B3 y B6 muestran totales que no son los del día y la liquidación semanal puede cargar la
 leche a la semana equivocada. El servidor solo lo delata con la alerta `hora_inconsistente`, que el admin
-tiene que revisar. Procedimiento de entrega del celular: activar "Fecha y hora automáticas" y "Zona
+tiene que revisar (desde el Bloque W1, en el panel web › Alertas, con su resolución). Procedimiento de entrega del celular: activar "Fecha y hora automáticas" y "Zona
 horaria automática" (America/Lima), y dejarlo verificado por escrito.
 
 **(H) Reasignar la leche de un alta de productor rechazada.** Si el servidor rechaza el alta hecha en el
@@ -377,7 +387,9 @@ para que el acopiador lo reporte y el admin lo registre. Desde la 0.5.0 el acopi
 "Ya avisé" (`meta.avisos_vistos`): la tarjeta pasa a "ya avisadas" y deja de contar como rechazo
 pendiente, pero las filas siguen en Room como RECHAZADO, sin cambios. La solución de fondo exige
 decidir dónde vive la reasignación (el admin web sobre la recolección rechazada, o un alta corregida
-reenviada con el mismo `uuid_cliente`) y toca backend y esquema.
+reenviada con el mismo `uuid_cliente`) y toca backend y esquema. **Sigue pendiente después del Bloque W1:**
+esas recolecciones nunca llegan al servidor (se rechazan en el push), así que el panel web no puede verlas ni
+reasignarlas.
 
 **(I) DNI repetido de un productor externo que el celular no conoce.** El aviso de B5 ("¿Es este
 productor?") compara el DNI solo contra los productores que hay en el celular (`productoresLocales`):
@@ -394,3 +406,56 @@ backend y `ReglasPin.LARGO = 4` en el móvil. B2 se verifica solo al 4.º dígit
 mal formada (3, 5 o 6 dígitos) da 422 sin contar como intento. Un usuario con un PIN viejo de 5 o 6 dígitos
 no puede teclearlo: usa "¿Olvidó su PIN? Tengo un código nuevo" y crea uno de 4 al reactivar, sin perder
 lo que tenga sin enviar (probado en el Realme, app 0.6.0).
+
+**(K) B3 (inicio de la app 0.7.0) cuenta las entregas anuladas en el servidor.** Encontrado en el Bloque W1
+(paso 9). Es el detalle del límite (F)(3). Lo que muestra el código:
+- `SyncDao.observarProductores` calcula `n_hoy` y `litros_hoy` de cada productor con las recolecciones de
+  Room (`estado_sync <> 'RECHAZADO'`). Room no guarda la anulación: una recolección que este celular registró y
+  el admin anuló sigue contando.
+- `ResumenJornada` suma esas filas para "Hoy" (litros, entregas, productores atendidos), y `ResumenProductor`
+  las usa para "✓ … L hoy" y para pedir confirmación de "otra entrega" (`pideConfirmarOtraEntrega`).
+- `RehidratarDia.fusionar` descarta las anuladas solo entre las que **no** están en Room (las de otro celular o
+  de antes de reinstalar), así que no corrige este caso.
+- "Mi día" (B6) **sí** las excluye: `MiDia` toma lo del servidor sin las anuladas (`GET /acopiador/mi-dia`) y
+  `LineasMiDia` las muestra en rojo como "Anulada" sin sumarlas.
+
+Consecuencia: el mismo día, B3 y B6 pueden mostrar totales distintos. Se corrige solo al día siguiente (B3 es
+por jornada). Arreglarlo es un cambio de la app (que B3 use mi-día para restar las anuladas propias, o guardar la
+anulación en Room); no toca el servidor.
+
+**(L) Qué hace el pull con rutas y productores que dejan de estar vigentes.** Revisado en el código en el
+Bloque W1. En el pull del acopiador, `productor_ids_vigentes` solo trae productores **activos** de rutas
+**activas** con asignación abierta a ese acopiador (`routers/sync.py`), y `SyncDao.aplicarPull` borra de Room lo
+que no está en las listas de vigentes (`SyncDao.kt:129-132`). Dos casos:
+1. **El celular pierde la ruta** (se le quita o se reasigna el acopiador, o se desactiva la ruta). El pull deja de
+   incluir la ruta y sus productores, y el celular los borra: la ruta siempre, y los productores solo si están
+   confirmados por el servidor (`servidor_id` no nulo y `estado_sync = 'SINCRONIZADO'`). Las altas de campo
+   pendientes o rechazadas y las recolecciones no se tocan, y lo que está sin enviar se sube igual (el push no
+   revisa la ruta). Verificado con el celular de pruebas en el Bloque W1.
+2. **Se desactiva un productor y su ruta sigue asignada.** Según el código pasa lo mismo: el productor inactivo no
+   viene en `productor_ids_vigentes` y `aplicarPull` lo borra de Room si está confirmado por el servidor, incluida
+   un alta de campo ya sincronizada (`productorSincronizado` le pone `servidor_id` y `SINCRONIZADO`). B3 y B4 solo
+   listan la tabla `productor` de Room, y `RehidratarDia` no agrega filas, así que deja de verse. No se borra si
+   todavía es un alta de campo pendiente de subir. El borrado solo ocurre en una sincronización completa:
+   `MotorSync.sincronizar` hace el pull después del push, y si el push falla, el pull no corre.
+
+En los dos casos el borrado es **silencioso**: la app no avisa al acopiador por qué desapareció una ruta o un
+productor.
+
+**(M) El aviso "Sin señal — ingresó sin conexión" de B3 no se apaga al recuperar la señal.** Observado con el
+celular de pruebas (app 0.7.0) en el Bloque W1: sigue visible con señal, con "Todo enviado" y después de
+sincronizar bien. Lo que muestra el código:
+- **Se enciende** al ingresar con el PIN validado sin red: `Autenticador.kt:141`
+  (`ResultadoPin.Correcto -> abrir(u, conServidor = false)`). `abrir()` (`Autenticador.kt:199-203`) es el único
+  lugar que crea `EstadoSesion.Abierta(u, conServidor)` y lo publica en `_estado`.
+- **Solo se apaga** con un nuevo ingreso validado por el servidor: `Autenticador.kt:103` (activación) y `:117`
+  (`ingresar` con señal), las dos con `conServidor = true`. Ningún otro código de `mobile/` crea una sesión
+  abierta ni cambia `conServidor`, y `sync/` (`MotorSync`) no toca el estado de la sesión.
+- **Dónde se muestra:** `NavegacionCampo.kt:61` pasa `sesion.conServidor` a B3; `InicioPantalla.kt:266-267`
+  muestra el aviso si es `false`. El mismo dato hace que la insignia de la jornada diga "Sin señal · N sin
+  enviar" (`InicioPantalla.kt:243`, `ResumenJornada.kt:47`) aunque haya señal.
+
+Consecuencia: el aviso describe cómo **ingresó** el acopiador, no si hay señal ahora, y confunde después de una
+sincronización exitosa. No afecta el registro ni el envío. Arreglarlo es un cambio de la app (por ejemplo, que
+una sincronización exitosa marque la sesión como conectada, o que el aviso dependa del último resultado de
+sincronización); no toca el servidor.

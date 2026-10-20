@@ -20,13 +20,19 @@ Documentación interactiva: http://localhost:8000/docs · Estado: `GET /salud`.
 .\backend\scripts\test.ps1           # recrea queseria_test (schema + seed) y corre pytest
 .\backend\scripts\test.ps1 -k rutas  # argumentos extra van a pytest
 ```
-Las pruebas usan los datos del seed (`admin@queseria.test` / `Admin2026!`) y crean sus propios usuarios,
-rutas y productores con datos únicos.
+Las pruebas usan el admin del seed (`db/seed.sql`) y crean sus propios usuarios, rutas y productores con
+datos únicos, así que pueden repetirse sobre la misma base.
+
+`test.ps1` **recrea** `queseria_test` (llama a `db\scripts\crear-bd.ps1`). Si esa base ya existe y no se
+quiere recrear, se puede correr pytest directo, desde `backend\`:
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
 
 ## Estructura
 | Archivo | Qué hace |
 |---|---|
-| `app/main.py` | App, CORS, manejadores de error, routers, `/salud` |
+| `app/main.py` | App, CORS (ver abajo), manejadores de error, routers, `/salud` |
 | `app/config.py` | Configuración desde `.env` |
 | `app/db.py` | Pool psycopg 3; `transaccion(usuario_id)` fija `app.usuario_id` (= `SET LOCAL`) para la auditoría |
 | `app/errores.py` | Traduce errores de la base: trigger (`P0001`) y unique → 409; check, FK, not null, formato → 422 |
@@ -37,9 +43,16 @@ rutas y productores con datos únicos.
 
 Errores siempre con el formato `{"codigo": "...", "mensaje": "..."}` (los de validación agregan `errores: [{campo, mensaje}]`).
 
+**CORS** (para el panel web, Bloque W1): solo los orígenes de `CORS_ORIGENES` en `.env`, los métodos
+`GET`, `POST`, `PUT`, `PATCH` y `DELETE`, y las cabeceras `Authorization` y `Content-Type`. Sin credenciales
+(cookies): el token viaja en la cabecera `Authorization`.
+
 ## Endpoints
 **Autenticación**
-- `POST /auth/admin/login` — correo + contraseña → JWT (30 min).
+- `POST /auth/admin/login` — correo + contraseña → JWT (dura `JWT_MINUTOS_ADMIN` del `.env`, 30 min por
+  defecto; la respuesta trae `expira_en_min`). 10 intentos fallidos desde la misma IP en 10 min → 429
+  `demasiados_intentos`, que se revisa antes que la contraseña. El conteo vive en la memoria del proceso: se
+  reinicia al reiniciar la API.
 - `POST /auth/dispositivo/activar` — código + `device_uuid` + `clave_publica` + **`pin`** (el usuario crea su PIN
   de 4 dígitos) → vincula el celular (desactiva el anterior) y devuelve el JWT: no hace falta otro login.
   PIN mal formado o trivial (`pin_trivial`) → 422 y el código **no** se gasta. Reactivar el mismo celular

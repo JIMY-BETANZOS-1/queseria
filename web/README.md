@@ -16,7 +16,29 @@ npm ci --ignore-scripts
 ```
 `web\.npmrc` fija `legacy-peer-deps=true`: npm 10.9 se cae (`Cannot read properties of null (reading
 'edgesOut')`) al resolver las dependencias peer opcionales de Vitest 5. Las peer que usa el proyecto están
-fijadas a mano en `package.json`, así que no se pierde nada.
+fijadas a mano en `package.json`, así que no se pierde nada. **Pendiente:** al actualizar npm o Vitest,
+probar sin esa línea (`npm install --dry-run`) y quitarla si ya no hace falta.
+
+## Pantallas (Bloque W1)
+| Pantalla | Qué permite |
+|---|---|
+| Entrar | Correo y contraseña del admin. |
+| Acopiadores | Lista con su estado de acceso al celular; crear y editar (color, vehículo, sueldo, comisión); desactivar y reactivar; generar el código de activación (se muestra una sola vez); ver y desactivar celulares. |
+| Analistas | Lo mismo, sin datos de acopiador. Aviso fijo: la app 0.7.0 todavía no tiene las pantallas del analista. |
+| Rutas | Crear, editar, desactivar; asignar, cambiar o quitar el acopiador (fecha "Desde" entre el inicio de la asignación vigente y hoy en Lima) e historial de asignaciones. |
+| Productores | Lista con las altas de campo pendientes primero; crear y editar (el tipo no se cambia); aprobar altas de campo; últimas 50 entregas con su estado de pago. |
+| Alertas | Pendientes o todas, por tipo o por recolección; revisar con resolución obligatoria; marca "Retiene el pago". |
+| Recolecciones del día | Un día en hora de Lima con resumen por persona y anular con motivo obligatorio. Cada alerta enlaza a su recolección. |
+
+Todas las fechas y horas se muestran en hora de Lima, sin importar la zona horaria del PC.
+
+## Lo que el panel no muestra (el backend no lo devuelve)
+- **Quién revisó una alerta.** `GET /alertas` trae `revisada_por` solo como id, y no hay endpoint con los
+  nombres de los administradores. El panel muestra el nombre solo si es el admin de la sesión; si no,
+  "usuario n.º X".
+- **Quién anuló una recolección y por qué.** La base guarda `anulada_por` y `motivo_anulacion`, pero
+  `v_recoleccion_detalle` solo expone `anulada_en`: la fila anulada muestra solo la fecha. Propuesta en
+  [`docs/pendiente-parche-002.md`](../docs/pendiente-parche-002.md).
 
 ## Correr y probar
 ```powershell
@@ -47,8 +69,10 @@ la dirección de la API es parte de la política de seguridad.
 - "Salir" borra la sesión del navegador. El JWT no se revoca en el servidor: vence solo.
 
 ## Verificaciones pendientes contra el backend real
-- **Ciclo de activación con el Realme (paso 4, Acopiadores).** Ya verificado en el navegador: crear, 409 por
-  DNI y por color repetidos, generar código, editar comisión, desactivar y reactivar. Falta, con el celular:
+Las pantallas de los pasos 5 a 9 ya se verificaron en el navegador y con el celular de pruebas. Queda:
+- **Ciclo de activación con el celular de pruebas (paso 4, Acopiadores).** Ya verificado en el navegador:
+  crear, 409 por DNI y por color repetidos, generar código, editar comisión, desactivar y reactivar. Falta,
+  con el celular:
   1. activar en la app (B1) con el código que muestra la web y ver "Celular vinculado" y el modelo en la web;
   2. desactivar ese celular desde la web y comprobar que la app vuelve a "Vincular celular" sin perder lo que
      tenga sin enviar;
