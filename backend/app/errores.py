@@ -80,6 +80,8 @@ CHECKS = {
     "pago_acopiador_sueldo_base_check": "El sueldo base no puede ser negativo",
     "pago_acopiador_comision_check": "La comisión no puede ser negativa",
     "gasto_operativo_monto_check": "El monto del gasto debe ser mayor que cero",
+    "ck_cliente_documento": "El documento debe ser un DNI (8 dígitos) o RUC (11 dígitos)",
+    "ck_cliente_celular": "El celular debe tener 9 dígitos",
 }
 
 FORANEAS = {
@@ -92,6 +94,8 @@ FORANEAS = {
     "pago_acopiador_acopiador_id_fkey": "El acopiador no existe",
     "gasto_operativo_categoria_id_fkey": "La categoría de gasto no existe",
     "gasto_operativo_acopiador_id_fkey": "El acopiador no existe",
+    "venta_cliente_id_fkey": "El cliente no existe",
+    "venta_detalle_lote_id_fkey": "El lote no existe",
 }
 
 

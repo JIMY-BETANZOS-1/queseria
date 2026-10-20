@@ -35,7 +35,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | # | En el panel | Falta (siguiente fase) |
 |---|-------------|------------------------|
 | A1 | Completa (W1). | — |
-| A2 | Mínimo (W2): **Dashboard** del mes con lo que requiere atención, leche, dinero (flujo y resultado de la base) y gráfico de 14 días en SVG. | Ingresos reales (llegan con Ventas), más gráficos. |
+| A2 | Mínimo (W2): **Dashboard** del mes con lo que requiere atención, leche, dinero (flujo y resultado de la base, con los ingresos de Ventas) y gráfico de 14 días en SVG. | Más gráficos. |
 | A3 | Parcial (W1): **Alertas** y **Recolecciones del día** (resumen por persona, ubicación como texto, anular con motivo). | Mapa (Leaflet), rangos de fechas. |
 | A4 | Parcial (W1): **Productores** (altas de campo pendientes primero, crear y editar, aprobar, últimas 50 entregas con su pago). El tipo no se edita. | Historial completo por fechas, litros por periodo. |
 | A5 | Parcial: **Acopiadores** (W1) y **Pagos a acopiadores** (W2: estimado del mes, registrar con ajustes, marcar pagado). | — |
@@ -44,8 +44,8 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | A7 | — | **Insumos**: stock y costo promedio, ingresos y ajustes. |
 | A8b | Solo lectura (W2): **Leche de la jornada** (v_leche_jornada), con "sin destino" y "sin leche aprobada". | Registrar merma de leche, ver a qué lotes fue. |
 | A8 | — | **Recetas**: precio, rendimiento, vida útil e insumos por 100 L. |
-| A9 | — | **Lotes**: crear, asignar leche, consumir insumos, costos, cerrar. |
-| A10 | — | **Ventas**: al contado desde lotes con saldo, bajas, clientes. |
+| A9 | Rápida (W2): **Producción** en un paso: receta, leche de una jornada (la más antigua preseleccionada), insumos sugeridos por la receta con "necesita / hay / falta reponer" (bloquea si falta) y cierre con lo producido (propuesto con el rendimiento teórico). | Lote por etapas, leche de varias jornadas, costos propios (luz, mano de obra), bajas. |
+| A10 | Rápida (W2): **Ventas** al contado de una línea desde un lote cerrado con saldo (no vencido), con cliente nuevo en el momento. | Varias líneas por venta, bajas de producto, anular una venta. |
 | A11 | Completa (W2): **Pagos a productores**: por pagar, liquidar periodo (con lo que queda en espera), comprobante imprimible, marcar pagada, eliminar pendientes. | Comprobante en PDF (ReportLab no está instalado). |
 | A12 | Mínima (W2): **Gastos**: listar por rango y registrar (sin editar ni eliminar; sin "Sueldo acopiador"). | Editar o anular un gasto. |
 | A13 | Parcial: **Analistas** y acceso móvil (W1); **Configuración** con precio de la leche y parámetros (W2). | — |
@@ -146,12 +146,14 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Gastos:** "Sueldo acopiador" solo lo crea el pago mensual (el backend rechaza registrarlo a mano, para no
      contarlo dos veces). Sin editar ni eliminar.
    - **Configuración:** un precio de la leche nuevo cambia también el monto de lo aún no liquidado desde su fecha
-     (lo liquidado queda congelado) y el historial no se edita ni se borra. `empresa_nombre` todavía no se usa.
+     (lo liquidado queda congelado) y el historial no se edita ni se borra. `empresa_nombre` encabeza el comprobante impreso de la liquidación.
    - **Comprobante de liquidación:** se imprime con el navegador; un PDF necesita ReportLab (paquete nuevo).
+   - **Código de lote:** `lote_produccion.codigo` (L-AAAA-NNNN) lo genera el backend (`routers/produccion.py`, con un
+     candado por año); pendiente: una secuencia o un valor por defecto en la base.
 7. **Siguiente fase (después de la entrega del Bloque W2):**
-   - **Producción y ventas:** Insumos (A7), Recetas (A8), Lotes (A9) y Ventas (A10). Las reglas ya están en la
-     base y probadas (`fn_lote_leche`, `fn_validar_lote`, `fn_saldo_lote`, costo por litro útil, resultado
-     mensual); falta su pantalla y sus endpoints. Con Ventas, el Dashboard muestra ingresos reales.
+   - **Producción y ventas completas:** Insumos (A7: ingresos y ajustes; "por reponer" necesita un `stock_minimo`
+     por insumo, que la base no tiene), Recetas (A8), lotes por etapas con leche de varias jornadas (A9; `lote_leche`
+     ya lo permite) y ventas de varias líneas y bajas (A10). La versión rápida de W2 ya usa las reglas de la base.
    - **App del analista** (mobile, C1–C3): reemplaza la revisión de calidad del admin.
    - **Mapa** (Leaflet) en Recolecciones y **Historial de cambios** (A13b, tabla `auditoria`).
    - **Leche de la jornada:** registrar merma. **Calidad:** sanciones manuales y productores observados.
