@@ -28,13 +28,15 @@ probar sin esa línea (`npm install --dry-run`) y quitarla si ya no hace falta.
 | Rutas | Crear, editar, desactivar; asignar, cambiar o quitar el acopiador (fecha "Desde" entre el inicio de la asignación vigente y hoy en Lima) e historial de asignaciones. |
 | Productores | Lista con las altas de campo pendientes primero; crear y editar (el tipo no se cambia); aprobar altas de campo; últimas 50 entregas con su estado de pago. |
 | Alertas | Pendientes o todas, por tipo o por recolección; revisar con resolución obligatoria; marca "Retiene el pago". |
-| Recolecciones del día | Un día en hora de Lima con resumen por persona y anular con motivo obligatorio. Cada alerta enlaza a su recolección. |
-| Dashboard (W2) | Lo que requiere atención (con enlaces), la leche y el dinero del mes (flujo y resultado de la base) y un gráfico de los últimos 14 días en SVG, sin paquetes ni estilos en línea. |
+| Inicio (W2) | Los cuatro pasos del día numerados (Recibir leche, Producir, Vender, Pagar) con su cifra; el paso con pendientes resaltado y "Requiere atención" como franja de etiquetas. |
+| Entregas del día | Antes "Recolecciones del día". Un día en hora de Lima con resumen por persona y anular con motivo obligatorio. Cada alerta enlaza a su recolección. |
+| Resumen (W2) | Antes "Dashboard" (`/dashboard` y `/?mes=` redirigen a `/resumen`). Lo que requiere atención (con enlaces), la leche y el dinero del mes (flujo y resultado de la base) con desglose plegado, gráfico del flujo del mes y de la leche de los últimos 14 días en SVG, sin paquetes ni estilos en línea. |
 | Calidad (W2) | Por revisar: el admin marca normales en lote o alterada con su análisis, mientras no exista la app del analista. |
-| Leche de la jornada (W2) | Solo lectura por día: recolectada, descartada, por revisar, aprobada, en lotes, merma, disponible y costo por litro útil. |
+| Leche del día (W2) | Antes "Leche de la jornada". Por día: recolectada, descartada, por revisar, aprobada, en lotes, merma, disponible y costo por litro útil; registrar merma. |
 | Pagos a productores (W2) | Por pagar, liquidar periodo (vista previa con lo que queda en espera), comprobante imprimible, marcar pagada y eliminar pendientes. |
-| Pagos a acopiadores (W2) | Sueldo estimado del mes, registrar con ajustes, marcar pagado (registra el gasto "Sueldo acopiador"), editar o eliminar pendientes. |
+| Sueldos de acopiadores (W2) | Antes "Pagos a acopiadores". Sueldo estimado del mes, registrar con ajustes, marcar pagado (registra el gasto "Sueldo acopiador"), editar o eliminar pendientes. |
 | Gastos (W2) | Listar por rango con total por categoría y registrar (sin editar ni eliminar; "Sueldo acopiador" lo crea solo el pago mensual). |
+| Movimientos (W2) | Libro del mes de solo lectura: ventas, pagos a productores (pago real), compras, gastos, costos de lote, mermas y bajas; filtro por mes y tipo. |
 | Configuración (W2) | Precio de la leche con historial (vigente y programado) y parámetros con cuándo se aplica cada uno. |
 
 Todas las fechas y horas se muestran en hora de Lima, sin importar la zona horaria del PC.
@@ -72,7 +74,9 @@ la dirección de la API es parte de la política de seguridad.
 
 ## Sesión del admin
 - Token en `sessionStorage` (sobrevive a F5, se borra al cerrar la pestaña). Vence a los `JWT_MINUTOS_ADMIN`
-  del `.env` menos 30 s; el panel se cierra solo a esa hora y muestra "Sesión hasta las HH:MM".
+  del `.env` menos 30 s; el panel se cierra solo a esa hora. "Sesión hasta las HH:MM" aparece solo cuando
+  faltan 5 minutos o menos.
+- En el build de producción el pie no muestra "API conectada" ni el nombre de la base; los errores de conexión sí.
 - Un 401 en cualquier pantalla cierra la sesión y lleva a Entrar con "Su sesión venció" y `?volver=` a la
   pantalla donde estaba (solo rutas internas: se rechazan `//`, `\`, `/\` y direcciones absolutas).
 - "Salir" borra la sesión del navegador. El JWT no se revoca en el servidor: vence solo.

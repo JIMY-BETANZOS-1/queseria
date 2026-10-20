@@ -35,14 +35,15 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | # | En el panel | Falta (siguiente fase) |
 |---|-------------|------------------------|
 | A1 | Completa (W1). | — |
-| A2 | Mínimo (W2): **Dashboard** del mes con lo que requiere atención, leche, dinero (flujo y resultado de la base, con los ingresos de Ventas) y gráfico de 14 días en SVG. | Más gráficos. |
-| A3 | Parcial (W1): **Alertas** y **Recolecciones del día** (resumen por persona, ubicación como texto, anular con motivo). | Mapa (Leaflet), rangos de fechas. |
+| A0 | W2: **Inicio** (`/`): los cuatro pasos del día numerados (Recibir leche, Producir, Vender, Pagar) con su cifra, el paso con pendientes resaltado y "Requiere atención" como franja de etiquetas. Solo lee endpoints existentes. | Banner o foto de la planta (cuando el cliente la entregue). |
+| A2 | Mínimo (W2): **Resumen** (`/resumen`; antes "Dashboard" en `/`, que redirige con su mes) con lo que requiere atención, leche y dinero del mes (flujo y resultado de la base, con los ingresos de Ventas): cifra grande por tarjeta, desglose plegado en "Ver detalle", gráfico SVG del flujo del mes y de la leche de 14 días. | Más gráficos. |
+| A3 | Parcial (W1): **Alertas** y **Entregas del día** (antes "Recolecciones del día") (resumen por persona, ubicación como texto, anular con motivo). | Mapa (Leaflet), rangos de fechas. |
 | A4 | Parcial (W1): **Productores** (altas de campo pendientes primero, crear y editar, aprobar, últimas 50 entregas con su pago). El tipo no se edita. | Historial completo por fechas, litros por periodo. |
-| A5 | Parcial: **Acopiadores** (W1) y **Pagos a acopiadores** (W2: estimado del mes, registrar con ajustes, marcar pagado). | — |
+| A5 | Parcial: **Acopiadores** (W1) y **Sueldos de acopiadores** (W2, antes "Pagos a acopiadores": estimado del mes, registrar con ajustes, marcar pagado). | — |
 | A5b | Completa (W1): **Rutas**. | — |
 | A6 | Mínima (W2): **Calidad**: el admin marca normales en lote o alterada con análisis, mientras no exista la app del analista. | Productores observados, crear o levantar sanciones, % por analista. |
 | A7 | W2: **Almacén**: stock, costo promedio ponderado, valor del inventario, "sin stock" y "alcanza para ≈ N L de leche" (en la receta que más usa el insumo); **registrar compras** (la base recalcula el costo promedio) y **crear insumos** (nombre y unidad). | Ajustes de inventario, historial de movimientos; stock mínimo por insumo (necesita `stock_minimo` en `db/`). |
-| A8b | W2: **Leche de la jornada** (v_leche_jornada), con "sin destino" y "sin leche aprobada"; **registrar merma** con motivo en las jornadas con leche disponible (la base decide si cabe). | Ver a qué lotes fue la leche; listar las mermas de una jornada (el backend ya tiene `GET /mermas`). |
+| A8b | W2: **Leche del día** (antes "Leche de la jornada"; v_leche_jornada), con "sin destino" y "sin leche aprobada"; **registrar merma** con motivo en las jornadas con leche disponible (la base decide si cabe). | Ver a qué lotes fue la leche; listar las mermas de una jornada (el backend ya tiene `GET /mermas`). |
 | A8 | Solo lectura (W2): **Recetas**: unidad de venta, precio, rendimiento y vida útil, insumos por 100 L con su costo de hoy, y "alcanza para" con el stock actual. | Editar recetas. |
 | A9 | Rápida (W2): **Producción** en un paso: receta, leche de una jornada (la más antigua preseleccionada), insumos sugeridos por la receta con "necesita / hay / falta reponer" (bloquea si falta) y cierre con lo producido (propuesto con el rendimiento teórico). | Lote por etapas, leche de varias jornadas, costos propios (luz, mano de obra), bajas. |
 | A10 | Rápida (W2): **Ventas** al contado de una línea desde un lote cerrado con saldo (no vencido), con cliente nuevo en el momento. | Varias líneas por venta, bajas de producto, anular una venta. |
@@ -88,7 +89,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 ### Resueltos
 - **Productor bloqueado (B4)**: la app avisa en rojo y, si el acopiador confirma, registra igual; la base crea
   la alerta `productor_bloqueado` y retiene el pago. Corregido el comentario de `v_productor_estado_hoy` y `CLAUDE.md`.
-- **`merma_leche`** → pantalla "Leche de la jornada" (A8b).
+- **`merma_leche`** → pantalla "Leche del día" (A8b).
 - **`ruta`** → pantalla "Rutas" (A5b).
 - **`auditoria`** → "Historial de cambios" dentro de Configuración (A13b), solo lectura.
 - **`analisis_calidad`** y **`liquidacion_detalle`** → agregados al mapa del esquema (A3, A6, A11).
@@ -143,7 +144,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Corte semanal:** dato pendiente del cliente. "Liquidar periodo" propone la semana anterior de lunes a
      domingo, editable.
    - **Pérdidas del resultado:** `v_resultado_mensual` cuenta como pérdida de leche lo pagado en días sin ninguna
-     leche aprobada, incluidos los días cuya leche aún no se revisó. El Dashboard lo aclara.
+     leche aprobada, incluidos los días cuya leche aún no se revisó. El Resumen lo aclara.
    - **Gastos:** "Sueldo acopiador" solo lo crea el pago mensual (el backend rechaza registrarlo a mano, para no
      contarlo dos veces). Sin editar ni eliminar.
    - **Configuración:** un precio de la leche nuevo cambia también el monto de lo aún no liquidado desde su fecha
@@ -162,11 +163,18 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
      descartada no se merma. Su pérdida (litros × costo por litro útil de la jornada) entra al resultado del mes de la
      jornada y **no queda congelada**: cambia si después se aprueba más leche de ese día. No cambia el flujo. La base
      no exige rol (`registrado_por` es cualquier usuario); el backend la deja solo al admin. Sin borrar desde el panel.
-   - **Movimientos y Dashboard:** las sumas por tipo coinciden con `v_flujo_mensual` (ingresos, insumos, lotes,
+   - **Movimientos y Resumen:** las sumas por tipo coinciden con `v_flujo_mensual` (ingresos, insumos, lotes,
      operativos) y `v_resultado_mensual` (bajas; mermas). No coinciden, a propósito: los **pagos a productores**
      (Movimientos los muestra cuando se pagó la liquidación; el flujo cuenta la leche en la fecha de entrega) y la
      **pérdida de leche** del resultado, que además suma lo pagado en jornadas sin leche aprobada (no es un movimiento).
      La pantalla lo dice. La consulta vive en el backend (`routers/movimientos.py`), sin vista nueva en `db/`.
+   - **Presentación del panel (W2):** paleta del logo en tokens CSS (verde primario, dorado de acento; el dorado
+     nunca como texto sobre blanco), íconos SVG propios y escala de espaciado 8/16/24/32, sin librerías ni `style=`.
+     El menú solo deja abierto el grupo de la pantalla actual (estado en memoria, sin `localStorage`). Las URLs no
+     cambiaron: los nombres nuevos (Entregas del día, Leche del día, Sueldos de acopiadores, Resumen) son solo de menú,
+     título y pestaña. El campo "Leche de la jornada" del formulario de Producción se mantiene (nombra la jornada).
+   - **Pie y sesión:** en el build de producción el pie no muestra "API conectada" ni el nombre de la base (los
+     errores de conexión, sí). "Sesión hasta las HH:MM" aparece solo cuando faltan 5 minutos o menos.
    - **Código de lote:** `lote_produccion.codigo` (L-AAAA-NNNN) lo genera el backend (`routers/produccion.py`, con un
      candado por año); pendiente: una secuencia o un valor por defecto en la base.
 7. **Siguiente fase (después de la entrega del Bloque W2):**
@@ -184,6 +192,8 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Parches 002 y 003** (`docs/pendiente-parche-00*.md`) y la app 0.7.1 con (K), (L) y (M) de
      `docs/sincronizacion.md`.
 8. **Preguntas para el cliente** (datos pendientes; hoy son valores de ejemplo):
+   - **Logo y foto:** el logo de la barra es provisional (`web/public/logo.svg`, se reemplaza con el mismo nombre);
+     Inicio tiene el lugar marcado para un banner o foto de la planta. ¿Nos entregan el logo en SVG o PNG y una foto?
    - **Quesos: ¿se venden por unidad o por kilo?** Las recetas de queso tienen `unidad_venta = 'unidad'`, con su
      rendimiento en unidades por 100 L y su precio por unidad. Si se venden por peso, cambian la unidad, el
      rendimiento y el precio de cada receta.
