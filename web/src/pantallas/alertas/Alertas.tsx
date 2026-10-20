@@ -54,6 +54,7 @@ export default function Alertas() {
   // Pendientes: las más antiguas primero (orden del servidor). Todas: las más recientes primero.
   const filas = carga.estado === "listo" ? (todas ? [...carga.datos].reverse() : carga.datos) : [];
   const pendientes = filas.filter((a) => a.revisada_en === null);
+  const retienen = pendientes.filter((a) => retienePago(a.tipo)).length;
   const porTipo = TIPOS_ALERTA
     .map((t) => ({ ...t, n: pendientes.filter((a) => a.tipo === t.valor).length }))
     .filter((t) => t.n > 0);
@@ -97,7 +98,7 @@ export default function Alertas() {
           <p>
             <strong>{pendientes.length === 1 ? "1 pendiente" : `${pendientes.length} pendientes`}</strong>
             {" · "}
-            {pendientes.filter((a) => retienePago(a.tipo)).length} retienen el pago
+            {retienen === 1 ? "1 retiene el pago" : `${retienen} retienen el pago`}
             {porTipo.length > 0 && (
               <span className="texto-suave"> ({porTipo.map((t) => `${t.texto}: ${t.n}`).join(", ")})</span>
             )}
@@ -131,7 +132,7 @@ export default function Alertas() {
                     <td>
                       {fechaHoraLima(a.registrada_en)}
                       {" · "}
-                      <Link to={`/productores/${a.productor_id}`}>{a.productor}</Link> ({a.productor_codigo})
+                      <Link to={`/productores/${a.productor_id}`}>{a.productor}</Link> <span className="codigo">({a.productor_codigo})</span>
                       {" · "}{litros(a.litros)}
                       {" · "}
                       <Link to={`/recolecciones?fecha=${a.fecha}&recoleccion=${a.recoleccion_id}`}>Ver recolección</Link>

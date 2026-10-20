@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { jornadas, obtenerDashboard } from "../../api/dashboard";
-import { hoyLima, litros, nombreMes, primerDiaDelMes, soles, sumarDias } from "../../comun/formato";
+import { hoyLima, litros, nombreMes, plural, primerDiaDelMes, soles, sumarDias } from "../../comun/formato";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
 import { diasDelGrafico, GraficoLeche } from "./GraficoLeche";
@@ -10,13 +10,13 @@ import { diasDelGrafico, GraficoLeche } from "./GraficoLeche";
 const MES = /^\d{4}-\d{2}$/;
 const DIAS_GRAFICO = 14;
 
-function Dato({ titulo, cifra, children, atencion = false }: {
-  titulo: string; cifra: ReactNode; children?: ReactNode; atencion?: boolean;
+function Dato({ titulo, cifra, children, atencion = false, negativo = false }: {
+  titulo: string; cifra: ReactNode; children?: ReactNode; atencion?: boolean; negativo?: boolean;
 }) {
   return (
     <div className={atencion ? "tarjeta-dato atencion" : "tarjeta-dato"}>
       <span className="texto-suave">{titulo}</span>
-      <span className="cifra">{cifra}</span>
+      <span className={negativo ? "cifra negativo" : "cifra"}>{cifra}</span>
       {children}
     </div>
   );
@@ -62,7 +62,7 @@ export default function Dashboard() {
               <h2 id={`${id}-atencion`}>Requiere atención</h2>
               <div className="tarjetas">
                 <Dato titulo="Alertas sin revisar" cifra={a.alertas_pendientes} atencion={a.alertas_que_retienen > 0}>
-                  <span>{a.alertas_que_retienen} retienen el pago · <Link to="/alertas">Ver alertas</Link></span>
+                  <span>{a.alertas_que_retienen === 1 ? "1 retiene el pago" : `${a.alertas_que_retienen} retienen el pago`} · <Link to="/alertas">Ver alertas</Link></span>
                 </Dato>
                 <Dato titulo="Entregas sin revisar (calidad)" cifra={a.entregas_sin_revisar} atencion={a.entregas_sin_revisar > 0}>
                   <span>Sin revisar no se pagan · <Link to="/calidad">Revisar</Link></span>
@@ -94,15 +94,15 @@ export default function Dashboard() {
                   <span>{soles(d.por_pagar.monto_en_espera)} en espera (sin revisar o retenido)</span>
                 </Dato>
                 <Dato titulo="Sueldos estimados de acopiadores" cifra={soles(d.acopiadores.sueldo_estimado)}>
-                  <span>{soles(d.acopiadores.pagado)} pagado · {d.acopiadores.pagos_pendientes} pagos pendientes</span>
+                  <span>{soles(d.acopiadores.pagado)} pagado · {plural(d.acopiadores.pagos_pendientes, "pago pendiente", "pagos pendientes")}</span>
                 </Dato>
-                <Dato titulo="Flujo de caja del mes" cifra={soles(d.flujo.saldo_caja)}>
+                <Dato titulo="Flujo de caja del mes" cifra={soles(d.flujo.saldo_caja)} negativo={d.flujo.saldo_caja < 0}>
                   <span>
                     Ingresos {soles(d.flujo.ingresos)} − leche {soles(d.flujo.egreso_leche)} − insumos{" "}
                     {soles(d.flujo.egreso_insumos)} − lotes {soles(d.flujo.egreso_lotes)} − gastos {soles(d.flujo.egreso_operativo)}
                   </span>
                 </Dato>
-                <Dato titulo="Resultado (utilidad neta)" cifra={soles(d.resultado.utilidad_neta)}>
+                <Dato titulo="Resultado (utilidad neta)" cifra={soles(d.resultado.utilidad_neta)} negativo={d.resultado.utilidad_neta < 0}>
                   <span>
                     Ventas {soles(d.resultado.ingresos)} − costo de lo vendido {soles(d.resultado.costo_ventas)} − pérdidas de
                     producto {soles(d.resultado.perdida_producto)} − pérdidas de leche {soles(d.resultado.perdida_leche)}

@@ -82,10 +82,17 @@ export function litros(cantidad: number): string {
 
 const SOLES = new Intl.NumberFormat("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-/** "S/ 1,234.50": moneda con 2 decimales. */
+/** "S/ 1,234.50": moneda con 2 decimales. Negativo: "−S/ 1,234.50" (signo menos tipográfico antes del símbolo). */
 export function soles(monto: number, decimales = 2): string {
   const f = decimales === 2
     ? SOLES
     : new Intl.NumberFormat("es-PE", { minimumFractionDigits: decimales, maximumFractionDigits: decimales });
-  return `S/ ${f.format(monto)}`;
+  // Lo que se redondea a cero no lleva signo (−0.004 → "S/ 0.00")
+  const negativo = Math.round(Math.abs(monto) * 10 ** decimales) > 0 && monto < 0;
+  return `${negativo ? "−" : ""}S/ ${f.format(Math.abs(monto))}`;
+}
+
+/** "1 pago pendiente" / "3 pagos pendientes": el número con su palabra en singular o plural. */
+export function plural(n: number, singular: string, enPlural: string): string {
+  return `${n} ${n === 1 ? singular : enPlural}`;
 }

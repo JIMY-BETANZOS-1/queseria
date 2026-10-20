@@ -124,7 +124,7 @@ export default function Productores() {
           <tbody>
             {filas.map((p) => (
               <tr key={p.productor_id}>
-                <td>{p.codigo}</td>
+                <td className="codigo">{p.codigo}</td>
                 <td><Link to={`/productores/${p.productor_id}`}>{p.nombre}</Link></td>
                 <td>
                   {p.tipo === "externo" ? "Externo" : (p.ruta_id !== null && nombreRuta.get(p.ruta_id)) || `Ruta ${p.ruta_id}`}

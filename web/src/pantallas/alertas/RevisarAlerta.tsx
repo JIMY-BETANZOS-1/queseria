@@ -67,7 +67,7 @@ export function RevisarAlerta({ alerta, onHecho, onConflicto, onCerrar }: Props)
     >
       {alerta.detalle && <p>{alerta.detalle}</p>}
       <p className="texto-suave">
-        {alerta.productor} ({alerta.productor_codigo}) · {litros(alerta.litros)} · {fechaHoraLima(alerta.registrada_en)}
+        {alerta.productor} <span className="codigo">({alerta.productor_codigo})</span> · {litros(alerta.litros)} · {fechaHoraLima(alerta.registrada_en)}
         {" "}· registró {alerta.registrado_por_nombre}
       </p>
       <ul className="lista-avisos">

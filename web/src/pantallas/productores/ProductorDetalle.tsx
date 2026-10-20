@@ -68,7 +68,7 @@ export default function ProductorDetalle() {
     <>
       {miga}
       <div className="encabezado">
-        <h1>{p.nombre} <span className="texto-suave">{p.codigo}</span></h1>
+        <h1>{p.nombre} <span className="texto-suave codigo">{p.codigo}</span></h1>
         {pendiente && <Insignia tono="atencion">Pendiente de aprobación</Insignia>}
         {!p.activo && <Insignia tono="neutro">Inactivo</Insignia>}
       </div>

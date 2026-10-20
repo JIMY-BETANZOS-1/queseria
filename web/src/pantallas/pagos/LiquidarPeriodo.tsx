@@ -147,7 +147,7 @@ export default function LiquidarPeriodo() {
               <tbody>
                 {previa.filas.map((f) => (
                   <tr key={f.productorId}>
-                    <td><Link to={`/productores/${f.productorId}`}>{f.nombre}</Link> ({f.codigo})</td>
+                    <td><Link to={`/productores/${f.productorId}`}>{f.nombre}</Link> <span className="codigo">({f.codigo})</span></td>
                     <td className="numero">{f.entregas}</td>
                     <td className="numero">{litros(f.litros)}</td>
                     <td className="numero">{litros(f.litrosConSancion)}</td>

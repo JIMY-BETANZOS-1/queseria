@@ -61,13 +61,11 @@ function tarjeta(titulo: string): HTMLElement {
 }
 
 describe("dashboard", () => {
-  it("el menú lleva al Dashboard: mes actual en Lima y los últimos 14 días", async () => {
+  it("es la pantalla de inicio (/): mes actual en Lima y los últimos 14 días", async () => {
     const consultas = simular();
     renderizar("/");
-    await userEvent.setup().click(within(screen.getByRole("navigation", { name: "Menú principal" }))
-      .getByRole("link", { name: "Dashboard" }));
 
-    expect(ubicacion()).toBe("/dashboard");
+    expect(ubicacion()).toBe("/");
     expect(await screen.findByRole("heading", { name: "Leche de octubre de 2026" })).toBeInTheDocument();
     expect(screen.getByLabelText("Mes")).toHaveValue("2026-10");
     expect(consultas.sort()).toEqual(["dashboard?mes=2026-10-01", "jornadas?desde=2026-10-05&hasta=2026-10-18"]);
@@ -76,10 +74,10 @@ describe("dashboard", () => {
 
   it("requiere atención: cifras, enlaces y marca de atención cuando hay algo", async () => {
     simular();
-    renderizar("/dashboard");
+    renderizar("/");
     await screen.findByText("Requiere atención");
 
-    expect(tarjeta("Alertas sin revisar")).toHaveTextContent("41 retienen el pago · Ver alertas");
+    expect(tarjeta("Alertas sin revisar")).toHaveTextContent("41 retiene el pago · Ver alertas");
     expect(tarjeta("Alertas sin revisar")).toHaveClass("atencion");
     expect(within(tarjeta("Alertas sin revisar")).getByRole("link")).toHaveAttribute("href", "/alertas");
     expect(within(tarjeta("Entregas sin revisar (calidad)")).getByRole("link", { name: "Revisar" })).toHaveAttribute("href", "/calidad");
@@ -91,21 +89,24 @@ describe("dashboard", () => {
   it("sin nada pendiente no marca atención", async () => {
     simular(dashboard({ atencion: { alertas_pendientes: 0, alertas_que_retienen: 0, altas_por_aprobar: 0, entregas_sin_revisar: 0,
                                     productores_observados: 0 } }));
-    renderizar("/dashboard");
+    renderizar("/");
     await screen.findByText("Requiere atención");
     expect(document.querySelectorAll(".tarjeta-dato.atencion")).toHaveLength(0);
   });
 
   it("leche y dinero del mes, con la nota de que ventas y lotes son de la próxima fase", async () => {
     simular();
-    renderizar("/dashboard");
+    renderizar("/");
     await screen.findByText("Requiere atención");
 
     expect(tarjeta("Recolectada")).toHaveTextContent("5,230.5 L");
     expect(tarjeta("Por revisar")).toHaveTextContent("380.5 L");
     expect(tarjeta("Por pagar a productores (acumulado a hoy)")).toHaveTextContent("S/ 1,200.50S/ 340.00 en espera");
-    expect(tarjeta("Sueldos estimados de acopiadores")).toHaveTextContent("S/ 1,915.00S/ 957.50 pagado · 1 pagos pendientes");
-    expect(tarjeta("Flujo de caja del mes")).toHaveTextContent("S/ -9,407.50");
+    expect(tarjeta("Sueldos estimados de acopiadores")).toHaveTextContent("S/ 1,915.00S/ 957.50 pagado · 1 pago pendiente");
+    expect(tarjeta("Flujo de caja del mes")).toHaveTextContent("−S/ 9,407.50");
+    expect(within(tarjeta("Flujo de caja del mes")).getByText("−S/ 9,407.50")).toHaveClass("negativo");
+    expect(within(tarjeta("Resultado (utilidad neta)")).getByText("−S/ 1,042.50")).toHaveClass("negativo");
+    expect(within(tarjeta("Recolectada")).getByText("5,230.5 L")).not.toHaveClass("negativo");
     expect(tarjeta("Resultado (utilidad neta)")).toHaveTextContent(
       "pérdidas de producto S/ 0.00 − pérdidas de leche S/ 85.00 (incluye leche aún sin revisar) − gastos S/ 957.50");
     expect(tarjeta("Resultado (utilidad neta)")).toHaveTextContent(
@@ -117,7 +118,7 @@ describe("dashboard", () => {
   it("sin leche por revisar en el mes, las pérdidas de leche no llevan la aclaración", async () => {
     simular(dashboard({ leche: { litros_recolectados: 100, litros_aprobados: 100, litros_por_revisar: 0, litros_descartados: 0,
                                  costo_pagado: 170 } }));
-    renderizar("/dashboard");
+    renderizar("/");
     await screen.findByText("Requiere atención");
     expect(tarjeta("Resultado (utilidad neta)")).toHaveTextContent("pérdidas de leche S/ 85.00 − gastos");
     expect(tarjeta("Resultado (utilidad neta)")).not.toHaveTextContent("sin revisar");
@@ -125,7 +126,7 @@ describe("dashboard", () => {
 
   it("cambiar de mes pide ese mes (y el gráfico sigue en los últimos 14 días)", async () => {
     const consultas = simular();
-    renderizar("/dashboard?mes=2026-09");
+    renderizar("/?mes=2026-09");
     await screen.findByText("Requiere atención");
     expect(consultas).toContain("dashboard?mes=2026-09-01");
     expect(consultas).toContain("jornadas?desde=2026-10-05&hasta=2026-10-18");
@@ -133,7 +134,7 @@ describe("dashboard", () => {
 
   it("el gráfico: 14 días con los vacíos en cero, barras apiladas sin style y la tabla con los mismos datos", async () => {
     simular();
-    renderizar("/dashboard");
+    renderizar("/");
     const grafico = await screen.findByRole("img", { name: /Litros por día del 05\/10\/2026 al 18\/10\/2026: 600 L en total/ });
     expect(grafico.querySelectorAll("g")).toHaveLength(14);
     expect(grafico.querySelector("[style]")).toBeNull();
@@ -162,7 +163,7 @@ describe("dashboard", () => {
         : HttpResponse.json(dashboard()))),
       http.get(`${API}/jornadas`, () => HttpResponse.json([])),
     );
-    renderizar("/dashboard");
+    renderizar("/");
     expect(await screen.findByRole("alert")).toHaveTextContent("Error interno del servidor");
     fallar = false;
     await userEvent.setup().click(screen.getByRole("button", { name: "Reintentar" }));

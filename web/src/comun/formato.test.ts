@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fecha, fechaHoraLima, horaLima, hoyLima, litros, soles, sumarDias } from "./formato";
+import { fecha, fechaHoraLima, horaLima, hoyLima, litros, plural, soles, sumarDias } from "./formato";
 
 describe("horaLima", () => {
   it("convierte a hora de Lima (UTC−5) sin importar la zona del PC", () => {
@@ -74,5 +74,20 @@ describe("soles", () => {
 
   it("decimales indicados (comisión por litro)", () => {
     expect(soles(0.05, 3)).toBe("S/ 0.050");
+  });
+
+  it("negativos con signo menos antes del símbolo; lo que redondea a cero va sin signo", () => {
+    expect(soles(-9407.5)).toBe("−S/ 9,407.50");
+    expect(soles(-0.75, 3)).toBe("−S/ 0.750");
+    expect(soles(-0.004)).toBe("S/ 0.00");
+    expect(soles(-0)).toBe("S/ 0.00");
+  });
+});
+
+describe("plural", () => {
+  it("singular solo con 1", () => {
+    expect(plural(1, "pago pendiente", "pagos pendientes")).toBe("1 pago pendiente");
+    expect(plural(0, "pago pendiente", "pagos pendientes")).toBe("0 pagos pendientes");
+    expect(plural(3, "entrega", "entregas")).toBe("3 entregas");
   });
 });

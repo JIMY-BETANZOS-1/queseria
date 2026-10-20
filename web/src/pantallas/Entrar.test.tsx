@@ -42,13 +42,13 @@ describe("Entrar", () => {
   });
 
   it.each(["//sitio-ajeno.example", "/\\sitio-ajeno.example", "https://sitio-ajeno.example"])(
-    "con ?volver=%s inseguro va a Inicio", async (volver) => {
+    "con ?volver=%s inseguro va al Dashboard", async (volver) => {
       loginResponde(() => HttpResponse.json(respuestaLogin()));
       renderizar(`/entrar?volver=${encodeURIComponent(volver)}`);
 
       await llenarYEnviar();
       await waitFor(() => expect(ubicacion()).toBe("/"));
-      expect(await screen.findByText("Bienvenido, Administrador de Prueba")).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     });
 
   it("401: muestra el mensaje del servidor, conserva el correo y vacía la contraseña", async () => {

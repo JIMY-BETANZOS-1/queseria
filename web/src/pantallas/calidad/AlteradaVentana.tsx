@@ -76,7 +76,7 @@ export function AlteradaVentana({ recoleccion: r, onHecho, onCerrar }: Props) {
       }
     >
       <p className="texto-suave">
-        {r.productor} ({r.productor_codigo}) · {litros(r.litros)} · {fechaHoraLima(r.registrada_en)} · registró{" "}
+        {r.productor} <span className="codigo">({r.productor_codigo})</span> · {litros(r.litros)} · {fechaHoraLima(r.registrada_en)} · registró{" "}
         {r.registrado_por_nombre}
       </p>
       <ul className="lista-avisos">

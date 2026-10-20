@@ -140,7 +140,7 @@ export default function Calidad() {
                   </td>
                   <td>{fechaHoraLima(r.registrada_en)}</td>
                   <td>
-                    <Link to={`/productores/${r.productor_id}`}>{r.productor}</Link> ({r.productor_codigo})
+                    <Link to={`/productores/${r.productor_id}`}>{r.productor}</Link> <span className="codigo">({r.productor_codigo})</span>
                     {r.productor_pendiente && <> <Insignia tono="atencion">Pendiente de aprobación</Insignia></>}
                   </td>
                   <td>{r.color_hex && <MuestraColor color={r.color_hex} />} {r.registrado_por_nombre}</td>

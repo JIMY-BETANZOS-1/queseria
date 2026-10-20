@@ -1,31 +1,49 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { salir } from "../api/cliente";
 import { horaLima } from "../comun/formato";
 import { vigilarVencimiento } from "../sesion/almacen";
 import { useSesion } from "../sesion/useSesion";
+import { EstadoApi } from "./EstadoApi";
 
-// Solo las pantallas ya construidas: cada paso de W1 agrega la suya
-const MENU = [
-  { ruta: "/", texto: "Inicio", exacta: true },
-  { ruta: "/dashboard", texto: "Dashboard", exacta: false },
-  { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
-  { ruta: "/analistas", texto: "Analistas", exacta: false },
-  { ruta: "/rutas", texto: "Rutas", exacta: false },
-  { ruta: "/productores", texto: "Productores", exacta: false },
-  { ruta: "/alertas", texto: "Alertas", exacta: false },
-  { ruta: "/recolecciones", texto: "Recolecciones del día", exacta: false },
-  { ruta: "/calidad", texto: "Calidad", exacta: false },
-  { ruta: "/jornadas", texto: "Leche de la jornada", exacta: false },
-  { ruta: "/pagos/productores", texto: "Pagos a productores", exacta: false },
-  { ruta: "/pagos/acopiadores", texto: "Pagos a acopiadores", exacta: false },
-  { ruta: "/gastos", texto: "Gastos", exacta: false },
-  { ruta: "/configuracion", texto: "Configuración", exacta: false },
+type Opcion = { ruta: string; texto: string; exacta: boolean };
+
+// Solo las pantallas ya construidas, agrupadas como se usan en el día. El Dashboard es la pantalla de inicio (/).
+export const MENU: { grupo: string | null; opciones: Opcion[] }[] = [
+  { grupo: null, opciones: [{ ruta: "/", texto: "Dashboard", exacta: true }] },
+  {
+    grupo: "Operación",
+    opciones: [
+      { ruta: "/recolecciones", texto: "Recolecciones del día", exacta: false },
+      { ruta: "/alertas", texto: "Alertas", exacta: false },
+      { ruta: "/calidad", texto: "Calidad", exacta: false },
+      { ruta: "/jornadas", texto: "Leche de la jornada", exacta: false },
+    ],
+  },
+  {
+    grupo: "Campo",
+    opciones: [
+      { ruta: "/productores", texto: "Productores", exacta: false },
+      { ruta: "/rutas", texto: "Rutas", exacta: false },
+      { ruta: "/acopiadores", texto: "Acopiadores", exacta: false },
+      { ruta: "/analistas", texto: "Analistas", exacta: false },
+    ],
+  },
+  {
+    grupo: "Dinero",
+    opciones: [
+      { ruta: "/pagos/productores", texto: "Pagos a productores", exacta: false },
+      { ruta: "/pagos/acopiadores", texto: "Pagos a acopiadores", exacta: false },
+      { ruta: "/gastos", texto: "Gastos", exacta: false },
+    ],
+  },
+  { grupo: "Administración", opciones: [{ ruta: "/configuracion", texto: "Configuración", exacta: false }] },
 ];
 
-/** Barra superior + menú lateral + pantalla actual. Solo se muestra con sesión (ver RequiereSesion). */
+/** Barra superior + menú lateral + pantalla actual + estado de la API al pie. Solo con sesión (ver RequiereSesion). */
 export function Marco() {
+  const id = useId();
   const sesion = useSesion();
 
   useEffect(() => vigilarVencimiento(), []);
@@ -45,19 +63,28 @@ export function Marco() {
         )}
       </header>
       <nav className="menu" aria-label="Menú principal">
-        <ul>
-          {MENU.map((opcion) => (
-            <li key={opcion.ruta}>
-              <NavLink to={opcion.ruta} end={opcion.exacta} className={({ isActive }) => (isActive ? "menu-opcion activa" : "menu-opcion")}>
-                {opcion.texto}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+        {MENU.map(({ grupo, opciones }, i) => (
+          <div key={grupo ?? "inicio"}>
+            {grupo && <h2 className="menu-grupo" id={`${id}-grupo-${i}`}>{grupo}</h2>}
+            <ul aria-labelledby={grupo ? `${id}-grupo-${i}` : undefined}>
+              {opciones.map((opcion) => (
+                <li key={opcion.ruta}>
+                  <NavLink to={opcion.ruta} end={opcion.exacta}
+                           className={({ isActive }) => (isActive ? "menu-opcion activa" : "menu-opcion")}>
+                    {opcion.texto}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </nav>
       <main className="contenido">
         <Outlet />
       </main>
+      <footer className="pie">
+        <EstadoApi />
+      </footer>
     </div>
   );
 }

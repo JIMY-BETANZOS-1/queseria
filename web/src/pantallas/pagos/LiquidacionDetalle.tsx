@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ErrorApi } from "../../api/cliente";
+import { listarParametros } from "../../api/configuracion";
 import { eliminarLiquidacion, obtenerLiquidacion, pagarLiquidacion } from "../../api/pagos";
 import { Confirmar } from "../../comun/Confirmar";
-import { fecha, fechaHoraLima, litros, soles } from "../../comun/formato";
+import { fecha, fechaHoraLima, litros, plural, soles } from "../../comun/formato";
 import { Insignia } from "../../comun/Insignia";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
@@ -20,6 +21,9 @@ export default function LiquidacionDetalle() {
     [numero],
   );
   const [ventana, setVentana] = useState<"pagar" | "eliminar" | null>(null);
+  // Solo para el encabezado impreso: si no carga, el comprobante sale sin el nombre de la empresa
+  const parametros = useCarga(listarParametros, []);
+  const [emitido] = useState(() => Date.now());
   useTitulo(carga.estado === "listo" ? `Liquidación ${carga.datos.productor}` : "Liquidación");
 
   const miga = <p className="miga no-imprimir"><Link to="/pagos/productores">Pagos a productores</Link> › Liquidación</p>;
@@ -38,11 +42,18 @@ export default function LiquidacionDetalle() {
 
   const l = carga.datos;
   const pagada = l.estado === "pagado";
+  const empresa = parametros.carga.estado === "listo"
+    ? parametros.carga.datos.find((p) => p.clave === "empresa_nombre")?.valor
+    : undefined;
   return (
     <>
       {miga}
+      <div className="solo-imprimir encabezado-comprobante">
+        {empresa && <p><strong>{empresa}</strong></p>}
+        <p>Comprobante de liquidación · emitido el {fechaHoraLima(emitido)}</p>
+      </div>
       <div className="encabezado">
-        <h1>Liquidación de {l.productor} <span className="texto-suave">{l.productor_codigo}</span></h1>
+        <h1>Liquidación de {l.productor} <span className="texto-suave codigo">{l.productor_codigo}</span></h1>
         {pagada ? <Insignia tono="ok">Pagada</Insignia> : <Insignia tono="atencion">Pendiente de pago</Insignia>}
       </div>
       <p>
@@ -71,7 +82,7 @@ export default function LiquidacionDetalle() {
             </tr>
           ))}
           <tr>
-            <td><strong>Total ({l.n_recolecciones} entregas)</strong></td>
+            <td><strong>Total ({plural(l.n_recolecciones, "entrega", "entregas")})</strong></td>
             <td className="numero"><strong>{litros(l.litros)}</strong></td>
             <td />
             <td />
@@ -123,7 +134,7 @@ export default function LiquidacionDetalle() {
           }}
         >
           <ul className="lista-avisos">
-            <li>Sus {l.n_recolecciones} entregas vuelven a "por pagar".</li>
+            <li>{l.n_recolecciones === 1 ? "Su entrega vuelve" : `Sus ${l.n_recolecciones} entregas vuelven`} a "por pagar".</li>
             <li>Para liquidarlas otra vez, puede usar el mismo periodo: al eliminarla, ese periodo queda libre para este
               productor.</li>
           </ul>

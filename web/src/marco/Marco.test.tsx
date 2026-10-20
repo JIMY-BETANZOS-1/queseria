@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -27,7 +27,7 @@ describe("protección de rutas", () => {
     servidor.use(http.get(`${API}/rutas`, () =>
       HttpResponse.json({ codigo: "no_autorizado", mensaje: "Sesión inválida o vencida" }, { status: 401 })));
     renderizar("/");
-    expect(await screen.findByText("Bienvenido, Administrador de Prueba")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
 
     await act(async () => {
       await expect(pedir("GET", "/rutas")).rejects.toBeInstanceOf(ErrorSesion);
@@ -68,22 +68,36 @@ describe("marco", () => {
 
     expect(screen.getByText("Administrador de Prueba")).toBeInTheDocument();
     expect(screen.getByText("Sesión hasta las 10:29")).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Menú principal" })).toHaveTextContent("Inicio");
+    // Agrupado: el Dashboard arriba y luego Operación, Campo, Dinero y Administración
+    const menu = screen.getByRole("navigation", { name: "Menú principal" });
+    expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Operación", "Campo", "Dinero", "Administración"]);
+    expect(within(menu).getByRole("list", { name: "Dinero" })).toHaveTextContent("Pagos a productoresPagos a acopiadoresGastos");
+    expect(within(menu).getAllByRole("link")).toHaveLength(13);   // Inicio dejó de existir: / es el Dashboard
   });
 
-  it("Inicio muestra la API conectada y el título de la pestaña", async () => {
+  it("/ es el Dashboard y el estado de la API va al pie; /dashboard lleva a / con su consulta", async () => {
     guardarSesion(respuestaLogin());
     renderizar("/");
 
-    expect(await screen.findByText(/API conectada/)).toHaveTextContent("API conectada · base queseria_prueba");
-    expect(document.title).toBe("Inicio · Quesería Huata");
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(within(screen.getByRole("contentinfo")).getByText(/API conectada/)).toHaveTextContent("API conectada · base queseria_prueba");
+    expect(within(screen.getByRole("navigation", { name: "Menú principal" })).getByRole("link", { name: "Dashboard" }))
+      .toHaveAttribute("aria-current", "page");
+    await waitFor(() => expect(document.title).toBe("Dashboard · Quesería Huata"));
   });
 
-  it("Inicio avisa si la API no responde", async () => {
+  it("la dirección vieja /dashboard lleva a / conservando el mes", async () => {
+    guardarSesion(respuestaLogin());
+    renderizar("/dashboard?mes=2026-09");
+    await screen.findByRole("heading", { name: "Dashboard" });
+    expect(ubicacion()).toBe("/?mes=2026-09");
+  });
+
+  it("el pie avisa si la API no responde", async () => {
     guardarSesion(respuestaLogin());
     renderizar("/", { apiCaida: true });
 
-    expect(await screen.findByText(`No se pudo conectar con la API (${API})`)).toBeInTheDocument();
+    expect(await within(screen.getByRole("contentinfo")).findByText(`No se pudo conectar con la API (${API})`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Salir" })).toBeInTheDocument();   // /salud no cierra la sesión
   });
 
@@ -92,6 +106,6 @@ describe("marco", () => {
     renderizar("/no-existe");
 
     expect(screen.getByRole("heading", { name: "Página no encontrada" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Volver a Inicio" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Volver al Dashboard" })).toHaveAttribute("href", "/");
   });
 });

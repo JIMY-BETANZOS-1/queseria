@@ -68,7 +68,7 @@ export default function PagosProductores() {
               <tbody>
                 {filas.map((p) => (
                   <tr key={p.productor_id}>
-                    <td><Link to={`/productores/${p.productor_id}`}>{p.nombre}</Link> ({p.codigo})</td>
+                    <td><Link to={`/productores/${p.productor_id}`}>{p.nombre}</Link> <span className="codigo">({p.codigo})</span></td>
                     <td>{p.desde ? `${fecha(p.desde)} al ${fecha(p.hasta ?? p.desde)}` : ""}</td>
                     <td className="numero">{litros(p.litros_pagables)}</td>
                     <td className="numero">{soles(p.monto_pagable)}</td>
@@ -117,7 +117,7 @@ export default function PagosProductores() {
             <tbody>
               {liquidaciones.carga.datos.map((l) => (
                 <tr key={l.liquidacion_id}>
-                  <td><Link to={`/pagos/liquidaciones/${l.liquidacion_id}`}>{l.productor}</Link> ({l.productor_codigo})</td>
+                  <td><Link to={`/pagos/liquidaciones/${l.liquidacion_id}`}>{l.productor}</Link> <span className="codigo">({l.productor_codigo})</span></td>
                   <td>{fecha(l.desde)} al {fecha(l.hasta)}</td>
                   <td className="numero">{l.n_recolecciones}</td>
                   <td className="numero">{litros(l.litros)}</td>

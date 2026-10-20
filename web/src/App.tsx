@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { Marco } from "./marco/Marco";
 import Alertas from "./pantallas/alertas/Alertas";
@@ -13,7 +13,6 @@ import Configuracion from "./pantallas/configuracion/Configuracion";
 import Dashboard from "./pantallas/dashboard/Dashboard";
 import Entrar from "./pantallas/Entrar";
 import Gastos from "./pantallas/gastos/Gastos";
-import Inicio from "./pantallas/Inicio";
 import LecheJornada from "./pantallas/jornadas/LecheJornada";
 import RecoleccionesDia from "./pantallas/recolecciones/RecoleccionesDia";
 import NoEncontrada from "./pantallas/NoEncontrada";
@@ -29,13 +28,19 @@ import RutaNueva from "./pantallas/rutas/RutaNueva";
 import Rutas from "./pantallas/rutas/Rutas";
 import { RequiereSesion } from "./sesion/RequiereSesion";
 
+/** /dashboard era la dirección del Dashboard antes de que fuera la pantalla de inicio: se conserva su consulta. */
+function AlDashboard() {
+  const { search } = useLocation();
+  return <Navigate to={{ pathname: "/", search }} replace />;
+}
+
 /** Rutas del panel. El enrutador (BrowserRouter) lo pone main.tsx; las pruebas usan MemoryRouter. */
 export default function App() {
   return (
     <Routes>
       <Route path="/entrar" element={<Entrar />} />
       <Route element={<RequiereSesion><Marco /></RequiereSesion>}>
-        <Route index element={<Inicio />} />
+        <Route index element={<Dashboard />} />
         <Route path="acopiadores" element={<Acopiadores />} />
         <Route path="acopiadores/nuevo" element={<AcopiadorNuevo />} />
         <Route path="acopiadores/:id" element={<AcopiadorDetalle />} />
@@ -51,7 +56,7 @@ export default function App() {
         <Route path="alertas" element={<Alertas />} />
         <Route path="recolecciones" element={<RecoleccionesDia />} />
         <Route path="calidad" element={<Calidad />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="dashboard" element={<AlDashboard />} />
         <Route path="jornadas" element={<LecheJornada />} />
         <Route path="configuracion" element={<Configuracion />} />
         <Route path="gastos" element={<Gastos />} />

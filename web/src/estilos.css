@@ -49,10 +49,11 @@ a {
 .marco {
   display: grid;
   grid-template-columns: var(--ancho-menu) 1fr;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
     "barra barra"
-    "menu  contenido";
+    "menu  contenido"
+    "menu  pie";
   min-height: 100vh;
 }
 
@@ -565,11 +566,20 @@ a.boton {
 }
 
 /* ---------------------------------------------------------------- impresión (comprobante de liquidación) */
+.solo-imprimir {
+  display: none;
+}
+
 @media print {
   .barra,
   .menu,
+  .pie,
   .no-imprimir {
     display: none;
+  }
+
+  .solo-imprimir {
+    display: block;
   }
 
   .marco,
@@ -633,4 +643,51 @@ a.boton {
   flex-wrap: wrap;
   gap: 1rem;
   font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------- pulido para la demo */
+/* Los <p> dentro de una ventana no suman su margen al espacio que ya pone .modal-cuerpo */
+.modal-cuerpo > p {
+  margin: 0;
+}
+
+/* Un código de productor ("(P-0022)") no se parte en dos líneas */
+.codigo {
+  white-space: nowrap;
+}
+
+.negativo {
+  color: var(--error-texto);
+}
+
+.menu-grupo {
+  margin: 1rem 0.75rem 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.menu-grupo:first-child {
+  margin-top: 0;
+}
+
+.pie {
+  grid-area: pie;
+  padding: 0.6rem 1.5rem;
+  border-top: 1px solid var(--borde);
+  font-size: 0.85rem;
+}
+
+.pie .ok {
+  color: var(--ok-texto);
+}
+
+.pie .error {
+  color: var(--error-texto);
+}
+
+.encabezado-comprobante {
+  margin-bottom: 1rem;
 }
