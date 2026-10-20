@@ -71,6 +71,11 @@ export function MapaEntregas({ filas, umbral }: { filas: RecoleccionDetalle[]; u
   const referencias = new Map(enMapa.filter(conRef).map((r) => [r.productor_id, r]));
   const acopiadores = new Map(filas.map((r) => [r.registrado_por, r]));
   const conPunto = enMapa.filter(conGps).length;
+  // Un nombre por productor (junto a su primera entrega en el mapa), con "×N" si tiene varias: no se amontonan
+  const puntosPorProductor = new Map<number, number>();
+  for (const r of enMapa.filter(conGps)) puntosPorProductor.set(r.productor_id, (puntosPorProductor.get(r.productor_id) ?? 0) + 1);
+  const primeraDe = new Map<number, string>();
+  for (const r of enMapa.filter(conGps)) if (!primeraDe.has(r.productor_id)) primeraDe.set(r.productor_id, r.recoleccion_id);
 
   return (
     <figure className="mapa">
@@ -100,6 +105,11 @@ export function MapaEntregas({ filas, umbral }: { filas: RecoleccionDetalle[]; u
                rel="noopener noreferrer" aria-label={`Ver en Google Maps: ${r.productor}, ${horaLima(r.registrada_en)}`}>
               <circle className={clases} cx={p.x} cy={p.y} r="7" fill={r.color_hex ?? undefined} />
               {r.ubicacion_simulada && <text className="mapa-marca" x={p.x + 9} y={p.y - 8}>!</text>}
+              {primeraDe.get(r.productor_id) === r.recoleccion_id && (
+                <text className="mapa-nombre" x={p.x + 12} y={p.y + 5}>
+                  {r.productor}{(puntosPorProductor.get(r.productor_id) ?? 0) > 1 && ` ×${puntosPorProductor.get(r.productor_id)}`}
+                </text>
+              )}
             </a>
           );
         })}

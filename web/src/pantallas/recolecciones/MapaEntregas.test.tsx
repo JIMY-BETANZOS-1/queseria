@@ -58,6 +58,11 @@ describe("MapaEntregas", () => {
     const pedro = within(mapa).getByRole("link", { name: "Ver en Google Maps: Pedro Quispe, 07:30" });
     expect(pedro.querySelector("circle")).toHaveClass("mapa-punto", "aproximada", "simulada");
     expect(pedro.querySelector(".mapa-marca")).toHaveTextContent("!");
+    // El nombre del productor va escrito junto a cada punto (solo los que tienen GPS)
+    expect([...mapa.querySelectorAll(".mapa-nombre")].map((t) => t.textContent)).toEqual(["Rosa Condori", "Pedro Quispe"]);
+    const punto = rosa.querySelector("circle")!;
+    const nombre = rosa.querySelector(".mapa-nombre")!;
+    expect(Number(nombre.getAttribute("x"))).toBeCloseTo(Number(punto.getAttribute("cx")) + 12);
 
     // Una referencia por productor con referencia (Rosa, Pedro y Marta, aunque Marta no tenga GPS)
     expect(mapa.querySelectorAll(".mapa-ref")).toHaveLength(3);
@@ -86,6 +91,17 @@ describe("MapaEntregas", () => {
     expect(ref).toHaveAttribute("href", "https://www.google.com/maps?q=-15.600000,-69.900000");
     expect(within(fila("Marta Huanca")).queryByRole("link", { name: /la entrega/ })).not.toBeInTheDocument();
     expect(screen.getByText(/^Sin ubicación \(2\):/)).toHaveTextContent("Sin ubicación (2): Marta Huanca 08:00, Juan Sin Ref 09:00.");
+  });
+
+  it("varias entregas del mismo productor: un solo nombre, junto a la primera, con ×N", () => {
+    const otraDeRosa = { ...LEJOS, recoleccion_id: "a2", latitud: -15.597, registrada_en: "2026-10-18T09:15:00-05:00" };
+    const terceraDeRosa = { ...LEJOS, recoleccion_id: "a3", latitud: -15.598, registrada_en: "2026-10-18T10:15:00-05:00" };
+    render(<MapaEntregas filas={[LEJOS, otraDeRosa, CERCA, terceraDeRosa]} umbral={300} />);
+    const mapa = screen.getByRole("img", { name: /^Mapa de 4 entregas/ });
+    expect([...mapa.querySelectorAll(".mapa-nombre")].map((t) => t.textContent)).toEqual(["Rosa Condori ×3", "Pedro Quispe"]);
+    expect(within(mapa).getByRole("link", { name: "Ver en Google Maps: Rosa Condori, 06:15" }).querySelector(".mapa-nombre")).not.toBeNull();
+    expect(within(mapa).getByRole("link", { name: "Ver en Google Maps: Rosa Condori, 09:15" }).querySelector(".mapa-nombre")).toBeNull();
+    expect(mapa.querySelectorAll("circle.mapa-punto")).toHaveLength(4);   // los puntos sí van todos
   });
 
   it("sin umbral no marca nada como lejos; sin ninguna ubicación ni referencia, un vacío con frase", () => {

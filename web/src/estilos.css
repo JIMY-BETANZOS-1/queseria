@@ -1240,6 +1240,17 @@ td.acciones .boton + .boton {
   fill: var(--error-texto);
 }
 
+/* Nombre del productor junto a su punto; el halo claro lo hace legible sobre líneas y otros puntos */
+.mapa-nombre {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--texto);
+  paint-order: stroke;
+  stroke: var(--fondo);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
 .mapa-escala line {
   stroke: var(--texto);
   stroke-width: 3;
