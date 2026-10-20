@@ -48,6 +48,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | A10 | Rápida (W2): **Ventas** al contado de una línea desde un lote cerrado con saldo (no vencido), con cliente nuevo en el momento. | Varias líneas por venta, bajas de producto, anular una venta. |
 | A11 | Completa (W2): **Pagos a productores**: por pagar, liquidar periodo (con lo que queda en espera), comprobante imprimible, marcar pagada, eliminar pendientes. | Comprobante en PDF (ReportLab no está instalado). |
 | A12 | Mínima (W2): **Gastos**: listar por rango y registrar (sin editar ni eliminar; sin "Sueldo acopiador"). | Editar o anular un gasto. |
+| A12b | Nueva (W2): **Movimientos** del mes, solo lectura: ventas, pagos a productores (pago real), compras de insumos, gastos (sueldos una vez), costos de lote, y mermas y bajas como pérdida; filtro por mes y tipo; enlace a la liquidación. | Exportar a hoja de cálculo; filtro por rango de fechas. |
 | A13 | Parcial: **Analistas** y acceso móvil (W1); **Configuración** con precio de la leche y parámetros (W2). | — |
 | A13b | — | **Historial de cambios** (auditoría, solo lectura). |
 
@@ -161,6 +162,11 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
      descartada no se merma. Su pérdida (litros × costo por litro útil de la jornada) entra al resultado del mes de la
      jornada y **no queda congelada**: cambia si después se aprueba más leche de ese día. No cambia el flujo. La base
      no exige rol (`registrado_por` es cualquier usuario); el backend la deja solo al admin. Sin borrar desde el panel.
+   - **Movimientos y Dashboard:** las sumas por tipo coinciden con `v_flujo_mensual` (ingresos, insumos, lotes,
+     operativos) y `v_resultado_mensual` (bajas; mermas). No coinciden, a propósito: los **pagos a productores**
+     (Movimientos los muestra cuando se pagó la liquidación; el flujo cuenta la leche en la fecha de entrega) y la
+     **pérdida de leche** del resultado, que además suma lo pagado en jornadas sin leche aprobada (no es un movimiento).
+     La pantalla lo dice. La consulta vive en el backend (`routers/movimientos.py`), sin vista nueva en `db/`.
    - **Código de lote:** `lote_produccion.codigo` (L-AAAA-NNNN) lo genera el backend (`routers/produccion.py`, con un
      candado por año); pendiente: una secuencia o un valor por defecto en la base.
 7. **Siguiente fase (después de la entrega del Bloque W2):**
