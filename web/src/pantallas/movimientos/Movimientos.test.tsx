@@ -65,9 +65,9 @@ describe("movimientos", () => {
     expect(celdas(filas[6]!)).toEqual(["Total (6 movimientos)", "S/ 39.00", "S/ 366.85", "S/ 15.51"]);
 
     expect(screen.getByText(/se muestran en la fecha en que se pagó la liquidación \(pago real\)/)).toHaveTextContent(
-      "El flujo del Dashboard cuenta la leche en la fecha de entrega, así que el total del mes puede no coincidir.");
+      "El flujo del Resumen cuenta la leche en la fecha de entrega, así que el total del mes puede no coincidir.");
     expect(screen.getByText(/Pérdidas \(mermas y bajas\) no mueven dinero/)).toHaveTextContent(
-      "El resultado del Dashboard además cuenta lo pagado en jornadas sin leche aprobada.");
+      "El resultado del Resumen además cuenta lo pagado en jornadas sin leche aprobada.");
     expect(screen.getByText('Los sueldos de acopiadores aparecen una vez, como gasto "Sueldo acopiador".')).toBeInTheDocument();
     await waitFor(() => expect(document.title).toBe("Movimientos · Quesería Huata"));
 

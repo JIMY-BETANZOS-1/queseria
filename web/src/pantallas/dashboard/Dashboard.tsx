@@ -24,7 +24,7 @@ function Dato({ titulo, cifra, children, atencion = false, negativo = false }: {
 
 /** A2 (mínimo) · Lo que requiere atención, la leche del mes, el dinero del mes y la leche de los últimos 14 días. */
 export default function Dashboard() {
-  useTitulo("Dashboard");
+  useTitulo("Resumen");
   const id = useId();
   const [hoy] = useState(() => hoyLima());
   const [parametros, setParametros] = useSearchParams();
@@ -38,7 +38,7 @@ export default function Dashboard() {
   return (
     <>
       <div className="encabezado">
-        <h1>Dashboard</h1>
+        <h1>Resumen</h1>
         <div className="campo campo-en-linea">
           <label htmlFor={`${id}-mes`}>Mes</label>
           <input id={`${id}-mes`} type="month" max={hoy.slice(0, 7)} value={aaaaMm}

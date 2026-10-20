@@ -11,7 +11,7 @@ import { mensajeDeError, useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
 
 const CANTIDAD = /^\d{1,8}(\.\d{1,2})?$/;
-const DIAS_LECHE = 30;   // jornadas recientes con leche aprobada disponible
+export const DIAS_LECHE = 30;   // jornadas recientes con leche aprobada disponible
 
 export const unidadDe = (r: Pick<Receta, "unidad_venta">) => (r.unidad_venta === "kilo" ? "kilos" : "unidades");
 const DESVIO_AVISO = 0.2;   // más del 20 % lejos del teórico: aviso suave, no bloquea

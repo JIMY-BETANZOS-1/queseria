@@ -61,20 +61,21 @@ function tarjeta(titulo: string): HTMLElement {
 }
 
 describe("dashboard", () => {
-  it("es la pantalla de inicio (/): mes actual en Lima y los últimos 14 días", async () => {
+  it("el Resumen (/resumen): mes actual en Lima y los últimos 14 días", async () => {
     const consultas = simular();
-    renderizar("/");
+    renderizar("/resumen");
 
-    expect(ubicacion()).toBe("/");
+    expect(ubicacion()).toBe("/resumen");
     expect(await screen.findByRole("heading", { name: "Leche de octubre de 2026" })).toBeInTheDocument();
     expect(screen.getByLabelText("Mes")).toHaveValue("2026-10");
     expect(consultas.sort()).toEqual(["dashboard?mes=2026-10-01", "jornadas?desde=2026-10-05&hasta=2026-10-18"]);
-    await waitFor(() => expect(document.title).toBe("Dashboard · Quesería Huata"));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Resumen");
+    await waitFor(() => expect(document.title).toBe("Resumen · Quesería Huata"));
   });
 
   it("requiere atención: cifras, enlaces y marca de atención cuando hay algo", async () => {
     simular();
-    renderizar("/");
+    renderizar("/resumen");
     await screen.findByText("Requiere atención");
 
     expect(tarjeta("Alertas sin revisar")).toHaveTextContent("41 retiene el pago · Ver alertas");
@@ -89,14 +90,14 @@ describe("dashboard", () => {
   it("sin nada pendiente no marca atención", async () => {
     simular(dashboard({ atencion: { alertas_pendientes: 0, alertas_que_retienen: 0, altas_por_aprobar: 0, entregas_sin_revisar: 0,
                                     productores_observados: 0 } }));
-    renderizar("/");
+    renderizar("/resumen");
     await screen.findByText("Requiere atención");
     expect(document.querySelectorAll(".tarjeta-dato.atencion")).toHaveLength(0);
   });
 
   it("leche y dinero del mes, con la nota de dónde salen ingresos y costos", async () => {
     simular();
-    renderizar("/");
+    renderizar("/resumen");
     await screen.findByText("Requiere atención");
 
     expect(tarjeta("Recolectada")).toHaveTextContent("5,230.5 L");
@@ -122,7 +123,7 @@ describe("dashboard", () => {
   it("sin leche por revisar en el mes, las pérdidas de leche no llevan la aclaración", async () => {
     simular(dashboard({ leche: { litros_recolectados: 100, litros_aprobados: 100, litros_por_revisar: 0, litros_descartados: 0,
                                  costo_pagado: 170 } }));
-    renderizar("/");
+    renderizar("/resumen");
     await screen.findByText("Requiere atención");
     expect(tarjeta("Resultado (utilidad neta)")).toHaveTextContent("pérdidas de leche S/ 85.00 − gastos");
     expect(tarjeta("Resultado (utilidad neta)")).not.toHaveTextContent("sin revisar");
@@ -130,15 +131,16 @@ describe("dashboard", () => {
 
   it("cambiar de mes pide ese mes (y el gráfico sigue en los últimos 14 días)", async () => {
     const consultas = simular();
-    renderizar("/?mes=2026-09");
+    renderizar("/?mes=2026-09");   // dirección vieja del Dashboard: lleva al Resumen con su mes
     await screen.findByText("Requiere atención");
+    expect(ubicacion()).toBe("/resumen?mes=2026-09");
     expect(consultas).toContain("dashboard?mes=2026-09-01");
     expect(consultas).toContain("jornadas?desde=2026-10-05&hasta=2026-10-18");
   });
 
   it("el gráfico: 14 días con los vacíos en cero, barras apiladas sin style y la tabla con los mismos datos", async () => {
     simular();
-    renderizar("/");
+    renderizar("/resumen");
     const grafico = await screen.findByRole("img", { name: /Litros por día del 05\/10\/2026 al 18\/10\/2026: 600 L en total/ });
     expect(grafico.querySelectorAll("g")).toHaveLength(14);
     expect(grafico.querySelector("[style]")).toBeNull();
@@ -167,7 +169,7 @@ describe("dashboard", () => {
         : HttpResponse.json(dashboard()))),
       http.get(`${API}/jornadas`, () => HttpResponse.json([])),
     );
-    renderizar("/");
+    renderizar("/resumen");
     expect(await screen.findByRole("alert")).toHaveTextContent("Error interno del servidor");
     fallar = false;
     await userEvent.setup().click(screen.getByRole("button", { name: "Reintentar" }));

@@ -63,8 +63,8 @@ export default function Movimientos() {
       </div>
       <ul className="lista-avisos texto-suave">
         <li>Pagos a productores: se muestran en la fecha en que se pagó la liquidación (pago real). El flujo del
-          Dashboard cuenta la leche en la fecha de entrega, así que el total del mes puede no coincidir.</li>
-        <li>Pérdidas (mermas y bajas) no mueven dinero. El resultado del Dashboard además cuenta lo pagado en jornadas
+          Resumen cuenta la leche en la fecha de entrega, así que el total del mes puede no coincidir.</li>
+        <li>Pérdidas (mermas y bajas) no mueven dinero. El resultado del Resumen además cuenta lo pagado en jornadas
           sin leche aprobada.</li>
         <li>Los sueldos de acopiadores aparecen una vez, como gasto "Sueldo acopiador".</li>
       </ul>

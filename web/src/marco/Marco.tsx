@@ -10,15 +10,16 @@ import { EstadoApi } from "./EstadoApi";
 
 type Opcion = { ruta: string; icono: NombreIcono; texto: string; exacta: boolean };
 
-// Solo las pantallas ya construidas, agrupadas como se usan en el día. El Dashboard es la pantalla de inicio (/).
-// Los bloques sin grupo no llevan título: Dashboard y Productores arriba, Configuración sola al pie.
+// Solo las pantallas ya construidas, agrupadas como se usan en el día. Inicio (/) es la pantalla de entrada.
+// Los bloques sin grupo no llevan título: Inicio, Resumen y Productores arriba, Configuración sola al pie.
 // `tambien`: otras direcciones que pertenecen al grupo (pantallas a las que se llega desde sus opciones).
 export const MENU: { clave: string; grupo: string | null; icono?: NombreIcono; opciones: Opcion[]; tambien?: string[] }[] = [
   {
     clave: "inicio",
     grupo: null,
     opciones: [
-      { ruta: "/", icono: "resumen", texto: "Dashboard", exacta: true },
+      { ruta: "/", icono: "inicio", texto: "Inicio", exacta: true },
+      { ruta: "/resumen", icono: "resumen", texto: "Resumen", exacta: false },
       { ruta: "/productores", icono: "productores", texto: "Productores", exacta: false },
     ],
   },

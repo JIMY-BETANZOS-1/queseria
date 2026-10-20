@@ -48,7 +48,7 @@ describe("leche de la jornada", () => {
 
     expect(ubicacion()).toBe("/jornadas");
     expect(await screen.findByText(/2 días con leche/)).toBeInTheDocument();
-    // El Dashboard (/) también pide los últimos 14 días para su gráfico: se mira la de esta pantalla
+    // Inicio (/) también pide jornadas (las de los últimos 30 días): se mira la de esta pantalla
     expect(consultas.at(-1)).toBe("?desde=2026-10-05&hasta=2026-10-18");
     const filas = screen.getAllByRole("row").slice(1).map((f) => within(f).getAllByRole("cell").map((c) => c.textContent));
     expect(filas[0]).toEqual(["18/10/2026", "51 L", "0 L", "51 L", "0 L", "0 L", "0 L", "0 L", "S/ 86.70", "—", "Sin leche aprobada", ""]);

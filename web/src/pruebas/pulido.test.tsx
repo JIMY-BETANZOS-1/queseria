@@ -114,14 +114,14 @@ describe("plurales", () => {
     expect(screen.queryByText(/1 retienen/)).not.toBeInTheDocument();
   });
 
-  it("Dashboard: 1 retiene el pago y 1 pago pendiente", async () => {
+  it("Resumen: 1 retiene el pago y 1 pago pendiente", async () => {
     const { DASHBOARD_VACIO } = await import("./servidor");
     servidor.use(http.get(`${API}/dashboard`, () => HttpResponse.json({
       ...DASHBOARD_VACIO,
       atencion: { ...DASHBOARD_VACIO.atencion, alertas_pendientes: 3, alertas_que_retienen: 1 },
       acopiadores: { ...DASHBOARD_VACIO.acopiadores, pagos_pendientes: 1 },
     })));
-    renderizar("/");
+    renderizar("/resumen");
     const alertas = (await screen.findByText("Alertas sin revisar", { selector: ".tarjeta-dato > span" })).closest(".tarjeta-dato")!;
     expect(alertas).toHaveTextContent("1 retiene el pago");
     expect(within(screen.getByText("Sueldos estimados de acopiadores", { selector: ".tarjeta-dato > span" }).closest(".tarjeta-dato")!)

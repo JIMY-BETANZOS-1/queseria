@@ -27,7 +27,7 @@ describe("protección de rutas", () => {
     servidor.use(http.get(`${API}/rutas`, () =>
       HttpResponse.json({ codigo: "no_autorizado", mensaje: "Sesión inválida o vencida" }, { status: 401 })));
     renderizar("/");
-    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Inicio" })).toBeInTheDocument();
 
     await act(async () => {
       await expect(pedir("GET", "/rutas")).rejects.toBeInstanceOf(ErrorSesion);
@@ -85,16 +85,16 @@ describe("marco", () => {
     for (const enlace of within(menu).getAllByRole("link")) expect(enlace.querySelector("svg.icono")).not.toBeNull();
   });
 
-  it("en / todos los grupos arrancan plegados; desplegados muestran sus enlaces exactos y los 18 en orden", async () => {
+  it("en / todos los grupos arrancan plegados; desplegados muestran sus enlaces exactos y los 19 en orden", async () => {
     guardarSesion(respuestaLogin());
     renderizar("/");
     const usuario = userEvent.setup();
-    // Agrupado: Dashboard y Productores arriba, luego Revisión, Personal, Planta y Dinero; Configuración sola al pie
+    // Agrupado: Inicio, Resumen y Productores arriba, luego Revisión, Personal, Planta y Dinero; Configuración al pie
     const menu = screen.getByRole("navigation", { name: "Menú principal" });
     const grupos = ["Revisión", "Personal", "Planta", "Dinero"];
     expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(grupos);
     for (const g of grupos) expect(within(menu).getByRole("button", { name: g })).toHaveAttribute("aria-expanded", "false");
-    expect(within(menu).getAllByRole("link").map((l) => l.textContent)).toEqual(["Dashboard", "Productores", "Configuración"]);
+    expect(within(menu).getAllByRole("link").map((l) => l.textContent)).toEqual(["Inicio", "Resumen", "Productores", "Configuración"]);
 
     for (const g of grupos) await usuario.click(within(menu).getByRole("button", { name: g }));
     // Enlaces exactos de cada grupo (sin sobrantes): Configuración no pertenece a ninguno
@@ -104,7 +104,7 @@ describe("marco", () => {
     expect(enlaces("Planta")).toEqual(["Producción", "Ventas", "Almacén", "Recetas"]);
     expect(enlaces("Dinero")).toEqual(["Pagos a productores", "Pagos a acopiadores", "Gastos", "Movimientos"]);
     expect(within(menu).getAllByRole("link").map((l) => l.textContent)).toEqual([
-      "Dashboard", "Productores",
+      "Inicio", "Resumen", "Productores",
       "Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada",
       "Acopiadores", "Rutas", "Analistas",
       "Producción", "Ventas", "Almacén", "Recetas",
@@ -144,22 +144,29 @@ describe("marco", () => {
     expect(within(menu).getByRole("button", { name: "Planta" })).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("/ es el Dashboard y el estado de la API va al pie; /dashboard lleva a / con su consulta", async () => {
+  it("/ es Inicio y el estado de la API va al pie", async () => {
     guardarSesion(respuestaLogin());
     renderizar("/");
 
-    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Inicio" })).toBeInTheDocument();
     expect(within(screen.getByRole("contentinfo")).getByText(/API conectada/)).toHaveTextContent("API conectada · base queseria_prueba");
-    expect(within(screen.getByRole("navigation", { name: "Menú principal" })).getByRole("link", { name: "Dashboard" }))
+    expect(within(screen.getByRole("navigation", { name: "Menú principal" })).getByRole("link", { name: "Inicio" }))
       .toHaveAttribute("aria-current", "page");
-    await waitFor(() => expect(document.title).toBe("Dashboard · Quesería Huata"));
+    await waitFor(() => expect(document.title).toBe("Inicio · Quesería Huata"));
   });
 
-  it("la dirección vieja /dashboard lleva a / conservando el mes", async () => {
+  it.each(["/dashboard?mes=2026-09", "/?mes=2026-09"])("la dirección vieja %s lleva a /resumen conservando el mes", async (vieja) => {
     guardarSesion(respuestaLogin());
-    renderizar("/dashboard?mes=2026-09");
-    await screen.findByRole("heading", { name: "Dashboard" });
-    expect(ubicacion()).toBe("/?mes=2026-09");
+    renderizar(vieja);
+    await screen.findByRole("heading", { name: "Resumen" });
+    expect(ubicacion()).toBe("/resumen?mes=2026-09");
+  });
+
+  it("/dashboard sin mes lleva a /resumen", async () => {
+    guardarSesion(respuestaLogin());
+    renderizar("/dashboard");
+    await screen.findByRole("heading", { name: "Resumen" });
+    expect(ubicacion()).toBe("/resumen");
   });
 
   it("el pie avisa si la API no responde", async () => {
@@ -175,6 +182,6 @@ describe("marco", () => {
     renderizar("/no-existe");
 
     expect(screen.getByRole("heading", { name: "Página no encontrada" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Volver al Dashboard" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Volver al Inicio" })).toHaveAttribute("href", "/");
   });
 });

@@ -8,7 +8,7 @@ export default function NoEncontrada() {
     <>
       <h1>Página no encontrada</h1>
       <p>
-        La dirección no existe en el panel. <Link to="/">Volver al Dashboard</Link>
+        La dirección no existe en el panel. <Link to="/">Volver al Inicio</Link>
       </p>
     </>
   );

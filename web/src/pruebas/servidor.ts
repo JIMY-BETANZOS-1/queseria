@@ -3,7 +3,8 @@
 //
 // Excepciones, con respuesta por defecto (handlers iniciales: los de servidor.use de cada prueba les ganan, y
 // resetHandlers vuelve a ellos):
-// - El Dashboard es la pantalla de inicio (/): cualquier prueba que abre "/" lo carga.
+// - Inicio (/) pide el resumen del mes, las jornadas recientes y los lotes con saldo: cualquier prueba que abre "/"
+//   lo carga. El Resumen (/resumen) pide el resumen del mes y las jornadas de su gráfico.
 // - La configuración: el comprobante de liquidación la pide para el nombre de la empresa al imprimir.
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
@@ -29,5 +30,6 @@ export const PARAMETROS_POR_DEFECTO: Parametro[] = [
 export const servidor = setupServer(
   http.get(`${API}/dashboard`, () => HttpResponse.json(DASHBOARD_VACIO)),
   http.get(`${API}/jornadas`, () => HttpResponse.json([])),
+  http.get(`${API}/lotes/disponibles`, () => HttpResponse.json([])),
   http.get(`${API}/configuracion`, () => HttpResponse.json(PARAMETROS_POR_DEFECTO)),
 );

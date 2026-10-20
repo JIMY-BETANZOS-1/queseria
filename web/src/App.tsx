@@ -11,6 +11,7 @@ import Analistas from "./pantallas/analistas/Analistas";
 import Calidad from "./pantallas/calidad/Calidad";
 import Configuracion from "./pantallas/configuracion/Configuracion";
 import Dashboard from "./pantallas/dashboard/Dashboard";
+import Inicio from "./pantallas/inicio/Inicio";
 import Entrar from "./pantallas/Entrar";
 import Almacen from "./pantallas/produccion/Almacen";
 import Produccion from "./pantallas/produccion/Produccion";
@@ -33,10 +34,16 @@ import RutaNueva from "./pantallas/rutas/RutaNueva";
 import Rutas from "./pantallas/rutas/Rutas";
 import { RequiereSesion } from "./sesion/RequiereSesion";
 
-/** /dashboard era la dirección del Dashboard antes de que fuera la pantalla de inicio: se conserva su consulta. */
-function AlDashboard() {
+/** Direcciones viejas del Dashboard (hoy Resumen, en /resumen): /dashboard?mes=… y /?mes=… llevan a /resumen
+ * conservando su consulta. / sin mes es Inicio. */
+function AlResumen() {
   const { search } = useLocation();
-  return <Navigate to={{ pathname: "/", search }} replace />;
+  return <Navigate to={{ pathname: "/resumen", search }} replace />;
+}
+
+function InicioOResumen() {
+  const { search } = useLocation();
+  return new URLSearchParams(search).has("mes") ? <AlResumen /> : <Inicio />;
 }
 
 /** Rutas del panel. El enrutador (BrowserRouter) lo pone main.tsx; las pruebas usan MemoryRouter. */
@@ -45,7 +52,8 @@ export default function App() {
     <Routes>
       <Route path="/entrar" element={<Entrar />} />
       <Route element={<RequiereSesion><Marco /></RequiereSesion>}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<InicioOResumen />} />
+        <Route path="resumen" element={<Dashboard />} />
         <Route path="acopiadores" element={<Acopiadores />} />
         <Route path="acopiadores/nuevo" element={<AcopiadorNuevo />} />
         <Route path="acopiadores/:id" element={<AcopiadorDetalle />} />
@@ -61,7 +69,7 @@ export default function App() {
         <Route path="alertas" element={<Alertas />} />
         <Route path="recolecciones" element={<RecoleccionesDia />} />
         <Route path="calidad" element={<Calidad />} />
-        <Route path="dashboard" element={<AlDashboard />} />
+        <Route path="dashboard" element={<AlResumen />} />
         <Route path="jornadas" element={<LecheJornada />} />
         <Route path="configuracion" element={<Configuracion />} />
         <Route path="gastos" element={<Gastos />} />
