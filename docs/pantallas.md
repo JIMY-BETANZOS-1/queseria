@@ -41,9 +41,9 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | A5 | Parcial: **Acopiadores** (W1) y **Pagos a acopiadores** (W2: estimado del mes, registrar con ajustes, marcar pagado). | — |
 | A5b | Completa (W1): **Rutas**. | — |
 | A6 | Mínima (W2): **Calidad**: el admin marca normales en lote o alterada con análisis, mientras no exista la app del analista. | Productores observados, crear o levantar sanciones, % por analista. |
-| A7 | — | **Insumos**: stock y costo promedio, ingresos y ajustes. |
+| A7 | Solo lectura (W2): **Almacén**: stock, costo promedio ponderado, valor del inventario, "sin stock" y "alcanza para ≈ N L de leche" (en la receta que más usa el insumo). | Registrar ingresos y ajustes; stock mínimo por insumo (necesita `stock_minimo` en `db/`). |
 | A8b | Solo lectura (W2): **Leche de la jornada** (v_leche_jornada), con "sin destino" y "sin leche aprobada". | Registrar merma de leche, ver a qué lotes fue. |
-| A8 | — | **Recetas**: precio, rendimiento, vida útil e insumos por 100 L. |
+| A8 | Solo lectura (W2): **Recetas**: unidad de venta, precio, rendimiento y vida útil, insumos por 100 L con su costo de hoy, y "alcanza para" con el stock actual. | Editar recetas. |
 | A9 | Rápida (W2): **Producción** en un paso: receta, leche de una jornada (la más antigua preseleccionada), insumos sugeridos por la receta con "necesita / hay / falta reponer" (bloquea si falta) y cierre con lo producido (propuesto con el rendimiento teórico). | Lote por etapas, leche de varias jornadas, costos propios (luz, mano de obra), bajas. |
 | A10 | Rápida (W2): **Ventas** al contado de una línea desde un lote cerrado con saldo (no vencido), con cliente nuevo en el momento. | Varias líneas por venta, bajas de producto, anular una venta. |
 | A11 | Completa (W2): **Pagos a productores**: por pagar, liquidar periodo (con lo que queda en espera), comprobante imprimible, marcar pagada, eliminar pendientes. | Comprobante en PDF (ReportLab no está instalado). |
@@ -148,9 +148,16 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Configuración:** un precio de la leche nuevo cambia también el monto de lo aún no liquidado desde su fecha
      (lo liquidado queda congelado) y el historial no se edita ni se borra. `empresa_nombre` encabeza el comprobante impreso de la liquidación.
    - **Comprobante de liquidación:** se imprime con el navegador; un PDF necesita ReportLab (paquete nuevo).
+   - **"Alcanza para" en lugar de "por reponer":** la base no tiene stock mínimo por insumo, así que Almacén y Recetas
+     muestran cuánta leche cubre el stock de hoy (calculado en la web, redondeado hacia abajo).
    - **Código de lote:** `lote_produccion.codigo` (L-AAAA-NNNN) lo genera el backend (`routers/produccion.py`, con un
      candado por año); pendiente: una secuencia o un valor por defecto en la base.
 7. **Siguiente fase (después de la entrega del Bloque W2):**
+   - **Stock mínimo por insumo:** agregar `stock_minimo` a `insumo` en `db/` para marcar "por reponer" (con
+     aprobación y `escenarios.sql`).
+   - **Leche de varias jornadas en un lote:** la base ya lo permite (`lote_leche`, una fila por jornada, cada una con
+     su costo por litro útil); falta que el backend reparta los litros desde la jornada más antigua y que la vista
+     previa muestre de qué jornadas sale la leche (unas 2 a 2.5 h). Hoy Producción toma una sola jornada.
    - **Producción y ventas completas:** Insumos (A7: ingresos y ajustes; "por reponer" necesita un `stock_minimo`
      por insumo, que la base no tiene), Recetas (A8), lotes por etapas con leche de varias jornadas (A9; `lote_leche`
      ya lo permite) y ventas de varias líneas y bajas (A10). La versión rápida de W2 ya usa las reglas de la base.
@@ -159,3 +166,10 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Leche de la jornada:** registrar merma. **Calidad:** sanciones manuales y productores observados.
    - **Parches 002 y 003** (`docs/pendiente-parche-00*.md`) y la app 0.7.1 con (K), (L) y (M) de
      `docs/sincronizacion.md`.
+8. **Preguntas para el cliente** (datos pendientes; hoy son valores de ejemplo):
+   - **Quesos: ¿se venden por unidad o por kilo?** Las recetas de queso tienen `unidad_venta = 'unidad'`, con su
+     rendimiento en unidades por 100 L y su precio por unidad. Si se venden por peso, cambian la unidad, el
+     rendimiento y el precio de cada receta.
+   - **Yogurt: ¿se mide en litros?** La base solo admite `'unidad'` y `'kilo'` (`unidad_venta`), y el yogurt está en
+     kilos. Si se vende o controla en litros, haría falta agregar `'litro'` al tipo en `db/` (con aprobación) o
+     convertir litros a kilos con la densidad.
