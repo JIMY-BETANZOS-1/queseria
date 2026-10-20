@@ -90,6 +90,8 @@ FORANEAS = {
     "analisis_calidad_recoleccion_id_fkey": "La recolección no existe",
     "liquidacion_productor_productor_id_fkey": "El productor no existe",
     "pago_acopiador_acopiador_id_fkey": "El acopiador no existe",
+    "gasto_operativo_categoria_id_fkey": "La categoría de gasto no existe",
+    "gasto_operativo_acopiador_id_fkey": "El acopiador no existe",
 }
 
 
