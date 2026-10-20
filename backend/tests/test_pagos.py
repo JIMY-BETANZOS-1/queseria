@@ -14,17 +14,24 @@ from conftest import (cab, crear_acopiador, crear_productor, crear_ruta_asignada
 HOY = date.today()
 
 
-def dia_de_prueba() -> date:
-    # Con precio de leche vigente (desde 2026-01-01) y lejos de hoy
+def dia_de_prueba(db) -> date:
+    """Un día con precio de leche vigente (desde 2026-01-01), lejos de hoy y sin nada pagable sin liquidar ese día ni
+    el siguiente: así "liquidar el periodo" no tropieza con restos de otras corridas (la base no se recrea)."""
     inicio = date(2026, 1, 5)
-    return inicio + timedelta(days=random.randint(0, max(0, (HOY - timedelta(days=30) - inicio).days)))
+    while True:
+        dia = inicio + timedelta(days=random.randint(0, max(0, (HOY - timedelta(days=30) - inicio).days)))
+        ocupado = db.execute("""
+            SELECT 1 FROM v_recoleccion_pago WHERE pagable AND NOT liquidada AND fecha BETWEEN %s AND %s LIMIT 1
+        """, (dia, dia + timedelta(days=1))).fetchone()
+        if ocupado is None:
+            return dia
 
 
 @pytest.fixture(scope="module")
-def equipo(client, admin):
+def equipo(client, admin, db):
     acop = movil_con_celular(client, admin, "acopiador")
     acop["ruta_id"] = crear_ruta_asignada(client, admin, acop["id"])
-    return {"acop": acop, "dia": dia_de_prueba()}
+    return {"acop": acop, "dia": dia_de_prueba(db)}
 
 
 def entregar(client, admin, equipo, productor_id: int, litros: float, revisar: bool = True) -> str:
@@ -79,6 +86,9 @@ def test_por_pagar_vista_previa_y_liquidar(client, admin, equipo, db):
     r = client.post("/liquidaciones/lote", json=periodo(equipo), headers=h)
     assert r.status_code == 409
     assert r.json()["mensaje"] == "Ese productor ya tiene una liquidación de ese mismo periodo"
+    # Limpieza: esa entrega quedaría pagable y sin liquidar para siempre en queseria_test
+    assert client.post(f"/recolecciones/{sin_revisar}/anular", json={"motivo": "Limpieza de prueba"},
+                       headers=h).status_code == 200
 
 
 def test_pagar_eliminar_y_lo_que_protege_la_base(client, admin, equipo, db):
