@@ -192,14 +192,23 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
    - **Producción y ventas completas:** Insumos (A7: ajustes e historial de movimientos; "por reponer" necesita un `stock_minimo`
      por insumo, que la base no tiene), Recetas (A8), lotes por etapas con leche de varias jornadas (A9; `lote_leche`
      ya lo permite) y ventas de varias líneas y bajas (A10). La versión rápida de W2 ya usa las reglas de la base.
-   - **App del analista** (C1–C3), variante B: **web móvil con rol analista** (≈ 7–9 h). Ya existen en el backend
-     `/sync/calidad` (normal por defecto, alterado con análisis), `POST/GET /analisis/{id}/foto`, `/sync/pull` del
-     analista y `/sync/push` para altas de productores externos. **Faltan:** (a) que el analista entre desde el
-     navegador; (b) las entregas del día para su rol (hoy `GET /recolecciones` es solo del admin); (c) registrar un
-     productor externo y su entrega **sin firma de Keystore** (el celular firma cada registro; el navegador no tiene
-     Keystore). **Decisión de seguridad pendiente (del cliente):** cómo se vincula el navegador del analista. La
-     propuesta es tratarlo como un "dispositivo" que se activa con el código del admin y entra con PIN; como hay un
-     solo dispositivo activo por usuario, reemplaza al celular. Alternativa: correo y contraseña como el admin.
+   - **Analista mínimo en el panel web (decidido el 20/10: Fase 2, opción A).** Acceso propio con **correo y
+     contraseña** (el CHECK `ck_usuario_credenciales` lo permite: no toca `db/`), un `POST /auth/web/login` para admin
+     o analista con el mismo límite de intentos que el login actual, y un token con indicador **"web"**. Hoy
+     `deps.usuario_actual` rechaza todo token que no sea de admin y no traiga dispositivo: el cambio va en una
+     dependencia aparte (`admin_o_analista_web`) y solo en las rutas marcadas. **Permisos del analista web:**
+     `GET /recolecciones` **solo del día de hoy en Lima** (otro rango, 403), `GET /recolecciones/sin-revisar`,
+     `POST /recolecciones/{id}/calidad` y `POST/GET /analisis/{id}/foto`; todo lo demás sigue `solo_admin`. **Menú
+     recortado** a Entregas del día y Calidad; en Entregas del día, sin "Anular" ni enlaces a Productores o Alertas;
+     el admin asigna el acceso desde Analistas. **Estimación:** backend 3.25 h (acceso 1.25, permisos 1, matriz de
+     pruebas 1) + web 3.25 h (sesión y menú por rol 1.25, pantallas 1, pruebas 1) = **≈ 6.5 h**; con el alta de
+     productor externo (solo `tipo=externo`, pendiente de aprobación, sin entregas desde la web) **≈ 8 h**.
+     **Riesgos:** abrir mal el control de tokens (mitigado con el indicador "web", la dependencia aparte y la
+     matriz de pruebas: 403 en el resto de routers); una credencial más en internet (límite de intentos, mínimo de
+     contraseña, bloqueo si está inactivo); una entrega registrada desde la web no tendría firma de dispositivo
+     (por eso queda fuera). Descartadas: DNI + PIN por la web (4 dígitos expuestos) y el navegador como
+     "dispositivo" (reemplazaría al celular). Lo que ya tiene el servidor para la app del analista (C1–C3):
+     `/sync/calidad`, `POST/GET /analisis/{id}/foto`, `/sync/pull` y `/sync/push` de externos.
    - **Calidad, Alertas, Pagos y Movimientos** con el pulido nuevo (etiquetas con ícono, "Retiene el pago" solo
      cuando aplica, alertas agrupadas por tipo, filtros con contador, vacíos con ícono).
    - **Mapa con calles** (Leaflet + OpenStreetMap: CSP para las imágenes, atribución, sin internet solo puntos) y
