@@ -157,7 +157,14 @@ export default function ProductorDetalle() {
                     <td>{r.estado_calidad === "alterado" ? <Insignia tono="error">Alterada</Insignia> : "Normal"}</td>
                     <td>{r.revisada ? "Sí" : "No"}</td>
                     <td>{r.registrado_por_nombre}</td>
-                    <td className="numero">{r.alertas_pendientes > 0 ? r.alertas_pendientes : ""}</td>
+                    <td className="numero">
+                      {r.alertas_pendientes > 0 && (
+                        <Link to={`/alertas?recoleccion=${r.recoleccion_id}`}
+                              aria-label={`${r.alertas_pendientes} sin revisar: ver alertas`}>
+                          {r.alertas_pendientes}
+                        </Link>
+                      )}
+                    </td>
                     <td><EstadoPago recoleccion={r} /></td>
                   </tr>
                 ))}

@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 import { Marco } from "./marco/Marco";
+import Alertas from "./pantallas/alertas/Alertas";
 import AcopiadorDetalle from "./pantallas/acopiadores/AcopiadorDetalle";
 import AcopiadorNuevo from "./pantallas/acopiadores/AcopiadorNuevo";
 import Acopiadores from "./pantallas/acopiadores/Acopiadores";
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="productores" element={<Productores />} />
         <Route path="productores/nuevo" element={<ProductorNuevo />} />
         <Route path="productores/:id" element={<ProductorDetalle />} />
+        <Route path="alertas" element={<Alertas />} />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>

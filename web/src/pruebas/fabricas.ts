@@ -1,6 +1,6 @@
 // Datos ficticios con la forma exacta de la API (tipos de esquema.d.ts): si el backend cambia un campo, tsc avisa.
 import type {
-  Acopiador, Analista, Asignacion, CodigoActivacion, Dispositivo, Productor, ProductorResumen, RecoleccionDetalle, Ruta,
+  Acopiador, Alerta, Analista, Asignacion, CodigoActivacion, Dispositivo, Productor, ProductorResumen, RecoleccionDetalle, Ruta,
 } from "../api/tipos";
 
 export function acopiador(cambios: Partial<Acopiador> = {}): Acopiador {
@@ -136,6 +136,30 @@ export function recoleccion(cambios: Partial<RecoleccionDetalle> = {}): Recolecc
     pagable: true,
     liquidada: false,
     anulada_en: null,
+    ...cambios,
+  };
+}
+
+export function alerta(cambios: Partial<Alerta> = {}): Alerta {
+  return {
+    id: 501,
+    recoleccion_id: "0f6c2a4e-0000-4000-8000-000000000001",
+    tipo: "sin_ubicacion",
+    detalle: "No hubo señal GPS al registrar",
+    creada_en: "2026-10-18T06:16:00-05:00",
+    revisada_por: null,
+    revisada_en: null,
+    resolucion: null,
+    fecha: "2026-10-18",
+    registrada_en: "2026-10-18T06:15:00-05:00",
+    productor_id: 120,
+    productor_codigo: "P-0120",
+    productor: "Rosa Condori Huanca",
+    registrado_por: 7,
+    registrado_por_nombre: "Juan Carlos Mamani Quispe",
+    color_hex: "#2563EB",
+    litros: 32.5,
+    recoleccion_retenida: false,
     ...cambios,
   };
 }

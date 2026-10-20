@@ -217,6 +217,24 @@ a {
   padding: 0.7rem;
 }
 
+.campo textarea {
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  background: var(--superficie);
+  resize: vertical;
+}
+
+.campo textarea:focus {
+  outline: 2px solid var(--primario);
+  outline-offset: 1px;
+}
+
+.campo textarea[aria-invalid="true"] {
+  border-color: var(--error-texto);
+}
+
 .campo select {
   font: inherit;
   padding: 0.5rem 0.6rem;
