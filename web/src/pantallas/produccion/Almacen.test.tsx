@@ -1,14 +1,15 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { InsumoStock, Receta } from "../../api/tipos";
+import type { IngresoInsumo, InsumoNuevo, InsumoStock, Receta } from "../../api/tipos";
 import { respuestaLogin } from "../../pruebas/datos";
 import { renderizar, ubicacion } from "../../pruebas/renderizar";
 import { API, servidor } from "../../pruebas/servidor";
 import { guardarSesion } from "../../sesion/almacen";
 import { alcanceInsumo, alcanceReceta } from "./alcance";
+import { costoPromedioNuevo } from "./VentanasAlmacen";
 
 beforeEach(() => {
   guardarSesion(respuestaLogin());
@@ -129,5 +130,142 @@ describe("recetas", () => {
     const paria = (await screen.findByRole("heading", { name: "Queso paria" })).closest("section")!;
     await waitFor(() => expect(celdas(within(paria).getByRole("table"), "Sal")[2]).toBe("—"));
     expect(paria).not.toHaveTextContent("alcanza para");
+  });
+});
+
+describe("compras de insumos", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 9, 19, 4, 30));   // 23:30 del 18/10 en Lima
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** API de insumos con compras y altas; cuenta cuántas veces se pidió la lista. */
+  function simularCompras() {
+    const enviado = { compras: [] as { id: string; cuerpo: IngresoInsumo }[], nuevos: [] as InsumoNuevo[], listas: 0 };
+    servidor.use(
+      http.get(`${API}/insumos`, () => { enviado.listas += 1; return HttpResponse.json(INSUMOS); }),
+      http.get(`${API}/recetas`, () => HttpResponse.json(RECETAS)),
+      http.post(`${API}/insumos/:id/ingresos`, async ({ params, request }) => {
+        enviado.compras.push({ id: String(params.id), cuerpo: (await request.json()) as IngresoInsumo });
+        return HttpResponse.json({ movimiento_id: 77, insumo: { ...INSUMOS[0]!, stock: 200, costo_unitario: 0.085 } }, { status: 201 });
+      }),
+      http.post(`${API}/insumos`, async ({ request }) => {
+        const datos = (await request.json()) as InsumoNuevo;
+        enviado.nuevos.push(datos);
+        return HttpResponse.json({ insumo_id: 20, nombre: datos.nombre, unidad: datos.unidad, stock: 0, estado: "sin_stock",
+                                   costo_unitario: 0, ultima_actualizacion: null } satisfies InsumoStock, { status: 201 });
+      }),
+    );
+    return enviado;
+  }
+
+  function cambiarFecha(ventana: HTMLElement, valor: string) {
+    fireEvent.change(within(ventana).getByLabelText("Fecha de la compra"), { target: { value: valor } });
+  }
+
+  it("costo promedio que se muestra antes de confirmar: la fórmula de fn_movimiento_insumo", () => {
+    expect(costoPromedioNuevo(100, 0.5, 50, 0.8)).toBe(0.6);
+    expect(costoPromedioNuevo(-5, 0.5, 10, 1)).toBe(1);      // stock negativo cuenta como 0
+    expect(costoPromedioNuevo(0, 0, 10, 2)).toBe(2);
+    expect(costoPromedioNuevo(3, 1, 7, 0.33333)).toBe(0.5333);   // 4 decimales, como round(...,4)
+  });
+
+  it("registrar compra: dice cuánto sube el stock, el costo promedio nuevo, el flujo y que no se borra", async () => {
+    const enviado = simularCompras();
+    renderizar("/almacen");
+    const usuario = userEvent.setup();
+    await usuario.click(await screen.findByRole("button", { name: "Registrar compra de Cuajo líquido" }));
+    const ventana = screen.getByRole("dialog", { name: "Registrar compra: Cuajo líquido" });
+    expect(ventana).toHaveTextContent("Escriba la cantidad y el costo para ver cómo cambian");
+
+    await usuario.type(within(ventana).getByLabelText("Cantidad (ml)"), "50");
+    await usuario.type(within(ventana).getByLabelText("Costo por ml (S/)"), "0.1");
+    expect(within(ventana).getByLabelText("Fecha de la compra")).toHaveValue("2026-10-18");
+    expect(ventana).toHaveTextContent("El stock sube de 150 a 200 ml (compra de S/ 5.00).");
+    expect(ventana).toHaveTextContent("Costo promedio: de S/ 0.0800 a S/ 0.0850 por ml (lo recalcula la base).");
+    expect(ventana).toHaveTextContent("Cuenta en el flujo de caja del mes como compra de insumos; en el resultado entra recién");
+    expect(ventana).toHaveTextContent("El movimiento no se puede borrar desde el panel.");
+    await usuario.type(within(ventana).getByLabelText("Nota (opcional)"), " Factura 0012 ");
+    await usuario.click(within(ventana).getByRole("button", { name: "Registrar compra" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(enviado.compras).toEqual([{ id: "1", cuerpo: { cantidad: 50, costo_unitario: 0.1, fecha: null, nota: "Factura 0012" } }]);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Compra registrada: Cuajo líquido queda con 200 ml a un costo promedio de S/ 0.0850 por ml.");
+    await waitFor(() => expect(enviado.listas).toBe(2));
+  });
+
+  it("valida cantidad, costo y fecha antes de enviar; una fecha pasada viaja y se nombra en el texto", async () => {
+    const enviado = simularCompras();
+    renderizar("/almacen");
+    const usuario = userEvent.setup();
+    await usuario.click(await screen.findByRole("button", { name: "Registrar compra de Sal" }));
+    const ventana = screen.getByRole("dialog");
+
+    await usuario.type(within(ventana).getByLabelText("Cantidad (kg)"), "0");
+    await usuario.type(within(ventana).getByLabelText("Costo por kg (S/)"), "1.23456");
+    cambiarFecha(ventana, "2026-10-19");
+    await usuario.click(within(ventana).getByRole("button", { name: "Registrar compra" }));
+    expect(within(ventana).getByLabelText("Cantidad (kg)")).toHaveAccessibleDescription(/^Cantidad mayor que cero/);
+    expect(within(ventana).getByLabelText("Costo por kg (S/)")).toHaveAccessibleDescription(/^Costo mayor que cero/);
+    expect(within(ventana).getByLabelText("Fecha de la compra")).toHaveAccessibleDescription(/Elija una fecha que no sea futura/);
+    expect(enviado.compras).toEqual([]);
+
+    await usuario.clear(within(ventana).getByLabelText("Cantidad (kg)"));
+    await usuario.type(within(ventana).getByLabelText("Cantidad (kg)"), "10");
+    await usuario.clear(within(ventana).getByLabelText("Costo por kg (S/)"));
+    await usuario.type(within(ventana).getByLabelText("Costo por kg (S/)"), "1.6");
+    cambiarFecha(ventana, "2026-09-30");
+    expect(ventana).toHaveTextContent("Cuenta en el flujo de caja del mes del 30/09/2026");
+    await usuario.click(within(ventana).getByRole("button", { name: "Registrar compra" }));
+    await waitFor(() => expect(enviado.compras).toEqual(
+      [{ id: "3", cuerpo: { cantidad: 10, costo_unitario: 1.6, fecha: "2026-09-30", nota: null } }]));
+  });
+
+  it("el 409 de la base se muestra en la ventana", async () => {
+    simularCompras();
+    servidor.use(http.post(`${API}/insumos/:id/ingresos`, () =>
+      HttpResponse.json({ codigo: "conflicto", mensaje: "Un ingreso necesita un costo unitario mayor que cero" }, { status: 409 })));
+    renderizar("/almacen");
+    const usuario = userEvent.setup();
+    await usuario.click(await screen.findByRole("button", { name: "Registrar compra de Sal" }));
+    const ventana = screen.getByRole("dialog");
+    await usuario.type(within(ventana).getByLabelText("Cantidad (kg)"), "1");
+    await usuario.type(within(ventana).getByLabelText("Costo por kg (S/)"), "1");
+    await usuario.click(within(ventana).getByRole("button", { name: "Registrar compra" }));
+    expect(await within(ventana).findByRole("alert")).toHaveTextContent("Un ingreso necesita un costo unitario mayor que cero");
+  });
+
+  it("nuevo insumo: exige nombre y unidad, nace sin stock; el nombre repetido muestra el 409", async () => {
+    const enviado = simularCompras();
+    renderizar("/almacen");
+    const usuario = userEvent.setup();
+    await usuario.click(await screen.findByRole("button", { name: "Nuevo insumo" }));
+    const ventana = screen.getByRole("dialog", { name: "Nuevo insumo" });
+    await usuario.click(within(ventana).getByRole("button", { name: "Crear insumo" }));
+    expect(within(ventana).getByLabelText("Nombre")).toHaveAccessibleDescription(/Escriba el nombre/);
+    expect(within(ventana).getByLabelText("Unidad")).toHaveAccessibleDescription(/Elija la unidad/);
+    expect(enviado.nuevos).toEqual([]);
+
+    await usuario.type(within(ventana).getByLabelText("Nombre"), " Cultivo termófilo ");
+    await usuario.selectOptions(within(ventana).getByLabelText("Unidad"), "Gramos (g)");
+    await usuario.click(within(ventana).getByRole("button", { name: "Crear insumo" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(enviado.nuevos).toEqual([{ nombre: "Cultivo termófilo", unidad: "g" }]);
+    expect(screen.getByRole("status")).toHaveTextContent("Insumo Cultivo termófilo creado sin stock: registre su primera compra.");
+    await waitFor(() => expect(enviado.listas).toBe(2));
+
+    servidor.use(http.post(`${API}/insumos`, () =>
+      HttpResponse.json({ codigo: "conflicto", mensaje: "Ya existe un insumo con ese nombre" }, { status: 409 })));
+    await usuario.click(screen.getByRole("button", { name: "Nuevo insumo" }));
+    const otra = screen.getByRole("dialog");
+    await usuario.type(within(otra).getByLabelText("Nombre"), "Sal");
+    await usuario.selectOptions(within(otra).getByLabelText("Unidad"), "Kilos (kg)");
+    await usuario.click(within(otra).getByRole("button", { name: "Crear insumo" }));
+    expect(await within(otra).findByRole("alert")).toHaveTextContent("Ya existe un insumo con ese nombre");
   });
 });

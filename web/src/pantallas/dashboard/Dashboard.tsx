@@ -119,7 +119,8 @@ export default function Dashboard() {
               </div>
               <p className="texto-suave">
                 Los ingresos son las ventas registradas en Ventas; el costo de lo vendido sale de los lotes de Producción.
-                Flujo y resultado los calcula la base (v_flujo_mensual, v_resultado_mensual).
+                Las compras de insumos van al flujo de su mes; al resultado entran recién cuando se usan en lo vendido. Flujo
+                y resultado los calcula la base (v_flujo_mensual, v_resultado_mensual).
               </p>
             </section>
           </>

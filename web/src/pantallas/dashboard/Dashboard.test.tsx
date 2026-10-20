@@ -115,6 +115,8 @@ describe("dashboard", () => {
     expect(screen.getByText(/Los ingresos son las ventas registradas en Ventas/)).toHaveTextContent(
       "el costo de lo vendido sale de los lotes de Producción");
     expect(screen.queryByText(/próxima fase/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Los ingresos son las ventas registradas en Ventas/)).toHaveTextContent(
+      "Las compras de insumos van al flujo de su mes; al resultado entran recién cuando se usan en lo vendido.");
   });
 
   it("sin leche por revisar en el mes, las pérdidas de leche no llevan la aclaración", async () => {

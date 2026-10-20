@@ -956,11 +956,36 @@ export interface paths {
         };
         /**
          * Insumos
-         * @description Almacén (solo lectura): v_insumo_stock, solo insumos activos. La base no tiene stock mínimo por insumo.
+         * @description Almacén: v_insumo_stock, solo insumos activos. La base no tiene stock mínimo por insumo.
          */
         get: operations["insumos_insumos_get"];
         put?: never;
-        post?: never;
+        /**
+         * Crear Insumo
+         * @description Nace sin stock: su costo promedio lo fija el primer ingreso. Nombre repetido: 409 (UNIQUE de la base).
+         */
+        post: operations["crear_insumo_insumos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/insumos/{insumo_id}/ingresos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registrar Ingreso
+         * @description Compra de insumo: un movimiento 'ingreso'. fn_movimiento_insumo recalcula el costo promedio ponderado; los CHECK
+         *     de la base (cantidad y costo mayores que cero) vuelven como 409 con su mensaje, como en Pagos. No se borra.
+         */
+        post: operations["registrar_ingreso_insumos__insumo_id__ingresos_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1610,6 +1635,26 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * IngresoInsumo
+         * @description Compra de un insumo. Cantidad y costo los valida la base (ck_mov_signo, ck_mov_costo: ambos mayores que cero).
+         */
+        IngresoInsumo: {
+            /** Cantidad */
+            cantidad: number;
+            /** Costo Unitario */
+            costo_unitario: number;
+            /** Fecha */
+            fecha?: string | null;
+            /** Nota */
+            nota?: string | null;
+        };
+        /** IngresoRegistrado */
+        IngresoRegistrado: {
+            /** Movimiento Id */
+            movimiento_id: number;
+            insumo: components["schemas"]["InsumoStock"];
+        };
         /** InsumoDeReceta */
         InsumoDeReceta: {
             /** Insumo Id */
@@ -1638,6 +1683,16 @@ export interface components {
             hay: number;
             /** Falta */
             falta: number;
+        };
+        /** InsumoNuevo */
+        InsumoNuevo: {
+            /** Nombre */
+            nombre: string;
+            /**
+             * Unidad
+             * @enum {string}
+             */
+            unidad: "kg" | "g" | "l" | "ml" | "unidad";
         };
         /**
          * InsumoStock
@@ -4952,6 +5007,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsumoStock"][];
+                };
+            };
+        };
+    };
+    crear_insumo_insumos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InsumoNuevo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsumoStock"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registrar_ingreso_insumos__insumo_id__ingresos_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                insumo_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngresoInsumo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngresoRegistrado"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
