@@ -2,16 +2,18 @@ import { useId, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { jornadas } from "../../api/dashboard";
+import type { Jornada } from "../../api/tipos";
 import { Campo } from "../../comun/Campo";
 import { fecha, hoyLima, litros, soles, sumarDias } from "../../comun/formato";
 import { Insignia } from "../../comun/Insignia";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
+import { VentanaMerma } from "./VentanaMerma";
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_DIAS = 400;   // el máximo que acepta GET /jornadas
 
-/** A8b (solo lectura) · La leche de cada día y su destino, de v_leche_jornada. Registrar merma: próxima fase. */
+/** A8b · La leche de cada día y su destino, de v_leche_jornada, y registrar la merma de una jornada. */
 export default function LecheJornada() {
   useTitulo("Leche de la jornada");
   const id = useId();
@@ -23,6 +25,8 @@ export default function LecheJornada() {
   const [errores, setErrores] = useState<{ desde?: string; hasta?: string }>({});
   const valido = FECHA.test(desde) && FECHA.test(hasta) && hasta >= desde;
   const { carga, recargar } = useCarga(() => (valido ? jornadas(desde, hasta) : Promise.resolve([])), [desde, hasta]);
+  const [merma, setMerma] = useState<Jornada | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   function aplicar() {
     const e: typeof errores = {};
@@ -48,8 +52,9 @@ export default function LecheJornada() {
       </div>
       <p className="texto-suave">
         Por día (hora de Lima): lo recolectado, lo descartado, lo que falta revisar y lo aprobado, y qué pasó con lo
-        aprobado. Registrar merma y lotes es de la próxima fase.
+        aprobado. "Registrar merma" aparece en las jornadas con leche disponible (aprobada, sin lote ni merma).
       </p>
+      {aviso !== null && <p className="aviso aviso-ok" role="status">{aviso}</p>}
 
       <div className="filtros">
         <Campo id={`${id}-desde`} etiqueta="Desde" error={errores.desde}>
@@ -99,6 +104,7 @@ export default function LecheJornada() {
                 <th className="numero">Pagado</th>
                 <th className="numero">Costo por litro útil</th>
                 <th>Estado</th>
+                <th><span className="solo-lector">Acciones</span></th>
               </tr>
             </thead>
             <tbody>
@@ -118,6 +124,14 @@ export default function LecheJornada() {
                     {j.sin_destino ? <Insignia tono="error">Sin destino</Insignia>
                       : j.litros_aprobados === 0 ? <Insignia tono="atencion">Sin leche aprobada</Insignia> : ""}
                   </td>
+                  <td>
+                    {j.litros_disponibles > 0 && (
+                      <button type="button" className="boton boton-secundario" aria-label={`Registrar merma del ${fecha(j.fecha)}`}
+                              onClick={() => { setAviso(null); setMerma(j); }}>
+                        Registrar merma
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
               <tr>
@@ -132,6 +146,7 @@ export default function LecheJornada() {
                 <td className="numero"><strong>{soles(suma((j) => j.costo_pagado))}</strong></td>
                 <td />
                 <td />
+                <td />
               </tr>
             </tbody>
           </table>
@@ -142,6 +157,15 @@ export default function LecheJornada() {
           </p>
         </>
       ))}
+
+      {merma !== null && (
+        <VentanaMerma jornada={merma} onCerrar={() => setMerma(null)} onHecho={(m) => {
+          setMerma(null);
+          setAviso(`Merma registrada: ${litros(m.litros)} de la jornada del ${fecha(m.fecha)}`
+                   + (m.valor_perdida === null ? "." : `, pérdida de ${soles(m.valor_perdida)} en el resultado.`));
+          recargar();
+        }} />
+      )}
     </>
   );
 }

@@ -1105,6 +1105,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/mermas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar
+         * @description Las mermas de las jornadas del rango, de la más reciente a la más antigua.
+         */
+        get: operations["listar_mermas_get"];
+        put?: never;
+        /**
+         * Registrar
+         * @description Litros de más (o una jornada sin leche aprobada): lo rechaza fn_merma_leche (P0001 → 409).
+         *     Litros cero o negativos: CHECK litros > 0, también como 409.
+         */
+        post: operations["registrar_mermas_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/salud": {
         parameters: {
             query?: never;
@@ -1986,6 +2011,49 @@ export interface components {
             productores?: unknown[];
             /** Recolecciones */
             recolecciones?: unknown[];
+        };
+        /**
+         * Merma
+         * @description Fila de merma_leche con el nombre de quien la registró y su valor de hoy como pérdida.
+         */
+        Merma: {
+            /** Id */
+            id: number;
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Litros */
+            litros: number;
+            /** Motivo */
+            motivo: string;
+            /** Registrado Por */
+            registrado_por: number;
+            /** Registrado Por Nombre */
+            registrado_por_nombre: string;
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /**
+             * Valor Perdida
+             * @description litros × costo por litro útil de la jornada, como en v_resultado_mensual; cambia si cambia ese costo (no queda congelado)
+             */
+            valor_perdida: number | null;
+        };
+        /** MermaNueva */
+        MermaNueva: {
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /** Litros */
+            litros: number;
+            /** Motivo */
+            motivo: string;
         };
         /** MiDia */
         MiDia: {
@@ -5290,6 +5358,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Venta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_mermas_get: {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Merma"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registrar_mermas_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MermaNueva"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Merma"];
                 };
             };
             /** @description Validation Error */
