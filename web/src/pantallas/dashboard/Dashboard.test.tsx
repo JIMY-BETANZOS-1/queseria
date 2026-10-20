@@ -177,6 +177,62 @@ describe("dashboard", () => {
   });
 });
 
+describe("resumen: tarjetas, desglose y flujo", () => {
+  it("tres niveles por tarjeta y grillas sin huérfanas (5 y 4 tarjetas)", async () => {
+    simular();
+    renderizar("/resumen");
+    await screen.findByText("Requiere atención");
+    const alertas = tarjeta("Alertas sin revisar");
+    expect(alertas.querySelector(".dato-etiqueta")).toHaveTextContent("Alertas sin revisar");
+    expect(alertas.querySelector(".dato-cifra")).toHaveTextContent("4");
+    expect(alertas.querySelector(".dato-detalle")).toHaveTextContent("1 retiene el pago · Ver alertas");
+    expect(alertas.closest(".tarjetas")).toHaveClass("rejilla-5");
+    expect(tarjeta("Recolectada").closest(".tarjetas")).toHaveClass("rejilla-4");
+    expect(tarjeta("Flujo de caja del mes").closest(".tarjetas")).toHaveClass("rejilla-4");
+    // El rojo va en la cifra, no en la tarjeta
+    expect(tarjeta("Flujo de caja del mes")).not.toHaveClass("negativo");
+  });
+
+  it("el desglose de flujo y resultado va plegado en 'Ver detalle'", async () => {
+    simular();
+    renderizar("/resumen");
+    await screen.findByText("Requiere atención");
+    for (const titulo of ["Flujo de caja del mes", "Resultado (utilidad neta)"]) {
+      const desglose = tarjeta(titulo).querySelector("details")!;
+      expect(desglose).not.toHaveAttribute("open");
+      expect(within(desglose).getByText("Ver detalle").tagName).toBe("SUMMARY");
+    }
+    expect(tarjeta("Flujo de caja del mes").querySelector("details")).toHaveTextContent(
+      "Ingresos S/ 0.00 − leche S/ 8,100.00 − insumos S/ 350.00 − lotes S/ 0.00 − gastos S/ 957.50");
+    expect(tarjeta("Recolectada").querySelector("details")).toBeNull();
+  });
+
+  it("gráfico del flujo del mes: barras proporcionales sin style, cifras en texto y saldo", async () => {
+    simular(dashboard({ flujo: { ingresos: 4000, egreso_leche: 8000, egreso_insumos: 2000, egreso_lotes: 0, egreso_operativo: 1000,
+                                 total_invertido: 11000, saldo_caja: -7000 } }));
+    renderizar("/resumen");
+    const grafico = await screen.findByRole("img", { name: /^Flujo de caja de octubre de 2026: ingresos S\/ 4,000.00; egresos: leche S\/ 8,000.00, insumos S\/ 2,000.00, lotes S\/ 0.00, gastos S\/ 1,000.00; saldo −S\/ 7,000.00$/ });
+    expect(grafico.querySelector("[style]")).toBeNull();
+    const barras = [...grafico.querySelectorAll("rect")];
+    expect(barras.map((b) => b.getAttribute("class"))).toEqual(["barra-ingreso", "barra-egreso", "barra-egreso", "barra-egreso", "barra-egreso"]);
+    const anchos = barras.map((b) => Number(b.getAttribute("width")));
+    expect(anchos).toEqual([190, 380, 95, 0, 47.5]);   // la mayor (leche) mide 380
+    expect([...grafico.querySelectorAll(".grafico-cifra")].map((t) => t.textContent))
+      .toEqual(["S/ 4,000.00", "S/ 8,000.00", "S/ 2,000.00", "S/ 0.00", "S/ 1,000.00"]);
+    const saldo = grafico.closest("figure")!.querySelector("figcaption")!;
+    expect(saldo).toHaveTextContent("Saldo de caja del mes: −S/ 7,000.00");
+    expect(within(saldo).getByText("−S/ 7,000.00")).toHaveClass("negativo");
+  });
+
+  it("sin movimientos de caja, el gráfico deja una frase", async () => {
+    simular(dashboard({ flujo: { ingresos: 0, egreso_leche: 0, egreso_insumos: 0, egreso_lotes: 0, egreso_operativo: 0,
+                                 total_invertido: 0, saldo_caja: 0 } }));
+    renderizar("/resumen");
+    expect(await screen.findByText("Sin entradas ni salidas de caja en octubre de 2026.")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /^Flujo de caja/ })).not.toBeInTheDocument();
+  });
+});
+
 describe("diasDelGrafico", () => {
   it("rellena con ceros los días sin fila y respeta el orden", () => {
     const dias = diasDelGrafico("2026-10-30", 3, [jornada("2026-11-01", 10)]);

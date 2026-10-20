@@ -5,19 +5,27 @@ import { jornadas, obtenerDashboard } from "../../api/dashboard";
 import { hoyLima, litros, nombreMes, plural, primerDiaDelMes, soles, sumarDias } from "../../comun/formato";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
+import { GraficoFlujo } from "./GraficoFlujo";
 import { diasDelGrafico, GraficoLeche } from "./GraficoLeche";
 
 const MES = /^\d{4}-\d{2}$/;
 const DIAS_GRAFICO = 14;
 
-function Dato({ titulo, cifra, children, atencion = false, negativo = false }: {
-  titulo: string; cifra: ReactNode; children?: ReactNode; atencion?: boolean; negativo?: boolean;
+/** Tarjeta con tres niveles: etiqueta, cifra grande y detalle; el desglose, si lo hay, va plegado en "Ver detalle". */
+function Dato({ titulo, cifra, children, desglose, atencion = false, negativo = false }: {
+  titulo: string; cifra: ReactNode; children?: ReactNode; desglose?: ReactNode; atencion?: boolean; negativo?: boolean;
 }) {
   return (
     <div className={atencion ? "tarjeta-dato atencion" : "tarjeta-dato"}>
-      <span className="texto-suave">{titulo}</span>
-      <span className={negativo ? "cifra negativo" : "cifra"}>{cifra}</span>
-      {children}
+      <span className="dato-etiqueta">{titulo}</span>
+      <span className={negativo ? "dato-cifra negativo" : "dato-cifra"}>{cifra}</span>
+      {children !== undefined && <span className="dato-detalle">{children}</span>}
+      {desglose !== undefined && (
+        <details className="dato-desglose">
+          <summary>Ver detalle</summary>
+          {desglose}
+        </details>
+      )}
     </div>
   );
 }
@@ -60,26 +68,26 @@ export default function Dashboard() {
           <>
             <section className="seccion" aria-labelledby={`${id}-atencion`}>
               <h2 id={`${id}-atencion`}>Requiere atención</h2>
-              <div className="tarjetas">
+              <div className="tarjetas rejilla-5">
                 <Dato titulo="Alertas sin revisar" cifra={a.alertas_pendientes} atencion={a.alertas_que_retienen > 0}>
-                  <span>{a.alertas_que_retienen === 1 ? "1 retiene el pago" : `${a.alertas_que_retienen} retienen el pago`} · <Link to="/alertas">Ver alertas</Link></span>
+                  {a.alertas_que_retienen === 1 ? "1 retiene el pago" : `${a.alertas_que_retienen} retienen el pago`} · <Link to="/alertas">Ver alertas</Link>
                 </Dato>
                 <Dato titulo="Entregas sin revisar (calidad)" cifra={a.entregas_sin_revisar} atencion={a.entregas_sin_revisar > 0}>
-                  <span>Sin revisar no se pagan · <Link to="/calidad">Revisar</Link></span>
+                  Sin revisar no se pagan · <Link to="/calidad">Revisar</Link>
                 </Dato>
                 <Dato titulo="Altas de campo por aprobar" cifra={a.altas_por_aprobar} atencion={a.altas_por_aprobar > 0}>
-                  <span><Link to="/productores">Ver productores</Link></span>
+                  <Link to="/productores">Ver productores</Link>
                 </Dato>
                 <Dato titulo="Productores sancionados o bloqueados" cifra={a.productores_observados} />
                 <Dato titulo="Liquidaciones por pagar" cifra={d.por_pagar.liquidaciones_pendientes}>
-                  <span>{soles(d.por_pagar.monto_liquidaciones_pendientes)} · <Link to="/pagos/productores">Ver pagos</Link></span>
+                  {soles(d.por_pagar.monto_liquidaciones_pendientes)} · <Link to="/pagos/productores">Ver pagos</Link>
                 </Dato>
               </div>
             </section>
 
             <section className="seccion" aria-labelledby={`${id}-leche`}>
               <h2 id={`${id}-leche`}>Leche de {nombreMes(d.mes)}</h2>
-              <div className="tarjetas">
+              <div className="tarjetas rejilla-4">
                 <Dato titulo="Recolectada" cifra={litros(d.leche.litros_recolectados)} />
                 <Dato titulo="Aprobada" cifra={litros(d.leche.litros_aprobados)} />
                 <Dato titulo="Por revisar" cifra={litros(d.leche.litros_por_revisar)} />
@@ -89,34 +97,40 @@ export default function Dashboard() {
 
             <section className="seccion" aria-labelledby={`${id}-dinero`}>
               <h2 id={`${id}-dinero`}>Dinero de {nombreMes(d.mes)}</h2>
-              <div className="tarjetas">
+              <div className="tarjetas rejilla-4">
                 <Dato titulo="Por pagar a productores (acumulado a hoy)" cifra={soles(d.por_pagar.monto_pagable)}>
-                  <span>{soles(d.por_pagar.monto_en_espera)} en espera (sin revisar o retenido)</span>
+                  {soles(d.por_pagar.monto_en_espera)} en espera (sin revisar o retenido)
                 </Dato>
                 <Dato titulo="Sueldos estimados de acopiadores" cifra={soles(d.acopiadores.sueldo_estimado)}>
-                  <span>{soles(d.acopiadores.pagado)} pagado · {plural(d.acopiadores.pagos_pendientes, "pago pendiente", "pagos pendientes")}</span>
+                  {soles(d.acopiadores.pagado)} pagado · {plural(d.acopiadores.pagos_pendientes, "pago pendiente", "pagos pendientes")}
                 </Dato>
-                <Dato titulo="Flujo de caja del mes" cifra={soles(d.flujo.saldo_caja)} negativo={d.flujo.saldo_caja < 0}>
-                  <span>
-                    Ingresos {soles(d.flujo.ingresos)} − leche {soles(d.flujo.egreso_leche)} − insumos{" "}
-                    {soles(d.flujo.egreso_insumos)} − lotes {soles(d.flujo.egreso_lotes)} − gastos {soles(d.flujo.egreso_operativo)}
-                  </span>
+                <Dato titulo="Flujo de caja del mes" cifra={soles(d.flujo.saldo_caja)} negativo={d.flujo.saldo_caja < 0}
+                      desglose={<p>
+                        Ingresos {soles(d.flujo.ingresos)} − leche {soles(d.flujo.egreso_leche)} − insumos{" "}
+                        {soles(d.flujo.egreso_insumos)} − lotes {soles(d.flujo.egreso_lotes)} − gastos {soles(d.flujo.egreso_operativo)}
+                      </p>}>
+                  Entradas menos salidas de caja
                 </Dato>
-                <Dato titulo="Resultado (utilidad neta)" cifra={soles(d.resultado.utilidad_neta)} negativo={d.resultado.utilidad_neta < 0}>
-                  <span>
+                <Dato titulo="Resultado (utilidad neta)" cifra={soles(d.resultado.utilidad_neta)} negativo={d.resultado.utilidad_neta < 0}
+                      desglose={<>
+                  <p>
                     Ventas {soles(d.resultado.ingresos)} − costo de lo vendido {soles(d.resultado.costo_ventas)} − pérdidas de
                     producto {soles(d.resultado.perdida_producto)} − pérdidas de leche {soles(d.resultado.perdida_leche)}
                     {d.leche.litros_por_revisar > 0 && " (incluye leche aún sin revisar)"} − gastos {soles(d.resultado.gasto_operativo)}
-                  </span>
+                  </p>
                   {/* v_resultado_mensual: perdida_leche = merma + lo pagado en días sin ninguna leche aprobada */}
                   {d.leche.litros_por_revisar > 0 && (
-                    <span className="texto-suave">
+                    <p className="texto-suave">
                       La base cuenta como pérdida lo pagado en los días sin ninguna leche aprobada: un día con leche aún sin
                       revisar entra ahí hasta que se revise.
-                    </span>
+                    </p>
                   )}
+                </>}>
+                  Ventas menos costos, pérdidas y gastos
                 </Dato>
               </div>
+              <h3>Flujo de caja de {nombreMes(d.mes)}</h3>
+              <GraficoFlujo flujo={d.flujo} mes={nombreMes(d.mes)} />
               <p className="texto-suave">
                 Los ingresos son las ventas registradas en Ventas; el costo de lo vendido sale de los lotes de Producción.
                 Las compras de insumos van al flujo de su mes; al resultado entran recién cuando se usan en lo vendido. Flujo
