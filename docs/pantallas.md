@@ -42,7 +42,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
 | A5b | Completa (W1): **Rutas**. | — |
 | A6 | Mínima (W2): **Calidad**: el admin marca normales en lote o alterada con análisis, mientras no exista la app del analista. | Productores observados, crear o levantar sanciones, % por analista. |
 | A7 | W2: **Almacén**: stock, costo promedio ponderado, valor del inventario, "sin stock" y "alcanza para ≈ N L de leche" (en la receta que más usa el insumo); **registrar compras** (la base recalcula el costo promedio) y **crear insumos** (nombre y unidad). | Ajustes de inventario, historial de movimientos; stock mínimo por insumo (necesita `stock_minimo` en `db/`). |
-| A8b | Solo lectura (W2): **Leche de la jornada** (v_leche_jornada), con "sin destino" y "sin leche aprobada". | Registrar merma de leche, ver a qué lotes fue. |
+| A8b | W2: **Leche de la jornada** (v_leche_jornada), con "sin destino" y "sin leche aprobada"; **registrar merma** con motivo en las jornadas con leche disponible (la base decide si cabe). | Ver a qué lotes fue la leche; listar las mermas de una jornada (el backend ya tiene `GET /mermas`). |
 | A8 | Solo lectura (W2): **Recetas**: unidad de venta, precio, rendimiento y vida útil, insumos por 100 L con su costo de hoy, y "alcanza para" con el stock actual. | Editar recetas. |
 | A9 | Rápida (W2): **Producción** en un paso: receta, leche de una jornada (la más antigua preseleccionada), insumos sugeridos por la receta con "necesita / hay / falta reponer" (bloquea si falta) y cierre con lo producido (propuesto con el rendimiento teórico). | Lote por etapas, leche de varias jornadas, costos propios (luz, mano de obra), bajas. |
 | A10 | Rápida (W2): **Ventas** al contado de una línea desde un lote cerrado con saldo (no vencido), con cliente nuevo en el momento. | Varias líneas por venta, bajas de producto, anular una venta. |
@@ -157,6 +157,10 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
      movimiento, así que una cantidad 0 da división por cero y un costo negativo choca con el CHECK de `insumo`.
      El backend traduce ambos a 409 con el mensaje de la regla (`ck_mov_signo`, costo no negativo); la web además
      exige cantidad y costo mayores que cero.
+   - **Merma de leche:** solo de leche aprobada sin lote ni merma (`fn_merma_leche`); la leche por revisar o
+     descartada no se merma. Su pérdida (litros × costo por litro útil de la jornada) entra al resultado del mes de la
+     jornada y **no queda congelada**: cambia si después se aprueba más leche de ese día. No cambia el flujo. La base
+     no exige rol (`registrado_por` es cualquier usuario); el backend la deja solo al admin. Sin borrar desde el panel.
    - **Código de lote:** `lote_produccion.codigo` (L-AAAA-NNNN) lo genera el backend (`routers/produccion.py`, con un
      candado por año); pendiente: una secuencia o un valor por defecto en la base.
 7. **Siguiente fase (después de la entrega del Bloque W2):**
@@ -170,7 +174,7 @@ El panel (`web/`) reemplaza el uso diario de `/docs`. Lo que no está aquí se s
      ya lo permite) y ventas de varias líneas y bajas (A10). La versión rápida de W2 ya usa las reglas de la base.
    - **App del analista** (mobile, C1–C3): reemplaza la revisión de calidad del admin.
    - **Mapa** (Leaflet) en Recolecciones y **Historial de cambios** (A13b, tabla `auditoria`).
-   - **Leche de la jornada:** registrar merma. **Calidad:** sanciones manuales y productores observados.
+   - **Calidad:** sanciones manuales y productores observados.
    - **Parches 002 y 003** (`docs/pendiente-parche-00*.md`) y la app 0.7.1 con (K), (L) y (M) de
      `docs/sincronizacion.md`.
 8. **Preguntas para el cliente** (datos pendientes; hoy son valores de ejemplo):
