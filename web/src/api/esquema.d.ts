@@ -1130,6 +1130,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/movimientos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Movimientos
+         * @description Los movimientos del mes de `mes` (cualquier día del mes), opcionalmente de un solo tipo.
+         */
+        get: operations["movimientos_movimientos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/salud": {
         parameters: {
             query?: never;
@@ -2068,6 +2088,48 @@ export interface components {
             n_recolecciones: number;
             /** Recolecciones */
             recolecciones: components["schemas"]["RecoleccionMiDia"][];
+        };
+        /**
+         * Movimiento
+         * @description Una fila del libro del mes. Solo una de ingreso, egreso o pérdida tiene valor.
+         */
+        Movimiento: {
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "venta" | "pago_productor" | "compra_insumo" | "gasto" | "costo_lote" | "merma" | "baja";
+            /**
+             * Fecha
+             * Format: date
+             */
+            fecha: string;
+            /**
+             * Registrado En
+             * @description Para ordenar los del mismo día
+             */
+            registrado_en: string | null;
+            /** Descripcion */
+            descripcion: string;
+            /**
+             * Referencia
+             * @description Código del lote o del productor, si aplica
+             */
+            referencia: string | null;
+            /**
+             * Liquidacion Id
+             * @description Solo en pago_productor: para abrir la liquidación
+             */
+            liquidacion_id: number | null;
+            /** Ingreso */
+            ingreso: number | null;
+            /** Egreso */
+            egreso: number | null;
+            /**
+             * Perdida
+             * @description Mermas y bajas: no mueven dinero
+             */
+            perdida: number | null;
         };
         /** NuevoValor */
         NuevoValor: {
@@ -5423,6 +5485,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Merma"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    movimientos_movimientos_get: {
+        parameters: {
+            query: {
+                mes: string;
+                tipo?: ("venta" | "pago_productor" | "compra_insumo" | "gasto" | "costo_lote" | "merma" | "baja") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Movimiento"][];
                 };
             };
             /** @description Validation Error */

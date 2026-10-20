@@ -17,6 +17,7 @@ import Produccion from "./pantallas/produccion/Produccion";
 import Recetas from "./pantallas/produccion/Recetas";
 import Ventas from "./pantallas/produccion/Ventas";
 import Gastos from "./pantallas/gastos/Gastos";
+import Movimientos from "./pantallas/movimientos/Movimientos";
 import LecheJornada from "./pantallas/jornadas/LecheJornada";
 import RecoleccionesDia from "./pantallas/recolecciones/RecoleccionesDia";
 import NoEncontrada from "./pantallas/NoEncontrada";
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="jornadas" element={<LecheJornada />} />
         <Route path="configuracion" element={<Configuracion />} />
         <Route path="gastos" element={<Gastos />} />
+        <Route path="movimientos" element={<Movimientos />} />
         <Route path="produccion" element={<Produccion />} />
         <Route path="ventas" element={<Ventas />} />
         <Route path="almacen" element={<Almacen />} />

@@ -76,16 +76,16 @@ describe("marco", () => {
     expect(enlaces("Revisión")).toEqual(["Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada"]);
     expect(enlaces("Personal")).toEqual(["Acopiadores", "Rutas", "Analistas"]);
     expect(enlaces("Planta")).toEqual(["Producción", "Ventas", "Almacén", "Recetas"]);
-    expect(enlaces("Dinero")).toEqual(["Pagos a productores", "Pagos a acopiadores", "Gastos"]);
+    expect(enlaces("Dinero")).toEqual(["Pagos a productores", "Pagos a acopiadores", "Gastos", "Movimientos"]);
     expect(within(menu).getAllByRole("link").map((l) => l.textContent)).toEqual([
       "Dashboard", "Productores",
       "Recolecciones del día", "Alertas", "Calidad", "Leche de la jornada",
       "Acopiadores", "Rutas", "Analistas",
       "Producción", "Ventas", "Almacén", "Recetas",
-      "Pagos a productores", "Pagos a acopiadores", "Gastos",
+      "Pagos a productores", "Pagos a acopiadores", "Gastos", "Movimientos",
       "Configuración",
     ]);
-    expect(within(menu).getAllByRole("link")).toHaveLength(17);   // / es el Dashboard; Planta: Producción, Ventas, Almacén, Recetas
+    expect(within(menu).getAllByRole("link")).toHaveLength(18);   // / es el Dashboard; Dinero termina en Movimientos
   });
 
   it("/ es el Dashboard y el estado de la API va al pie; /dashboard lleva a / con su consulta", async () => {

@@ -56,6 +56,7 @@ export const MENU: { clave: string; grupo: string | null; opciones: Opcion[] }[]
       { ruta: "/pagos/productores", texto: "Pagos a productores", exacta: false },
       { ruta: "/pagos/acopiadores", texto: "Pagos a acopiadores", exacta: false },
       { ruta: "/gastos", texto: "Gastos", exacta: false },
+      { ruta: "/movimientos", texto: "Movimientos", exacta: false },
     ],
   },
   { clave: "pie", grupo: null, opciones: [{ ruta: "/configuracion", texto: "Configuración", exacta: false }] },
