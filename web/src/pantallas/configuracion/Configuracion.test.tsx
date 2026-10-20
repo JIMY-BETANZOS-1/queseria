@@ -71,10 +71,10 @@ describe("configuración: precio de la leche", () => {
     const tabla = await screen.findByRole("table", { name: "Historial de precios" });
     const filas = within(tabla).getAllByRole("row").slice(1).map((f) => within(f).getAllByRole("cell").map((c) => c.textContent));
     expect(filas.map((f) => [f[0], f[1], f[2], f[4]])).toEqual([
-      ["Normal", "S/ 1.900", "01/11/2026", "Programado"],
-      ["Normal", "S/ 1.800", "18/10/2026", "Vigente"],
-      ["Normal", "S/ 1.700", "01/01/2026", "Anterior"],
-      ["Sanción", "S/ 0.700", "01/01/2026", "Vigente"],
+      ["Normal", "S/ 1.90", "01/11/2026", "Programado"],
+      ["Normal", "S/ 1.80", "18/10/2026", "Vigente"],
+      ["Normal", "S/ 1.70", "01/01/2026", "Anterior"],
+      ["Sanción", "S/ 0.70", "01/01/2026", "Vigente"],
     ]);
     expect(filas[2]![3]).toContain("Carga inicial");
   });
@@ -107,7 +107,7 @@ describe("configuración: precio de la leche", () => {
     await usuario.click(screen.getByRole("button", { name: "Registrar precio" }));
 
     const ventana = screen.getByRole("dialog", { name: "Registrar precio de la leche" });
-    expect(ventana).toHaveTextContent("Desde el 18/10/2026, la leche con sanción se paga a S/ 0.750 por litro.");
+    expect(ventana).toHaveTextContent("Desde el 18/10/2026, la leche con sanción se paga a S/ 0.75 por litro.");
     expect(ventana).toHaveTextContent("Cambia también el monto de las entregas desde esa fecha que todavía no estén liquidadas");
     expect(ventana).not.toHaveTextContent("anterior a hoy");
     expect(ventana).toHaveTextContent("El historial no se edita ni se borra.");
@@ -115,7 +115,7 @@ describe("configuración: precio de la leche", () => {
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(enviado.precios).toEqual([{ tipo: "sancion", precio_litro: 0.75, vigente_desde: "2026-10-18" }]);
-    expect(screen.getByRole("status")).toHaveTextContent("Precio sanción de S/ 0.750 registrado desde el 18/10/2026.");
+    expect(screen.getByRole("status")).toHaveTextContent("Precio sanción de S/ 0.75 registrado desde el 18/10/2026.");
   });
 
   it("con una fecha pasada avisa que afecta entregas ya registradas; el 409 de la base se muestra", async () => {
@@ -153,7 +153,7 @@ describe("configuración: parámetros", () => {
     expect(fila("pagar_leche_alterada")).toHaveTextContent("Sí");
     expect(fila("pagar_leche_alterada")).toHaveTextContent("Cambia al instante el monto de la leche alterada que aún no está liquidada.");
     expect(fila("dias_sancion")).toHaveTextContent("Se aplica a las sanciones que se creen desde ahora; no cambia las vigentes.");
-    expect(fila("empresa_nombre")).toHaveTextContent("Todavía no se usa");
+    expect(fila("empresa_nombre")).toHaveTextContent("Se usa al instante en el encabezado del comprobante impreso de cada liquidación.");
   });
 
   it("número: envía el valor nuevo y repite cuándo se aplica", async () => {

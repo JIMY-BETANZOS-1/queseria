@@ -5,7 +5,7 @@ import { editarParametro, historialPrecios, listarParametros, nuevoPrecio } from
 import type { Parametro, Precio } from "../../api/tipos";
 import { Campo } from "../../comun/Campo";
 import { Confirmar } from "../../comun/Confirmar";
-import { fecha, fechaHoraLima, hoyLima, soles } from "../../comun/formato";
+import { fecha, fechaHoraLima, hoyLima, precioLitro } from "../../comun/formato";
 import { Insignia } from "../../comun/Insignia";
 import { Modal } from "../../comun/Modal";
 import { mensajeDeError, useCarga } from "../../comun/useCarga";
@@ -171,7 +171,7 @@ export default function Configuracion() {
               {precios.carga.datos.map((p) => (
                 <tr key={p.id}>
                   <td>{TIPOS[p.tipo]}</td>
-                  <td className="numero">{soles(p.precio_litro, 3)}</td>
+                  <td className="numero">{precioLitro(p.precio_litro)}</td>
                   <td>{fecha(p.vigente_desde)}</td>
                   <td>{p.creado_por_nombre ?? "Carga inicial"} <span className="texto-suave">{fechaHoraLima(p.creado_en)}</span></td>
                   <td>
@@ -233,13 +233,13 @@ export default function Configuracion() {
             await nuevoPrecio({ tipo, precio_litro: Number(precio.trim()), vigente_desde: desde });
             setConfirmarPrecio(false);
             setPrecio("");
-            setAviso(`Precio ${TIPOS[tipo].toLowerCase()} de ${soles(Number(precio.trim()), 3)} registrado desde el ${fecha(desde)}.`);
+            setAviso(`Precio ${TIPOS[tipo].toLowerCase()} de ${precioLitro(Number(precio.trim()))} registrado desde el ${fecha(desde)}.`);
             precios.recargar();
           }}
         >
           {/* fn_precio_leche: rige el de vigencia más reciente; v_recoleccion_pago lo usa en vivo salvo lo liquidado */}
           <ul className="lista-avisos">
-            <li>Desde el {fecha(desde)}, la leche {tipo === "normal" ? "normal" : "con sanción"} se paga a {soles(Number(precio.trim()), 3)} por litro.</li>
+            <li>Desde el {fecha(desde)}, la leche {tipo === "normal" ? "normal" : "con sanción"} se paga a {precioLitro(Number(precio.trim()))} por litro.</li>
             <li>
               Cambia también el monto de las entregas desde esa fecha que todavía no estén liquidadas; las liquidadas
               mantienen su monto.

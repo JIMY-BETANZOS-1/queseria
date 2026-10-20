@@ -2,7 +2,7 @@
 // fn_aplicar_sancion (al revisar); pagar_leche_alterada en v_recoleccion_pago, comision_incluye_descartada en
 // v_acopiador_mes, dias_max_leche en v_leche_jornada, dias_alerta_vencimiento en v_lote_disponible y color_externo
 // en las vistas de productores (todas en vivo); los max_* y factor_* en fn_alertas_recoleccion (al registrar).
-// empresa_nombre no lo lee nadie todavía. La pantalla lo muestra junto a la descripción y la confirmación lo repite.
+// empresa_nombre lo lee el comprobante de liquidación (LiquidacionDetalle) al imprimir. La pantalla lo muestra junto a la descripción y la confirmación lo repite.
 const EFECTOS: Record<string, string> = {
   dias_sancion: "Se aplica a las sanciones que se creen desde ahora; no cambia las vigentes.",
   dias_gracia_reincidencia: "Se aplica a las sanciones que se creen desde ahora; no cambia las vigentes.",
@@ -12,7 +12,7 @@ const EFECTOS: Record<string, string> = {
   dias_max_leche: "Cambia al instante qué jornadas aparecen \"sin destino\".",
   dias_alerta_vencimiento: "Cambia al instante qué lotes aparecen \"por vencer\".",
   color_externo: "Cambia al instante el color de los productores externos en las listas.",
-  empresa_nombre: "Todavía no se usa: está reservado para reportes y comprobantes.",
+  empresa_nombre: "Se usa al instante en el encabezado del comprobante impreso de cada liquidación.",
   max_distancia_productor_m: "Se aplica a las recolecciones que lleguen desde ahora; no cambia las alertas ya creadas.",
   max_precision_gps_m: "Se aplica a las recolecciones que lleguen desde ahora; no cambia las alertas ya creadas.",
   max_desfase_hora_min: "Se aplica a las recolecciones que lleguen desde ahora; no cambia las alertas ya creadas.",

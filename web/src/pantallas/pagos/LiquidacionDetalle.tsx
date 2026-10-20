@@ -5,7 +5,7 @@ import { ErrorApi } from "../../api/cliente";
 import { listarParametros } from "../../api/configuracion";
 import { eliminarLiquidacion, obtenerLiquidacion, pagarLiquidacion } from "../../api/pagos";
 import { Confirmar } from "../../comun/Confirmar";
-import { fecha, fechaHoraLima, litros, plural, soles } from "../../comun/formato";
+import { fecha, fechaHoraLima, litros, plural, precioLitro, soles } from "../../comun/formato";
 import { Insignia } from "../../comun/Insignia";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
@@ -58,7 +58,12 @@ export default function LiquidacionDetalle() {
       </div>
       <p>
         Periodo del {fecha(l.desde)} al {fecha(l.hasta)}
-        {l.pagada_en && <> · pagada el {fechaHoraLima(l.pagada_en)}</>}
+      </p>
+      {/* El estado en palabras, también al imprimir (la insignia de colores no basta en papel) */}
+      <p className="estado-pago">
+        Estado: {pagada
+          ? <><strong>PAGADA</strong>{l.pagada_en && <> el {fechaHoraLima(l.pagada_en)}</>}</>
+          : <strong>PENDIENTE DE PAGO</strong>}
       </p>
 
       <table className="tabla">
@@ -76,7 +81,7 @@ export default function LiquidacionDetalle() {
             <tr key={x.recoleccion_id}>
               <td>{fechaHoraLima(x.registrada_en)}</td>
               <td className="numero">{litros(x.litros)}</td>
-              <td className="numero">{soles(x.precio_litro, 3)}</td>
+              <td className="numero">{precioLitro(x.precio_litro)}</td>
               <td>{x.con_sancion ? "Sí" : ""}</td>
               <td className="numero">{soles(x.monto)}</td>
             </tr>

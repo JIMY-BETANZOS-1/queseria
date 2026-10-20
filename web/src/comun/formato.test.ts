@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fecha, fechaHoraLima, horaLima, hoyLima, litros, plural, soles, sumarDias } from "./formato";
+import { fecha, fechaHoraLima, horaLima, hoyLima, litros, plural, precioLitro, soles, sumarDias } from "./formato";
 
 describe("horaLima", () => {
   it("convierte a hora de Lima (UTC−5) sin importar la zona del PC", () => {
@@ -81,6 +81,16 @@ describe("soles", () => {
     expect(soles(-0.75, 3)).toBe("−S/ 0.750");
     expect(soles(-0.004)).toBe("S/ 0.00");
     expect(soles(-0)).toBe("S/ 0.00");
+  });
+});
+
+describe("precioLitro", () => {
+  it("dos decimales, y tres solo cuando el tercero no es cero", () => {
+    expect(precioLitro(1.7)).toBe("S/ 1.70");
+    expect(precioLitro(0.75)).toBe("S/ 0.75");
+    expect(precioLitro(0.705)).toBe("S/ 0.705");
+    expect(precioLitro(1.875)).toBe("S/ 1.875");
+    expect(precioLitro(2)).toBe("S/ 2.00");
   });
 });
 

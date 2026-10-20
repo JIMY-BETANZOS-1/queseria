@@ -195,10 +195,12 @@ describe("liquidación (comprobante)", () => {
 
     expect(await screen.findByRole("heading", { name: /Liquidación de Rosa Condori Huanca/ })).toBeInTheDocument();
     expect(screen.getByText("Periodo del 05/10/2026 al 11/10/2026")).toBeInTheDocument();
+    expect(screen.getByText(/^Estado:/).closest("p")).toHaveTextContent("Estado: PENDIENTE DE PAGO");
+    expect(screen.getByText(/^Estado:/).closest("p")).not.toHaveClass("no-imprimir");   // también sale al imprimir
     const filas = screen.getAllByRole("row").slice(1).map((f) => within(f).getAllByRole("cell").map((c) => c.textContent));
     expect(filas).toEqual([
-      ["06/10/2026 06:15", "42.5 L", "S/ 1.700", "", "S/ 72.25"],
-      ["09/10/2026 06:20", "10 L", "S/ 0.700", "Sí", "S/ 7.00"],
+      ["06/10/2026 06:15", "42.5 L", "S/ 1.70", "", "S/ 72.25"],
+      ["09/10/2026 06:20", "10 L", "S/ 0.70", "Sí", "S/ 7.00"],
       ["Total (2 entregas)", "52.5 L", "", "", "S/ 79.25"],
     ]);
     expect(screen.getByText("10 L con precio de sanción: descuento de S/ 10.00 frente al precio normal.")).toBeInTheDocument();
@@ -221,7 +223,7 @@ describe("liquidación (comprobante)", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(llamadas).toEqual(["pagar"]);
     expect(screen.getByText("Pagada")).toBeInTheDocument();
-    expect(screen.getByText(/pagada el 18\/10\/2026 23:31/)).toBeInTheDocument();
+    expect(screen.getByText(/^Estado:/).closest("p")).toHaveTextContent("Estado: PAGADA el 18/10/2026 23:31");
     expect(screen.queryByRole("button", { name: "Marcar pagada" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Eliminar" })).not.toBeInTheDocument();
   });

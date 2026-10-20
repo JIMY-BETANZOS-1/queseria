@@ -92,6 +92,11 @@ export function soles(monto: number, decimales = 2): string {
   return `${negativo ? "−" : ""}S/ ${f.format(Math.abs(monto))}`;
 }
 
+/** Precio por litro (numeric(7,3)): "S/ 1.70" con dos decimales, y tres solo si el tercero no es cero ("S/ 0.705"). */
+export function precioLitro(precio: number): string {
+  return soles(precio, Math.round(Math.abs(precio) * 1000) % 10 === 0 ? 2 : 3);
+}
+
 /** "1 pago pendiente" / "3 pagos pendientes": el número con su palabra en singular o plural. */
 export function plural(n: number, singular: string, enPlural: string): string {
   return `${n} ${n === 1 ? singular : enPlural}`;
