@@ -69,7 +69,9 @@ describe("leche de la jornada", () => {
     renderizar("/jornadas");
     const usuario = userEvent.setup();
     await screen.findByText(/No hubo leche/);
-    expect(screen.getByText(/No hubo leche/).closest(".vacio-bloque")?.querySelector("svg.vacio-icono")).not.toBeNull();
+    const vacio = screen.getByText(/No hubo leche/).closest(".vacio-bloque");
+    expect(vacio).not.toBeNull();
+    expect(vacio!.querySelector("svg.vacio-icono")).toHaveAttribute("aria-hidden", "true");
 
     await usuario.clear(screen.getByLabelText("Desde"));
     await usuario.type(screen.getByLabelText("Desde"), "2026-10-10");

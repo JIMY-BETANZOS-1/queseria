@@ -67,8 +67,27 @@ describe("calidad: por revisar", () => {
     renderizar("/calidad");
     await screen.findByText("Rosa Condori Huanca");
 
-    await userEvent.setup().selectOptions(screen.getByLabelText("Registró"), "Ana Quispe Flores");
+    // Filtro como botones con contador: Todos 3 · Ana 1 · Juan Carlos 2
+    const grupo = screen.getByRole("group", { name: "Registró" });
+    expect(within(grupo).getAllByRole("button").map((b) => [b.firstChild?.textContent, b.querySelector(".contador")?.textContent]))
+      .toEqual([["Todos", "3"], ["Ana Quispe Flores", "1"], ["Juan Carlos Mamani Quispe", "2"]]);
+    await userEvent.setup().click(within(grupo).getByRole("button", { name: /^Ana Quispe Flores/ }));
+    expect(within(grupo).getByRole("button", { name: /^Ana Quispe Flores/ })).toHaveAttribute("aria-pressed", "true");
     expect(filas()).toEqual(["Lucía Mamani"]);
+    await userEvent.setup().click(within(grupo).getByRole("button", { name: /^Todos/ }));
+    expect(filas()).toEqual(["Rosa Condori Huanca", "Pedro Quispe", "Lucía Mamani"]);
+  });
+
+  it("etiquetas con ícono (pago y pendiente de aprobación) y fecha corta en la celda", async () => {
+    simular([ROSA, { ...PEDRO, productor_pendiente: true }]);
+    renderizar("/calidad");
+    await screen.findByText("Rosa Condori Huanca");
+    const pedro = within(screen.getByRole("link", { name: "Pedro Quispe" }).closest("tr")!);
+    expect(pedro.getByText("Retenida")).toHaveClass("insignia-error");
+    expect(pedro.getByText("Retenida").querySelector("svg.icono-estado")).toHaveAttribute("aria-hidden", "true");
+    expect(pedro.getByText("Pendiente de aprobación").querySelector("svg.icono-estado")).not.toBeNull();
+    expect(pedro.getAllByRole("cell")[1]).toHaveTextContent(/^17\/10 06:30$/);
+    expect(pedro.getByRole("checkbox")).toHaveAccessibleName("Seleccionar Pedro Quispe 17/10/2026 06:30");
   });
 
   it("marcar normales: confirma qué pasa, revisa una por una con estado normal y las quita de la lista", async () => {
@@ -244,5 +263,8 @@ describe("calidad: por revisar", () => {
     simular([]);
     renderizar("/calidad");
     expect(await screen.findByText("No hay entregas por revisar.")).toBeInTheDocument();
+    const vacio = screen.getByText("No hay entregas por revisar.").closest(".vacio-bloque");
+    expect(vacio).not.toBeNull();
+    expect(vacio!.querySelector("svg.vacio-icono")).toHaveAttribute("aria-hidden", "true");
   });
 });

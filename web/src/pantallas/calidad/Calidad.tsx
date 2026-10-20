@@ -1,19 +1,22 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ErrorSesion } from "../../api/cliente";
 import { revisarCalidad, sinRevisar } from "../../api/recolecciones";
 import type { RecoleccionDetalle } from "../../api/tipos";
 import { Confirmar } from "../../comun/Confirmar";
+import { Estado, FiltroBotones, Vacio } from "../../comun/Estado";
 import { fecha, fechaHoraLima, litros } from "../../comun/formato";
-import { Insignia } from "../../comun/Insignia";
 import { MuestraColor } from "../../comun/MuestraColor";
 import { mensajeDeError, useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
-import { EstadoPago } from "../productores/EstadoPago";
+import { estadoPago } from "../productores/EstadoPago";
 import { AlteradaVentana } from "./AlteradaVentana";
 
 type Aviso = { tipo: "ok" | "error"; texto: string };
+
+/** "17/10 06:30": la lista de por revisar es reciente; el año completo va en la etiqueta de la casilla. */
+const fechaCorta = (instante: string) => fechaHoraLima(instante).replace(/\/\d{4}/, "");
 
 /**
  * A6 (mínima) · Por revisar: el admin confirma la calidad mientras no exista la app del analista
@@ -21,7 +24,6 @@ type Aviso = { tipo: "ok" | "error"; texto: string };
  */
 export default function Calidad() {
   useTitulo("Calidad");
-  const id = useId();
   const { carga, recargar, ponerDatos } = useCarga(sinRevisar, []);
   const [persona, setPersona] = useState("");
   const [elegidas, setElegidas] = useState<Set<string>>(new Set());
@@ -97,17 +99,15 @@ export default function Calidad() {
         </p>
       )}
       {carga.estado === "listo" && (todas.length === 0 ? (
-        <p className="texto-suave">No hay entregas por revisar.</p>
+        <Vacio icono="calidad">No hay entregas por revisar.</Vacio>
       ) : (
         <>
           <div className="filtros">
-            <div className="campo campo-en-linea">
-              <label htmlFor={`${id}-persona`}>Registró</label>
-              <select id={`${id}-persona`} value={persona} onChange={(e) => setPersona(e.target.value)}>
-                <option value="">Todos</option>
-                {personas.map(([pid, nombre]) => <option key={pid} value={pid}>{nombre}</option>)}
-              </select>
-            </div>
+            <FiltroBotones etiqueta="Registró" valor={persona} onCambiar={setPersona}
+                           opciones={[{ valor: "", texto: "Todos", cuenta: todas.length },
+                                      ...personas.map(([pid, nombre]) => ({
+                                        valor: String(pid), texto: nombre,
+                                        cuenta: todas.filter((r) => r.registrado_por === pid).length }))]} />
             <button type="button" className="boton boton-primario" disabled={seleccion.length === 0}
                     onClick={() => setAConfirmar(seleccion)}>
               Marcar normales ({seleccion.length})
@@ -122,7 +122,7 @@ export default function Calidad() {
                          checked={filas.length > 0 && seleccion.length === filas.length}
                          onChange={(e) => setElegidas(e.target.checked ? new Set(filas.map((r) => r.recoleccion_id)) : new Set())} />
                 </th>
-                <th>Fecha y hora</th>
+                <th>Fecha</th>
                 <th>Productor</th>
                 <th>Registró</th>
                 <th className="numero">Litros</th>
@@ -138,10 +138,10 @@ export default function Calidad() {
                     <input type="checkbox" checked={elegidas.has(r.recoleccion_id)} onChange={() => alternar(r.recoleccion_id)}
                            aria-label={`Seleccionar ${r.productor} ${fechaHoraLima(r.registrada_en)}`} />
                   </td>
-                  <td>{fechaHoraLima(r.registrada_en)}</td>
+                  <td>{fechaCorta(r.registrada_en)}</td>
                   <td>
                     <Link to={`/productores/${r.productor_id}`}>{r.productor}</Link> <span className="codigo">({r.productor_codigo})</span>
-                    {r.productor_pendiente && <> <Insignia tono="atencion">Pendiente de aprobación</Insignia></>}
+                    {r.productor_pendiente && <> <Estado tono="atencion">Pendiente de aprobación</Estado></>}
                   </td>
                   <td>{r.color_hex && <MuestraColor color={r.color_hex} />} {r.registrado_por_nombre}</td>
                   <td className="numero">{litros(r.litros)}</td>
@@ -151,7 +151,7 @@ export default function Calidad() {
                             aria-label={`${r.alertas_pendientes} sin revisar: ver alertas`}>{r.alertas_pendientes}</Link>
                     )}
                   </td>
-                  <td><EstadoPago recoleccion={r} /></td>
+                  <td><Estado tono={estadoPago(r).tono}>{estadoPago(r).texto}</Estado></td>
                   <td>
                     <div className="fila-acciones">
                       <button type="button" className="boton boton-secundario" onClick={() => setAConfirmar([r])}>Normal</button>
