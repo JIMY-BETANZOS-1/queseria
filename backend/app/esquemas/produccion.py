@@ -23,6 +23,8 @@ class Receta(BaseModel):
     dias_vida_util: int | None
     activa: bool
     insumos: list[InsumoDeReceta]
+    # Lotes hechos con esta receta: con lotes no cambian unidad_venta, litros_base, rendimiento_base ni dias_vida_util
+    n_lotes: int
 
 
 class InsumoStock(BaseModel):

@@ -38,7 +38,7 @@ def con_lote(client, admin, db):
 def test_crear_con_insumos_y_aparece_en_la_lista(client, admin):
     a, b = insumo(client, admin), insumo(client, admin, "kg")
     r = nueva(client, admin, insumos=[{"insumo_id": a, "cantidad": 20}, {"insumo_id": b, "cantidad": 1.5}])
-    assert r["unidad_venta"] == "unidad" and r["litros_base"] == 100 and r["dias_vida_util"] == 7 and r["activa"] is True
+    assert r["unidad_venta"] == "unidad" and r["litros_base"] == 100 and r["dias_vida_util"] == 7 and r["activa"] is True and r["n_lotes"] == 0
     assert sorted((i["insumo_id"], i["cantidad"]) for i in r["insumos"]) == sorted([(a, 20), (b, 1.5)])
     lista = client.get("/recetas", headers=cab(admin)).json()
     assert next(x for x in lista if x["id"] == r["id"]) == r
@@ -91,6 +91,8 @@ def test_con_lotes_no_cambia_lo_que_altera_sus_lotes(client, admin, db, con_lote
     vence = lambda: db.execute("SELECT fecha_vencimiento FROM v_lote_resumen WHERE lote_id = %s",  # noqa: E731
                                (con_lote["lote"],)).fetchone()["fecha_vencimiento"]
     assert vence() == date(2026, 10, 8)
+    # La web lo sabe antes de intentar: n_lotes en la receta
+    assert next(x for x in client.get("/recetas", headers=h).json() if x["id"] == rid)["n_lotes"] == 1
     for campo, valor, texto in [("dias_vida_util", 30, "la vida útil"), ("rendimiento_base", 11, "el rendimiento"),
                                 ("litros_base", 50, "los litros base"), ("unidad_venta", "kilo", "la unidad de venta")]:
         r = client.patch(f"/recetas/{rid}", json={campo: valor}, headers=h)

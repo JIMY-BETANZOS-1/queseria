@@ -52,7 +52,8 @@ SELECT_RECETA = """
              SELECT json_agg(json_build_object('insumo_id', i.id, 'nombre', i.nombre, 'unidad', i.unidad,
                                                'cantidad', ri.cantidad) ORDER BY i.nombre)
                FROM receta_insumo ri JOIN insumo i ON i.id = ri.insumo_id
-              WHERE ri.receta_id = r.id), '[]'::json) AS insumos
+              WHERE ri.receta_id = r.id), '[]'::json) AS insumos,
+           (SELECT COUNT(*) FROM lote_produccion l WHERE l.receta_id = r.id) AS n_lotes
       FROM receta r
 """
 
