@@ -72,7 +72,7 @@ describe("marco", () => {
     const menu = screen.getByRole("navigation", { name: "Menú principal" });
     expect(within(menu).getAllByRole("heading").map((h) => h.textContent)).toEqual(["Operación", "Planta", "Campo", "Dinero", "Administración"]);
     expect(within(menu).getByRole("list", { name: "Dinero" })).toHaveTextContent("Pagos a productoresPagos a acopiadoresGastos");
-    expect(within(menu).getAllByRole("link")).toHaveLength(15);   // / es el Dashboard; Planta suma Producción y Ventas
+    expect(within(menu).getAllByRole("link")).toHaveLength(17);   // / es el Dashboard; Planta: Producción, Ventas, Almacén, Recetas
   });
 
   it("/ es el Dashboard y el estado de la API va al pie; /dashboard lleva a / con su consulta", async () => {

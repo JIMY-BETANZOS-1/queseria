@@ -947,6 +947,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/insumos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Insumos
+         * @description Almacén (solo lectura): v_insumo_stock, solo insumos activos. La base no tiene stock mínimo por insumo.
+         */
+        get: operations["insumos_insumos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/produccion/previa": {
         parameters: {
             query?: never;
@@ -1618,6 +1638,29 @@ export interface components {
             hay: number;
             /** Falta */
             falta: number;
+        };
+        /**
+         * InsumoStock
+         * @description Fila de v_insumo_stock: stock (suma de movimientos), costo promedio ponderado y último ingreso o ajuste.
+         */
+        InsumoStock: {
+            /** Insumo Id */
+            insumo_id: number;
+            /** Nombre */
+            nombre: string;
+            /** Unidad */
+            unidad: string;
+            /** Stock */
+            stock: number;
+            /**
+             * Estado
+             * @enum {string}
+             */
+            estado: "disponible" | "sin_stock";
+            /** Costo Unitario */
+            costo_unitario: number;
+            /** Ultima Actualizacion */
+            ultima_actualizacion: string | null;
         };
         /**
          * Jornada
@@ -4889,6 +4932,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Receta"][];
+                };
+            };
+        };
+    };
+    insumos_insumos_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsumoStock"][];
                 };
             };
         };

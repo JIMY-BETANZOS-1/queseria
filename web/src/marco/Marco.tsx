@@ -26,6 +26,8 @@ export const MENU: { grupo: string | null; opciones: Opcion[] }[] = [
     opciones: [
       { ruta: "/produccion", texto: "Producción", exacta: false },
       { ruta: "/ventas", texto: "Ventas", exacta: false },
+      { ruta: "/almacen", texto: "Almacén", exacta: false },
+      { ruta: "/recetas", texto: "Recetas", exacta: false },
     ],
   },
   {

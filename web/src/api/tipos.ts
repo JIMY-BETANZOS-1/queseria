@@ -50,6 +50,7 @@ export type Gasto = Esquemas["Gasto"];
 export type GastoNuevo = Esquemas["GastoNuevo"];
 export type CategoriaGasto = Esquemas["CategoriaGasto"];
 export type Receta = Esquemas["Receta"];
+export type InsumoStock = Esquemas["InsumoStock"];
 export type PreviaProduccion = Esquemas["PreviaProduccion"];
 export type ProduccionRapida = Esquemas["ProduccionRapida"];
 export type Lote = Esquemas["Lote"];
