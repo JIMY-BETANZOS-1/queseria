@@ -1,0 +1,464 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "9cf2cc64f2ece2c4104a9a41321a94c0",
+    "entities": [
+      {
+        "tableName": "productor",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clave` TEXT NOT NULL, `servidor_id` INTEGER, `uuid_cliente` TEXT, `codigo` TEXT, `nombre` TEXT NOT NULL, `documento` TEXT, `celular` TEXT, `ruta_id` INTEGER, `latitud_ref` REAL, `longitud_ref` REAL, `aprobado` INTEGER NOT NULL, `actualizado_en` TEXT, `estado_sync` TEXT NOT NULL, `motivo` TEXT, `creado_en_ms` INTEGER NOT NULL, PRIMARY KEY(`clave`))",
+        "fields": [
+          {
+            "fieldPath": "clave",
+            "columnName": "clave",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "servidorId",
+            "columnName": "servidor_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "uuidCliente",
+            "columnName": "uuid_cliente",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "codigo",
+            "columnName": "codigo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "documento",
+            "columnName": "documento",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "celular",
+            "columnName": "celular",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rutaId",
+            "columnName": "ruta_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latitudRef",
+            "columnName": "latitud_ref",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "longitudRef",
+            "columnName": "longitud_ref",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "aprobado",
+            "columnName": "aprobado",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actualizadoEn",
+            "columnName": "actualizado_en",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "estadoSync",
+            "columnName": "estado_sync",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "motivo",
+            "columnName": "motivo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creadoEnMs",
+            "columnName": "creado_en_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clave"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_productor_servidor_id",
+            "unique": true,
+            "columnNames": [
+              "servidor_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_productor_servidor_id` ON `${TABLE_NAME}` (`servidor_id`)"
+          },
+          {
+            "name": "index_productor_ruta_id",
+            "unique": false,
+            "columnNames": [
+              "ruta_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_productor_ruta_id` ON `${TABLE_NAME}` (`ruta_id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "ruta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `nombre` TEXT NOT NULL, `descripcion` TEXT, `actualizado_en` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descripcion",
+            "columnName": "descripcion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "actualizadoEn",
+            "columnName": "actualizado_en",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "estado_productor",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`productor_id` INTEGER NOT NULL, `sancionado` INTEGER NOT NULL, `bloqueado` INTEGER NOT NULL, `sancion_hasta` TEXT, PRIMARY KEY(`productor_id`))",
+        "fields": [
+          {
+            "fieldPath": "productorId",
+            "columnName": "productor_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sancionado",
+            "columnName": "sancionado",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bloqueado",
+            "columnName": "bloqueado",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sancionHasta",
+            "columnName": "sancion_hasta",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "productor_id"
+          ]
+        }
+      },
+      {
+        "tableName": "recoleccion",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `productor_id` INTEGER, `productor_uuid_cliente` TEXT, `litros` TEXT NOT NULL, `observacion` TEXT, `registrada_en` TEXT NOT NULL, `latitud` TEXT, `longitud` TEXT, `precision_m` TEXT, `origen_ubicacion` TEXT NOT NULL, `ubicacion_simulada` INTEGER NOT NULL, `hora_gps` TEXT, `hora_automatica` INTEGER NOT NULL, `hash_anterior` TEXT, `firma` TEXT NOT NULL, `productor_nombre` TEXT NOT NULL, `registrada_en_ms` INTEGER NOT NULL, `estado_sync` TEXT NOT NULL, `motivo` TEXT, `alertas` TEXT, `intentos` INTEGER NOT NULL, `ultimo_error` TEXT, `sincronizada_en_ms` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productorId",
+            "columnName": "productor_id",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "productorUuidCliente",
+            "columnName": "productor_uuid_cliente",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "litros",
+            "columnName": "litros",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "observacion",
+            "columnName": "observacion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "registradaEn",
+            "columnName": "registrada_en",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latitud",
+            "columnName": "latitud",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "longitud",
+            "columnName": "longitud",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "precisionM",
+            "columnName": "precision_m",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "origenUbicacion",
+            "columnName": "origen_ubicacion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ubicacionSimulada",
+            "columnName": "ubicacion_simulada",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "horaGps",
+            "columnName": "hora_gps",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "horaAutomatica",
+            "columnName": "hora_automatica",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hashAnterior",
+            "columnName": "hash_anterior",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "firma",
+            "columnName": "firma",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productorNombre",
+            "columnName": "productor_nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "registradaEnMs",
+            "columnName": "registrada_en_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estadoSync",
+            "columnName": "estado_sync",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "motivo",
+            "columnName": "motivo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "alertas",
+            "columnName": "alertas",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "intentos",
+            "columnName": "intentos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ultimoError",
+            "columnName": "ultimo_error",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sincronizadaEnMs",
+            "columnName": "sincronizada_en_ms",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recoleccion_estado_sync",
+            "unique": false,
+            "columnNames": [
+              "estado_sync"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recoleccion_estado_sync` ON `${TABLE_NAME}` (`estado_sync`)"
+          },
+          {
+            "name": "index_recoleccion_registrada_en_ms",
+            "unique": false,
+            "columnNames": [
+              "registrada_en_ms"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recoleccion_registrada_en_ms` ON `${TABLE_NAME}` (`registrada_en_ms`)"
+          }
+        ]
+      },
+      {
+        "tableName": "reporte_analista",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `productor_clave` TEXT NOT NULL, `productor_nombre` TEXT NOT NULL, `comentario` TEXT, `foto_ruta` TEXT, `creado_en_ms` INTEGER NOT NULL, `estado` TEXT NOT NULL, `motivo` TEXT, `intentos` INTEGER NOT NULL, `enviado_en_ms` INTEGER, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productorClave",
+            "columnName": "productor_clave",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productorNombre",
+            "columnName": "productor_nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "comentario",
+            "columnName": "comentario",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fotoRuta",
+            "columnName": "foto_ruta",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "creadoEnMs",
+            "columnName": "creado_en_ms",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "estado",
+            "columnName": "estado",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "motivo",
+            "columnName": "motivo",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "intentos",
+            "columnName": "intentos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enviadoEnMs",
+            "columnName": "enviado_en_ms",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_reporte_analista_productor_clave",
+            "unique": false,
+            "columnNames": [
+              "productor_clave"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reporte_analista_productor_clave` ON `${TABLE_NAME}` (`productor_clave`)"
+          },
+          {
+            "name": "index_reporte_analista_estado",
+            "unique": false,
+            "columnNames": [
+              "estado"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_reporte_analista_estado` ON `${TABLE_NAME}` (`estado`)"
+          }
+        ]
+      },
+      {
+        "tableName": "meta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clave` TEXT NOT NULL, `valor` TEXT, PRIMARY KEY(`clave`))",
+        "fields": [
+          {
+            "fieldPath": "clave",
+            "columnName": "clave",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "valor",
+            "columnName": "valor",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clave"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9cf2cc64f2ece2c4104a9a41321a94c0')"
+    ]
+  }
+}

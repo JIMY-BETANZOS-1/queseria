@@ -32,7 +32,8 @@ function cspProduccion(api: string): Plugin {
   const politica = [
     "default-src 'self'",
     `connect-src 'self' ${api}`,
-    `img-src 'self' data: ${api}`,
+    // blob: solo para las fotos de los reportes del analista (se bajan con el token y se muestran con createObjectURL)
+    `img-src 'self' data: blob: ${api}`,
     "style-src 'self'",
     "script-src 'self'",
     "object-src 'none'",

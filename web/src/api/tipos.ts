@@ -77,3 +77,16 @@ export type Dispositivo = Esquemas["Dispositivo"];
 // para los 422, pero el backend responde siempre {codigo, mensaje} (+ errores en los de validación).
 export type ErrorCampo = { campo: string; mensaje: string };
 export type RespuestaError = { codigo: string; mensaje: string; errores?: ErrorCampo[] };
+
+/** GET /analista/reportes: foto informativa del analista, asociada a una entrega del productor. */
+export type ReporteAnalista = {
+  recoleccion_id: string;
+  creado_en: string;
+  productor_id: number;
+  productor_codigo: string;
+  productor: string;
+  tipo_productor: "de_ruta" | "externo";
+  ruta: string | null;
+  entrega_registrada_en: string;
+  foto_url: string;
+};

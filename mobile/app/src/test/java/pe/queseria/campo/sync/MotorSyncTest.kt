@@ -9,26 +9,34 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import pe.queseria.campo.datos.local.AnalistaDao
 import pe.queseria.campo.datos.local.EntregaRetenidaFila
+import pe.queseria.campo.datos.local.EstadoReporte
 import pe.queseria.campo.datos.local.EstadoProductorEntidad
 import pe.queseria.campo.datos.local.EstadoSync
 import pe.queseria.campo.datos.local.Meta
 import pe.queseria.campo.datos.local.MetaEntidad
 import pe.queseria.campo.datos.local.ProductorEntidad
+import pe.queseria.campo.datos.local.ProductorAnalistaFila
 import pe.queseria.campo.datos.local.ProductorFila
 import pe.queseria.campo.datos.local.RecoleccionEntidad
+import pe.queseria.campo.datos.local.ReporteAnalistaEntidad
 import pe.queseria.campo.datos.local.RutaEntidad
 import pe.queseria.campo.datos.local.SyncDao
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.datos.remoto.LotePushDto
 import pe.queseria.campo.datos.remoto.ProductorPullDto
 import pe.queseria.campo.datos.remoto.PullAcopiadorDto
+import pe.queseria.campo.datos.remoto.PullAnalistaDto
+import pe.queseria.campo.datos.remoto.PullSyncDto
+import pe.queseria.campo.datos.remoto.ReporteGuardadoDto
 import pe.queseria.campo.datos.remoto.RespuestaPushDto
 import pe.queseria.campo.datos.remoto.ResultadoProductorDto
 import pe.queseria.campo.datos.remoto.ResultadoRecoleccionDto
 import pe.queseria.campo.datos.remoto.RutaPullDto
 import pe.queseria.campo.registro.ArmadoRecoleccion
 import pe.queseria.campo.registro.NuevaRecoleccion
+import pe.queseria.campo.ui.analista.Reportes
 import java.math.BigDecimal
 import java.time.Instant
 import java.util.UUID
@@ -130,7 +138,10 @@ class MotorSyncTest {
         var rechazarProductor: (String) -> String? = { null } // uuid_cliente → motivo de rechazo
         var cortarRespuesta = false                           // guarda pero la respuesta no llega
         var fallo: ErrorApp? = null
-        var pull = PullAcopiadorDto(rol = "acopiador", servidorAhora = "t0", siguienteDesde = "c1")
+        var pull: PullSyncDto = PullAcopiadorDto(rol = "acopiador", servidorAhora = "t0", siguienteDesde = "c1")
+        /** (uuid_reporte, productor_id, productor_uuid_cliente) de cada reporte recibido. */
+        val reportes = mutableListOf<Triple<String, Long?, String?>>()
+        var falloReporte: (String) -> ErrorApp? = { null }
 
         override suspend fun push(lote: LotePushDto): RespuestaPushDto {
             fallo?.let { throw it }
@@ -163,7 +174,14 @@ class MotorSyncTest {
             return RespuestaPushDto(rp, rr, "t")
         }
 
-        override suspend fun pull(desde: String?): PullAcopiadorDto {
+        override suspend fun subirReporte(uuidReporte: String, productorId: Long?, productorUuidCliente: String?,
+                                          rutaFoto: String): ReporteGuardadoDto {
+            falloReporte(uuidReporte)?.let { throw it }
+            reportes += Triple(uuidReporte, productorId, productorUuidCliente)
+            return ReporteGuardadoDto(uuidReporte, "creado", "rec-1", "analisis/reporte-$uuidReporte.jpg")
+        }
+
+        override suspend fun pull(desde: String?): PullSyncDto {
             fallo?.let { throw it }
             cursores += desde
             return pull
@@ -245,7 +263,7 @@ class MotorSyncTest {
             null, null, false, null, EstadoSync.PENDIENTE, null, reloj))
         val r = registrar(1, productorId = null, uuid = uuid).single()
         // Su ruta es del acopiador: el pull lo lista como vigente con el id que le dio el servidor
-        servidor.pull = servidor.pull.copy(rutaIdsVigentes = listOf(3), productorIdsVigentes = listOf(100))
+        servidor.pull = (servidor.pull as PullAcopiadorDto).copy(rutaIdsVigentes = listOf(3), productorIdsVigentes = listOf(100))
 
         motor.sincronizar()
         val lote = servidor.lotes.single()
@@ -272,7 +290,7 @@ class MotorSyncTest {
         dao.insertarProductor(ProductorEntidad(uuid, null, uuid, null, "Rosa Quispe", null, null, 3,
             null, null, false, null, EstadoSync.PENDIENTE, null, reloj))
         val rs = registrar(600, productorId = null, uuid = uuid)
-        servidor.pull = servidor.pull.copy(rutaIdsVigentes = listOf(3), productorIdsVigentes = listOf(100))
+        servidor.pull = (servidor.pull as PullAcopiadorDto).copy(rutaIdsVigentes = listOf(3), productorIdsVigentes = listOf(100))
 
         val resumen = motor.sincronizar()
 
@@ -408,5 +426,124 @@ class MotorSyncTest {
 
         motor.sincronizar()
         assertEquals(listOf(null, "2026-10-10T06:58:00-05:00"), servidor.cursores)
+    }
+
+    // ------------------------------------------------------------- analista: reportes y pull de todas las rutas
+    private class AnalistaDaoEnMemoria(private val base: DaoEnMemoria) : AnalistaDao() {
+        val reportes = linkedMapOf<String, ReporteAnalistaEntidad>()
+        override suspend fun insertarReporte(r: ReporteAnalistaEntidad) { check(reportes.put(r.id, r) == null) }
+        override suspend fun reportesPorEnviar() =
+            reportes.values.filter { it.estado == EstadoReporte.PENDIENTE }.sortedBy { it.creadoEnMs }
+        override suspend fun reporteEnviado(id: String, ahora: Long) {
+            reportes.computeIfPresent(id) { _, r -> r.copy(estado = EstadoReporte.ENVIADO, motivo = null, enviadoEnMs = ahora) }
+        }
+        override suspend fun reporteRechazado(id: String, motivo: String?) {
+            reportes.computeIfPresent(id) { _, r -> r.copy(estado = EstadoReporte.RECHAZADO, motivo = motivo) }
+        }
+        override suspend fun reporteReintentar(id: String, motivo: String?) {
+            reportes.computeIfPresent(id) { _, r -> r.copy(intentos = r.intentos + 1, motivo = motivo) }
+        }
+        override fun observarReportes(clave: String): Flow<List<ReporteAnalistaEntidad>> =
+            flowOf(reportes.values.filter { it.productorClave == clave })
+        override fun observarPorEnviar(): Flow<Int> = flowOf(reportes.values.count { it.estado == EstadoReporte.PENDIENTE })
+        override fun observarProductores(): Flow<List<ProductorAnalistaFila>> = flowOf(emptyList())
+        override suspend fun productor(clave: String) = base.productores[clave]
+        override fun observarAltasRechazadas(): Flow<List<ProductorEntidad>> = flowOf(emptyList())
+    }
+
+    private val analistaDao = AnalistaDaoEnMemoria(dao)
+    private val motorAnalista = MotorSync(servidor, dao, reloj = { reloj }, analistaDao = analistaDao)
+
+    private fun pullAnalista(vararg productores: ProductorPullDto) = PullAnalistaDto(
+        rol = "analista", servidorAhora = "t1", siguienteDesde = "c-analista",
+        rutas = listOf(RutaPullDto(1, "Ruta 1", null, "t"), RutaPullDto(2, "Ruta 2", null, "t")),
+        rutaIdsVigentes = listOf(1, 2), productores = productores.toList(),
+        productorIdsVigentes = productores.map { it.id },
+    )
+
+    private val cirilo = ProductorPullDto(id = 7, codigo = "P-0007", nombre = "Cirilo", tipo = "de_ruta", rutaId = 2,
+                                          aprobado = true, actualizadoEn = "t")
+
+    @Test
+    fun `el analista baja productores de todas las rutas y externos, sin precios ni entregas`() = runTest {
+        val externo = ProductorPullDto(id = 16, codigo = "P-0016", nombre = "Agropecuaria", tipo = "externo",
+                                       aprobado = true, actualizadoEn = "t")
+        val mario = cirilo.copy(id = 1, codigo = "P-0001", nombre = "Mario", rutaId = 1)
+        servidor.pull = pullAnalista(mario, cirilo, externo)
+        motorAnalista.sincronizar()
+        assertEquals(setOf("id:1", "id:7", "id:16"), dao.productores.keys)
+        assertEquals(setOf(1L, 2L), dao.rutas.keys)
+        assertNull(dao.productores.getValue("id:16").rutaId)
+        assertEquals("c-analista", dao.metas[Meta.CURSOR_PULL])
+        assertTrue(Meta.PRECIOS !in dao.metas)
+        assertTrue(servidor.lotes.isEmpty())                       // nada que subir: no sincroniza entregas
+    }
+
+    @Test
+    fun `reporte con foto se envia una vez y solo comentario se queda en el celular`() = runTest {
+        servidor.pull = pullAnalista(cirilo)
+        motorAnalista.sincronizar()
+        val conFoto = Reportes.nuevo("id:7", "Cirilo", "Tarro sucio", "/fotos/a.jpg", reloj)
+        val soloTexto = Reportes.nuevo("id:7", "Cirilo", "Volver el lunes", null, reloj + 1)
+        analistaDao.insertarReporte(conFoto)
+        analistaDao.insertarReporte(soloTexto)
+
+        val r = motorAnalista.sincronizar()
+        assertEquals(1, r.reportesEnviados)
+        assertEquals(listOf(Triple(conFoto.id, 7L, null as String?)), servidor.reportes)
+        assertEquals(EstadoReporte.ENVIADO, analistaDao.reportes.getValue(conFoto.id).estado)
+        assertEquals(EstadoReporte.SOLO_CELULAR, analistaDao.reportes.getValue(soloTexto.id).estado)
+        motorAnalista.sincronizar()
+        assertEquals(1, servidor.reportes.size)                    // no se reenvía
+    }
+
+    @Test
+    fun `externo dado de alta sin senal se sube antes que su reporte`() = runTest {
+        servidor.pull = pullAnalista()
+        val uuid = "8f0c0000-aaaa-4bbb-8ccc-000000000009"
+        dao.insertarProductor(ProductorEntidad(uuid, null, uuid, null, "Marcelino", "40111217", "955200003", null,
+            null, null, true, null, EstadoSync.PENDIENTE, null, reloj))
+        val reporte = Reportes.nuevo(uuid, "Marcelino", "", "/fotos/b.jpg", reloj)
+        analistaDao.insertarReporte(reporte)
+
+        motorAnalista.sincronizar()
+        assertEquals(uuid, servidor.lotes.single().productores.single().uuidCliente)
+        // Ya confirmado por el servidor, el reporte va con su id (no con el uuid del celular)
+        assertEquals(Triple(reporte.id, 100L, null as String?), servidor.reportes.single())
+    }
+
+    @Test
+    fun `409 sin entrega deja el reporte en cola, 422 lo rechaza y sin red reintenta`() = runTest {
+        servidor.pull = pullAnalista(cirilo)
+        motorAnalista.sincronizar()
+        val espera = Reportes.nuevo("id:7", "Cirilo", "", "/fotos/c.jpg", reloj)
+        val mala = Reportes.nuevo("id:7", "Cirilo", "", "/fotos/d.jpg", reloj + 1)
+        analistaDao.insertarReporte(espera)
+        analistaDao.insertarReporte(mala)
+        servidor.falloReporte = {
+            when (it) {
+                espera.id -> ErrorApp.Conflicto("El productor no tiene una entrega libre")
+                else -> ErrorApp.Validacion("El archivo debe ser una imagen JPEG, PNG o WebP")
+            }
+        }
+        motorAnalista.sincronizar()                                // 409 y 422 no cortan la sincronización
+        analistaDao.reportes.getValue(espera.id).let {
+            assertEquals(EstadoReporte.PENDIENTE, it.estado)
+            assertEquals(1, it.intentos)
+            assertEquals("El productor no tiene una entrega libre", it.motivo)
+        }
+        assertEquals(EstadoReporte.RECHAZADO, analistaDao.reportes.getValue(mala.id).estado)
+
+        servidor.falloReporte = { ErrorApp.SinRed() }
+        try {
+            motorAnalista.sincronizar(); fail("debió lanzar SinRed")
+        } catch (e: ErrorApp.SinRed) {
+            assertTrue(e.esTransitorio)                            // WorkManager reintenta
+        }
+        assertEquals(EstadoReporte.PENDIENTE, analistaDao.reportes.getValue(espera.id).estado)
+
+        servidor.falloReporte = { null }
+        motorAnalista.sincronizar()
+        assertEquals(EstadoReporte.ENVIADO, analistaDao.reportes.getValue(espera.id).estado)
     }
 }

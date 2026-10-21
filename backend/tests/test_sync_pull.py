@@ -52,64 +52,35 @@ def test_pull_acopiador_incremental(client, admin, db):
     assert {p["id"] for p in nuevo["productores"]} == {p1["id"], p2["id"], p3["id"]}
 
 
-def test_pull_analista(client, admin):
+def test_pull_analista(client, admin, db):
+    """El analista no baja entregas: rutas activas, productores de todas las rutas y externos."""
     acop = movil_con_celular(client, admin, "acopiador")
     ruta_id = crear_ruta_asignada(client, admin, acop["id"])
     prod = crear_productor(client, admin, ruta_id)
-    item = item_recoleccion(acop, prod["id"])
-    push(client, acop, recolecciones=[item])
+    push(client, acop, recolecciones=[item_recoleccion(acop, prod["id"])])
     analista = movil_con_celular(client, admin, "analista")
     externo = crear_productor(client, admin)
 
     datos = pull(client, analista)
     assert datos["rol"] == "analista"
-    assert item["id"] in {r["recoleccion_id"] for r in datos["sin_revisar"]}
-    assert item["id"] in {r["id"] for r in datos["recolecciones_hoy"]}
-    entrega = next(r for r in datos["recolecciones_hoy"] if r["id"] == item["id"])
-    assert entrega["tipo_productor"] == "de_ruta"
-    assert entrega["acopiador"] == acop["nombre_completo"]
-    assert entrega["observacion"] is None
-    assert entrega["analisis"] is None
-    assert externo["id"] in {p["id"] for p in datos["productores"]}
-    assert externo["id"] in datos["productor_ids_vigentes"]
-    assert all(p["tipo"] == "externo" for p in datos["productores"])
+    assert "recolecciones_hoy" not in datos and "sin_revisar" not in datos and "precios" not in datos
+    ids = {p["id"] for p in datos["productores"]}
+    assert {prod["id"], externo["id"]} <= ids <= set(datos["productor_ids_vigentes"])
+    assert {p["tipo"] for p in datos["productores"]} == {"de_ruta", "externo"}
+    assert ruta_id in {r["id"] for r in datos["rutas"]} and ruta_id in datos["ruta_ids_vigentes"]
 
-    # Revisada: sale de la lista de trabajo y vuelve a llegar (cambiada) en recolecciones_hoy
+    # Incremental: sin cambios no llega nada; ids vigentes completos
     desde = datos["servidor_ahora"]
-    r = client.post("/sync/calidad", json={"revisiones": [{"recoleccion_id": item["id"]}]},
-                    headers=cab(analista["token"]))
-    assert r.json()["revisiones"][0]["estado"] == "creado"
+    vacio = pull(client, analista, desde)
+    assert vacio["productores"] == [] and vacio["rutas"] == []
+    assert {prod["id"], externo["id"]} <= set(vacio["productor_ids_vigentes"])
+
+    # Un productor inactivo o de una ruta desactivada deja de estar vigente
+    assert client.patch(f"/productores/{externo['id']}", json={"activo": False}, headers=cab(admin)).status_code == 200
+    assert client.patch(f"/rutas/{ruta_id}", json={"activa": False}, headers=cab(admin)).status_code == 200
     despues = pull(client, analista, desde)
-    assert item["id"] not in {r["recoleccion_id"] for r in despues["sin_revisar"]}
-    hoy = {r["id"]: r for r in despues["recolecciones_hoy"]}
-    assert hoy[item["id"]]["revisada"] is True
-    assert externo["id"] not in {p["id"] for p in despues["productores"]}
-
-
-def test_pull_analista_incluye_analisis_y_foto(client, admin):
-    acop = movil_con_celular(client, admin, "acopiador")
-    ruta_id = crear_ruta_asignada(client, admin, acop["id"])
-    prod = crear_productor(client, admin, ruta_id)
-    item = item_recoleccion(acop, prod["id"], observacion="Entrega de prueba")
-    push(client, acop, recolecciones=[item])
-    analista = movil_con_celular(client, admin, "analista")
-
-    foto = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
-    subida = client.post(f"/analisis/{item['id']}/foto",
-                         files={"archivo": ("analisis.png", foto, "image/png")},
-                         headers=cab(analista["token"]))
-    assert subida.status_code == 200, subida.text
-    calidad = client.post("/sync/calidad", json={"revisiones": [{
-        "recoleccion_id": item["id"], "estado": "alterado", "ph": 6.2,
-    }]}, headers=cab(analista["token"]))
-    assert calidad.status_code == 200 and calidad.json()["revisiones"][0]["estado"] == "creado"
-
-    datos = pull(client, analista)
-    entrega = next(r for r in datos["recolecciones_hoy"] if r["id"] == item["id"])
-    assert entrega["observacion"] == "Entrega de prueba"
-    assert entrega["estado_calidad"] == "alterado"
-    assert entrega["analisis"]["ph"] == 6.2
-    assert entrega["analisis"]["foto_url"].startswith("analisis/")
+    assert externo["id"] not in despues["productor_ids_vigentes"] and prod["id"] not in despues["productor_ids_vigentes"]
+    assert ruta_id not in despues["ruta_ids_vigentes"]
 
 
 def test_mi_dia_y_anulacion(client, admin):

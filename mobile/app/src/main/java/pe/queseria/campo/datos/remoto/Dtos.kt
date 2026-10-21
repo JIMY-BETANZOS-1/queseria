@@ -200,69 +200,27 @@ data class PullAcopiadorDto(
     val precios: PreciosDto? = null,
 ) : PullSyncDto
 
-@Serializable
-data class AnalisisCalidadPullDto(
-    val ph: Double? = null,
-    @SerialName("temperatura_c") val temperaturaC: Double? = null,
-    @SerialName("grasa_pct") val grasaPct: Double? = null,
-    val densidad: Double? = null,
-    @SerialName("antibioticos_positivo") val antibioticosPositivo: Boolean? = null,
-    @SerialName("foto_url") val fotoUrl: String? = null,
-)
-
-@Serializable
-data class RecoleccionAnalistaDto(
-    val id: String,
-    @SerialName("productor_id") val productorId: Long,
-    @SerialName("productor_codigo") val productorCodigo: String,
-    val productor: String,
-    @SerialName("tipo_productor") val tipoProductor: String,
-    val acopiador: String? = null,
-    val litros: Double,
-    @SerialName("registrada_en") val registradaEn: String,
-    val observacion: String? = null,
-    @SerialName("estado_calidad") val estadoCalidad: String,
-    val revisada: Boolean,
-    val anulada: Boolean,
-    val analisis: AnalisisCalidadPullDto? = null,
-)
-
-@Serializable
-data class RecoleccionPendienteDto(
-    @SerialName("recoleccion_id") val recoleccionId: String,
-    @SerialName("productor_id") val productorId: Long,
-    @SerialName("productor_codigo") val productorCodigo: String,
-    val productor: String,
-    val litros: Double,
-    @SerialName("registrada_en") val registradaEn: String,
-    @SerialName("registrado_por") val registradoPor: Long,
-)
-
+/** Pull del analista (0.8.0): rutas activas, productores de todas ellas y externos. No trae entregas. */
 @Serializable
 data class PullAnalistaDto(
     override val rol: String,
     @SerialName("servidor_ahora") override val servidorAhora: String,
     @SerialName("siguiente_desde") override val siguienteDesde: String,
     val estados: List<EstadoProductorDto> = emptyList(),
+    val rutas: List<RutaPullDto> = emptyList(),
+    @SerialName("ruta_ids_vigentes") val rutaIdsVigentes: List<Long> = emptyList(),
     val productores: List<ProductorPullDto> = emptyList(),
     @SerialName("productor_ids_vigentes") val productorIdsVigentes: List<Long> = emptyList(),
-    @SerialName("sin_revisar") val sinRevisar: List<RecoleccionPendienteDto> = emptyList(),
-    @SerialName("recolecciones_hoy") val recoleccionesHoy: List<RecoleccionAnalistaDto> = emptyList(),
 ) : PullSyncDto
 
+/** Respuesta de POST /analista/reportes (creado o duplicado). */
 @Serializable
-data class RevisionCalidadDto(
+data class ReporteGuardadoDto(
+    @SerialName("uuid_reporte") val uuidReporte: String,
+    val estado: String,
     @SerialName("recoleccion_id") val recoleccionId: String,
-    val estado: String = "normal",
-    val ph: NumeroExacto? = null,
-    @SerialName("temperatura_c") val temperaturaC: NumeroExacto? = null,
-    @SerialName("grasa_pct") val grasaPct: NumeroExacto? = null,
-    val densidad: NumeroExacto? = null,
-    @SerialName("antibioticos_positivo") val antibioticosPositivo: Boolean? = null,
+    @SerialName("foto_url") val fotoUrl: String,
 )
-
-@Serializable
-data class LoteCalidadDto(val revisiones: List<RevisionCalidadDto>)
 
 // ----------------------------------------------------------------- mi día
 @Serializable

@@ -95,40 +95,31 @@ data class RecoleccionEntidad(
     @ColumnInfo(name = "sincronizada_en_ms") val sincronizadaEnMs: Long? = null,
 )
 
-@Entity(tableName = "entrega_analista", indices = [Index("estado_calidad"), Index("registrada_en_ms")])
-data class EntregaAnalistaEntidad(
-    @PrimaryKey val id: String,
-    @ColumnInfo(name = "productor_id") val productorId: Long,
-    @ColumnInfo(name = "productor_codigo") val productorCodigo: String,
-    val productor: String,
-    @ColumnInfo(name = "tipo_productor") val tipoProductor: String,
-    val acopiador: String?,
-    val litros: Double,
-    @ColumnInfo(name = "registrada_en") val registradaEn: String,
-    val observacion: String?,
-    @ColumnInfo(name = "estado_calidad") val estadoCalidad: String,
-    val revisada: Boolean,
-    val anulada: Boolean,
-    val ph: Double? = null,
-    @ColumnInfo(name = "temperatura_c") val temperaturaC: Double? = null,
-    @ColumnInfo(name = "grasa_pct") val grasaPct: Double? = null,
-    val densidad: Double? = null,
-    @ColumnInfo(name = "antibioticos_positivo") val antibioticosPositivo: Boolean? = null,
-    @ColumnInfo(name = "foto_url") val fotoUrl: String? = null,
-    @ColumnInfo(name = "registrada_en_ms") val registradaEnMs: Long,
-)
+/** Estado de un reporte del analista en el celular. */
+object EstadoReporte {
+    const val PENDIENTE = "PENDIENTE"         // con foto: se envía (y se reintenta) en cada sincronización
+    const val ENVIADO = "ENVIADO"             // el servidor guardó la foto (creado o duplicado)
+    const val SOLO_CELULAR = "SOLO_CELULAR"   // solo comentario: la base aún no tiene dónde guardarlo
+    const val RECHAZADO = "RECHAZADO"         // el servidor lo rechazó (foto inválida...): se conserva con su motivo
+}
 
-@Entity(tableName = "revision_calidad")
-data class RevisionCalidadEntidad(
-    @PrimaryKey @ColumnInfo(name = "recoleccion_id") val recoleccionId: String,
+/**
+ * Reporte informativo del analista sobre un productor (comentario, foto o ambos). No registra valores de
+ * calidad. id = uuid_reporte (idempotencia en el servidor). La foto va reducida (JPEG) en filesDir.
+ * El comentario se queda en el celular: la base no tiene columna para él (docs/sincronizacion.md §5b).
+ */
+@Entity(tableName = "reporte_analista", indices = [Index("productor_clave"), Index("estado")])
+data class ReporteAnalistaEntidad(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "productor_clave") val productorClave: String,
+    @ColumnInfo(name = "productor_nombre") val productorNombre: String,
+    val comentario: String?,
+    @ColumnInfo(name = "foto_ruta") val fotoRuta: String?,
+    @ColumnInfo(name = "creado_en_ms") val creadoEnMs: Long,
     val estado: String,
-    val ph: String?,
-    @ColumnInfo(name = "temperatura_c") val temperaturaC: String?,
-    @ColumnInfo(name = "grasa_pct") val grasaPct: String?,
-    val densidad: String?,
-    @ColumnInfo(name = "antibioticos_positivo") val antibioticosPositivo: Boolean?,
-    @ColumnInfo(name = "foto_uri") val fotoUri: String? = null,
-    @ColumnInfo(name = "calidad_sincronizada") val calidadSincronizada: Boolean = false,
+    val motivo: String?,
+    val intentos: Int,
+    @ColumnInfo(name = "enviado_en_ms") val enviadoEnMs: Long?,
 )
 
 /** Pares clave → valor: cursor del pull, último sync, última firma (cadena hash_anterior), precios. */

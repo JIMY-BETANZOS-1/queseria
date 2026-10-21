@@ -2,9 +2,6 @@ package pe.queseria.campo.datos.remoto
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerialName
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -18,6 +15,7 @@ import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.Query
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import java.util.concurrent.TimeUnit
 
 /** Endpoints reales del backend que usa el acopiador (backend/app/routers/auth.py, sync.py, acopiador.py). */
@@ -42,41 +40,21 @@ interface ApiQueseria {
     suspend fun ultimosDias(@Header("Authorization") bearer: String): List<MiDiaDto>
 }
 
+/** Endpoints del analista (backend/app/routers/sync.py y reportes_analista.py). */
 interface ApiAnalistaQueseria {
     @GET("sync/pull")
     suspend fun pull(@Header("Authorization") bearer: String, @Query("desde") desde: String?): JsonObject
 
-    @POST("sync/calidad")
-    suspend fun calidad(@Header("Authorization") bearer: String, @Body lote: LoteCalidadDto): RespuestaCalidadDto
-
     @Multipart
-    @POST("analisis/{recoleccion_id}/foto")
-    suspend fun subirFoto(
+    @POST("analista/reportes")
+    suspend fun subirReporte(
         @Header("Authorization") bearer: String,
-        @retrofit2.http.Path("recoleccion_id") recoleccionId: String,
-        @Part archivo: MultipartBody.Part,
-    ): FotoGuardadaDto
+        @Part("uuid_reporte") uuidReporte: RequestBody,
+        @Part("productor_id") productorId: RequestBody?,
+        @Part("productor_uuid_cliente") productorUuidCliente: RequestBody?,
+        @Part foto: MultipartBody.Part,
+    ): ReporteGuardadoDto
 }
-
-@Serializable
-data class ResultadoRevisionDto(
-    val indice: Int,
-    @SerialName("recoleccion_id") val recoleccionId: String? = null,
-    val estado: String,
-    val motivo: String? = null,
-)
-
-@Serializable
-data class RespuestaCalidadDto(
-    val revisiones: List<ResultadoRevisionDto> = emptyList(),
-    @SerialName("servidor_ahora") val servidorAhora: String? = null,
-)
-
-@Serializable
-data class FotoGuardadaDto(
-    @SerialName("recoleccion_id") val recoleccionId: String,
-    @SerialName("foto_url") val fotoUrl: String,
-)
 
 object Red {
     /** El acopiador espera de pie frente al productor: el login con PIN cae pronto al PIN local. */

@@ -3,31 +3,33 @@ package pe.queseria.campo.sync
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
-import pe.queseria.campo.datos.local.EstadoProductorEntidad
+import okhttp3.RequestBody.Companion.toRequestBody
 import pe.queseria.campo.datos.local.AnalistaDao
-import pe.queseria.campo.datos.local.EntregaAnalistaEntidad
-import pe.queseria.campo.datos.local.RevisionCalidadEntidad
+import pe.queseria.campo.datos.local.EstadoProductorEntidad
 import pe.queseria.campo.datos.local.EstadoSync
 import pe.queseria.campo.datos.local.Meta
 import pe.queseria.campo.datos.local.MetaEntidad
 import pe.queseria.campo.datos.local.ProductorEntidad
 import pe.queseria.campo.datos.local.RutaEntidad
 import pe.queseria.campo.datos.local.SyncDao
-import pe.queseria.campo.datos.remoto.ApiQueseria
 import pe.queseria.campo.datos.remoto.ApiAnalistaQueseria
+import pe.queseria.campo.datos.remoto.ApiQueseria
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.datos.remoto.EstadoItem
+import pe.queseria.campo.datos.remoto.EstadoProductorDto
 import pe.queseria.campo.datos.remoto.LotePushDto
 import pe.queseria.campo.datos.remoto.PreciosDto
+import pe.queseria.campo.datos.remoto.ProductorPullDto
 import pe.queseria.campo.datos.remoto.ProductorPushDto
 import pe.queseria.campo.datos.remoto.PullAcopiadorDto
 import pe.queseria.campo.datos.remoto.PullAnalistaDto
 import pe.queseria.campo.datos.remoto.PullSyncDto
-import pe.queseria.campo.datos.remoto.RevisionCalidadDto
-import pe.queseria.campo.datos.remoto.NumeroExacto
 import pe.queseria.campo.datos.remoto.Red
+import pe.queseria.campo.datos.remoto.ReporteGuardadoDto
 import pe.queseria.campo.datos.remoto.RespuestaPushDto
+import pe.queseria.campo.datos.remoto.RutaPullDto
 import pe.queseria.campo.datos.remoto.llamar
 import pe.queseria.campo.registro.ArmadoRecoleccion
 
@@ -35,10 +37,10 @@ import pe.queseria.campo.registro.ArmadoRecoleccion
 interface RemotoSync {
     suspend fun push(lote: LotePushDto): RespuestaPushDto
     suspend fun pull(desde: String?): PullSyncDto
-    suspend fun calidad(lote: pe.queseria.campo.datos.remoto.LoteCalidadDto): pe.queseria.campo.datos.remoto.RespuestaCalidadDto =
-        throw ErrorApp.Local("Este usuario no puede registrar calidad")
-    suspend fun subirFoto(recoleccionId: String, rutaLocal: String): pe.queseria.campo.datos.remoto.FotoGuardadaDto =
-        throw ErrorApp.Local("Este usuario no puede subir fotos")
+    /** Reporte del analista (solo la foto; el comentario no tiene dónde guardarse en el servidor). */
+    suspend fun subirReporte(uuidReporte: String, productorId: Long?, productorUuidCliente: String?,
+                             rutaFoto: String): ReporteGuardadoDto =
+        throw ErrorApp.Local("Este usuario no puede enviar reportes")
 }
 
 class RemotoApi(
@@ -56,17 +58,15 @@ class RemotoApi(
             api().pull(bearer(), desde)
         }
     }
-    override suspend fun calidad(lote: pe.queseria.campo.datos.remoto.LoteCalidadDto) =
-        llamar { requireNotNull(analistaApi).invoke().calidad(bearer(), lote) }
-    override suspend fun subirFoto(recoleccionId: String, rutaLocal: String) = llamar {
-        val archivo = java.io.File(rutaLocal)
-        if (!archivo.isFile) throw ErrorApp.Local("La foto local ya no está disponible")
-        requireNotNull(analistaApi).invoke().subirFoto(
-            bearer(), recoleccionId,
-            okhttp3.MultipartBody.Part.createFormData(
-                "archivo", archivo.name,
-                archivo.asRequestBody("image/jpeg".toMediaType()),
-            ),
+    override suspend fun subirReporte(uuidReporte: String, productorId: Long?, productorUuidCliente: String?,
+                                      rutaFoto: String) = llamar {
+        val archivo = java.io.File(rutaFoto)
+        if (!archivo.isFile) throw ErrorApp.Local("La foto ya no está en el celular")
+        val texto = "text/plain".toMediaType()
+        requireNotNull(analistaApi).invoke().subirReporte(
+            bearer(), uuidReporte.toRequestBody(texto), productorId?.toString()?.toRequestBody(texto),
+            productorUuidCliente?.toRequestBody(texto),
+            MultipartBody.Part.createFormData("foto", archivo.name, archivo.asRequestBody("image/jpeg".toMediaType())),
         )
     }
 }
@@ -79,6 +79,7 @@ data class ResumenSync(
     val recoleccionesRechazadas: Int = 0,
     val conAlertas: Int = 0,
     val lotes: Int = 0,
+    val reportesEnviados: Int = 0,
 ) {
     val rechazados: Int get() = productoresRechazados + recoleccionesRechazadas
 }
@@ -89,7 +90,8 @@ data class ResumenSync(
  *     creado/duplicado → SINCRONIZADO; rechazado → RECHAZADO con su motivo (se conserva y no se reenvía);
  *     falla de red o del servidor → siguen PENDIENTES y se cuenta el intento (WorkManager reintenta).
  *     Reenviar es seguro: el servidor es idempotente por id / uuid_cliente.
- *  2. pull incremental con el cursor siguiente_desde (upsert por id; borra lo que ya no está vigente).
+ *  2. reportes del analista con foto (uno por uno; 409 = el servidor aún no puede asociarlo: sigue en cola).
+ *  3. pull incremental con el cursor siguiente_desde (upsert por id; borra lo que ya no está vigente).
  * Nada local se borra sin confirmación del servidor.
  */
 class MotorSync(
@@ -103,7 +105,7 @@ class MotorSync(
 
     suspend fun sincronizar(): ResumenSync = mutex.withLock {
         try {
-            val resumen = subir()
+            val resumen = subir().copy(reportesEnviados = enviarReportes())
             bajar()
             dao.guardarMeta(MetaEntidad(Meta.ULTIMO_SYNC_MS, reloj().toString()))
             dao.guardarMeta(MetaEntidad(Meta.ULTIMO_ERROR_SYNC, null))
@@ -172,51 +174,64 @@ class MotorSync(
         }
     }
 
-    private suspend fun bajar() {
-        val pull = remoto.pull(dao.meta(Meta.CURSOR_PULL))
-        if (pull.rol == "analista") {
-            val analista = pull as? PullAnalistaDto
-                ?: throw ErrorApp.Local("Respuesta inválida del servidor para analista")
-            val revisiones = analistaDao?.revisionesPorSincronizar().orEmpty()
-            if (revisiones.isNotEmpty()) {
-                val respuesta = remoto.calidad(revisiones.map {
-                    RevisionCalidadDto(it.recoleccionId, it.estado, it.ph?.numero(), it.temperaturaC?.numero(),
-                        it.grasaPct?.numero(), it.densidad?.numero(), it.antibioticosPositivo)
-                }.let { pe.queseria.campo.datos.remoto.LoteCalidadDto(it) })
-                respuesta.revisiones.filter { it.estado == "creado" || it.estado == "duplicado" }
-                    .forEach { resultado ->
-                        resultado.recoleccionId?.let { id ->
-                            analistaDao?.marcarCalidadSincronizada(id)
-                            val revision = revisiones.first { it.recoleccionId == id }
-                            if (revision.fotoUri == null) analistaDao?.borrarRevision(id)
-                        }
+    /**
+     * Reportes del analista con foto, después de las altas (un externo nuevo ya existe en el servidor).
+     * 409 (sin entrega libre o productor aún no subido) → sigue PENDIENTE con su motivo; 422/403 o foto perdida →
+     * RECHAZADO. Una falla transitoria (red, 5xx) corta la vuelta para que WorkManager reintente.
+     */
+    private suspend fun enviarReportes(): Int {
+        val dao = analistaDao ?: return 0
+        var enviados = 0
+        for (r in dao.reportesPorEnviar()) {
+            val foto = r.fotoRuta ?: continue
+            val p = dao.productor(r.productorClave)
+            if (p == null) {
+                dao.reporteRechazado(r.id, "El productor ya no está en la lista")
+                continue
+            }
+            if (p.estadoSync == EstadoSync.RECHAZADO) {
+                dao.reporteRechazado(r.id, "El alta del productor fue rechazada: ${p.motivo ?: "sin motivo"}")
+                continue
+            }
+            try {
+                remoto.subirReporte(r.id, p.servidorId, if (p.servidorId == null) p.uuidCliente else null, foto)
+                dao.reporteEnviado(r.id, reloj())
+                enviados++
+            } catch (e: ErrorApp) {
+                when (e) {
+                    is ErrorApp.Conflicto -> dao.reporteReintentar(r.id, e.message)
+                    is ErrorApp.Validacion, is ErrorApp.Prohibido, is ErrorApp.Local -> dao.reporteRechazado(r.id, e.message)
+                    else -> {
+                        dao.reporteReintentar(r.id, e.message)
+                        throw e
                     }
+                }
             }
-            val fotos = analistaDao?.revisionesPendientes().orEmpty()
-                .filter { it.calidadSincronizada && it.fotoUri != null }
-            fotos.forEach { revision ->
-                val foto = remoto.subirFoto(revision.recoleccionId, requireNotNull(revision.fotoUri))
-                analistaDao?.guardarFotoUrl(revision.recoleccionId, foto.fotoUrl)
-                analistaDao?.borrarRevision(revision.recoleccionId)
-            }
-            analistaDao?.aplicarPull(analista.recoleccionesHoy.map {
-                EntregaAnalistaEntidad(it.id, it.productorId, it.productorCodigo, it.productor,
-                    it.tipoProductor, it.acopiador, it.litros, it.registradaEn, it.observacion,
-                    it.estadoCalidad, it.revisada, it.anulada, it.analisis?.ph,
-                    it.analisis?.temperaturaC, it.analisis?.grasaPct, it.analisis?.densidad,
-                    it.analisis?.antibioticosPositivo, it.analisis?.fotoUrl,
-                    java.time.Instant.parse(it.registradaEn).toEpochMilli())
-            })
-            dao.guardarMeta(MetaEntidad(Meta.CURSOR_PULL, analista.siguienteDesde))
-            return
         }
-        val acopiador = pull as? PullAcopiadorDto
-            ?: throw ErrorApp.Local("Respuesta inválida del servidor para acopiador")
-        val pullAcopiador = acopiador
+        return enviados
+    }
+
+    private suspend fun bajar() {
+        when (val pull = remoto.pull(dao.meta(Meta.CURSOR_PULL))) {
+            is PullAnalistaDto -> aplicar(pull.rutas, pull.rutaIdsVigentes, pull.productores, pull.productorIdsVigentes,
+                                          pull.estados, pull.siguienteDesde, extra = emptyList())
+            is PullAcopiadorDto -> aplicar(pull.rutas, pull.rutaIdsVigentes, pull.productores, pull.productorIdsVigentes,
+                                           pull.estados, pull.siguienteDesde,
+                                           extra = listOf(MetaEntidad(Meta.PRECIOS,
+                                               pull.precios?.let { Red.json.encodeToString(PreciosDto.serializer(), it) })))
+            else -> throw ErrorApp.Local("Respuesta inválida del servidor")
+        }
+    }
+
+    /** Acopiador y analista guardan rutas, productores y estados en las mismas tablas. */
+    private suspend fun aplicar(
+        rutas: List<RutaPullDto>, rutaIdsVigentes: List<Long>, productores: List<ProductorPullDto>,
+        productorIdsVigentes: List<Long>, estados: List<EstadoProductorDto>, siguienteDesde: String, extra: List<MetaEntidad>,
+    ) {
         dao.aplicarPull(
-            rutas = pullAcopiador.rutas.map { RutaEntidad(it.id, it.nombre, it.descripcion, it.actualizadoEn) },
-            rutaIdsVigentes = pullAcopiador.rutaIdsVigentes.toSet(),
-            productores = pullAcopiador.productores.map {
+            rutas = rutas.map { RutaEntidad(it.id, it.nombre, it.descripcion, it.actualizadoEn) },
+            rutaIdsVigentes = rutaIdsVigentes.toSet(),
+            productores = productores.map {
                 ProductorEntidad(
                     clave = ProductorEntidad.claveDe(it.id, it.uuidCliente),
                     servidorId = it.id, uuidCliente = it.uuidCliente?.lowercase(), codigo = it.codigo,
@@ -226,17 +241,12 @@ class MotorSync(
                     creadoEnMs = reloj(),
                 )
             },
-            productorIdsVigentes = pullAcopiador.productorIdsVigentes.toSet(),
-            estados = pullAcopiador.estados.map { EstadoProductorEntidad(it.productorId, it.sancionado, it.bloqueado, it.sancionHasta) },
-            meta = listOf(
-                MetaEntidad(Meta.CURSOR_PULL, pullAcopiador.siguienteDesde),
-                MetaEntidad(Meta.PRECIOS, pullAcopiador.precios?.let { Red.json.encodeToString(PreciosDto.serializer(), it) }),
-            ),
+            productorIdsVigentes = productorIdsVigentes.toSet(),
+            estados = estados.map { EstadoProductorEntidad(it.productorId, it.sancionado, it.bloqueado, it.sancionHasta) },
+            meta = listOf(MetaEntidad(Meta.CURSOR_PULL, siguienteDesde)) + extra,
             purgarAntesDeMs = reloj() - DIAS_CONSERVAR_MS,
         )
     }
-
-    private fun String.numero() = NumeroExacto(this)
 
     companion object {
         /** Las recolecciones ya confirmadas se conservan unos días para "Mi día" y consultas. */

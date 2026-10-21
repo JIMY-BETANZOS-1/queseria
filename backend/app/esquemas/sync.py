@@ -154,44 +154,6 @@ class PreciosVigentes(BaseModel):
     sancion: float | None
 
 
-class RecoleccionPendiente(BaseModel):
-    """Fila de v_recoleccion_sin_revisar."""
-    recoleccion_id: UUID
-    productor_id: int
-    productor_codigo: str
-    productor: str
-    litros: float
-    registrada_en: datetime
-    registrado_por: int
-
-
-class AnalisisCalidadPull(BaseModel):
-    ph: float | None
-    temperatura_c: float | None
-    grasa_pct: float | None
-    densidad: float | None
-    antibioticos_positivo: bool | None
-    foto_url: str | None
-
-
-class RecoleccionDia(BaseModel):
-    id: UUID
-    productor_id: int
-    productor_codigo: str
-    productor: str
-    tipo_productor: Literal["de_ruta", "externo"]
-    acopiador: str | None
-    litros: float
-    registrada_en: datetime
-    observacion: str | None
-    registrado_por: int
-    estado_calidad: Literal["normal", "alterado"]
-    revisada: bool
-    anulada: bool
-    actualizado_en: datetime
-    analisis: AnalisisCalidadPull | None = None
-
-
 class PullBase(BaseModel):
     rol: str
     servidor_ahora: datetime
@@ -208,8 +170,9 @@ class PullAcopiador(PullBase):
 
 
 class PullAnalista(PullBase):
-    sin_revisar: list[RecoleccionPendiente]
-    recolecciones_hoy: list[RecoleccionDia]
+    """El analista no sincroniza entregas: baja las rutas activas, los productores de todas ellas y los externos."""
+    rutas: list[RutaPull]
+    ruta_ids_vigentes: list[int]
     productores: list[ProductorPull]
     productor_ids_vigentes: list[int]
 

@@ -6,6 +6,7 @@
 // - Inicio (/) pide el resumen del mes, las jornadas recientes y los lotes con saldo: cualquier prueba que abre "/"
 //   lo carga. El Resumen (/resumen) pide el resumen del mes y las jornadas de su gráfico.
 // - La configuración: el comprobante de liquidación la pide para el nombre de la empresa al imprimir.
+// - Los reportes del analista: la pantalla Analistas los pide siempre, debajo de la lista.
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
@@ -32,4 +33,5 @@ export const servidor = setupServer(
   http.get(`${API}/jornadas`, () => HttpResponse.json([])),
   http.get(`${API}/lotes/disponibles`, () => HttpResponse.json([])),
   http.get(`${API}/configuracion`, () => HttpResponse.json(PARAMETROS_POR_DEFECTO)),
+  http.get(`${API}/analista/reportes`, () => HttpResponse.json([])),
 );

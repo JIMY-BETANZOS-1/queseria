@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Base local del celular. Sin fallbackToDestructiveMigration: un cambio de versión NUNCA debe borrar
@@ -11,9 +13,8 @@ import androidx.room.RoomDatabase
  */
 @Database(
     entities = [ProductorEntidad::class, RutaEntidad::class, EstadoProductorEntidad::class,
-                RecoleccionEntidad::class, EntregaAnalistaEntidad::class, RevisionCalidadEntidad::class,
-                MetaEntidad::class],
-    version = 2,
+                RecoleccionEntidad::class, ReporteAnalistaEntidad::class, MetaEntidad::class],
+    version = 3,
     exportSchema = true,
 )
 abstract class BaseLocal : RoomDatabase() {
@@ -23,11 +24,12 @@ abstract class BaseLocal : RoomDatabase() {
     companion object {
         fun crear(context: Context): BaseLocal =
             Room.databaseBuilder(context, BaseLocal::class.java, "queseria.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
 
-        internal val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
-            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        /** Primera versión del analista (entregas del día y revisión de calidad): sus tablas las retira la 3. */
+        internal val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""CREATE TABLE IF NOT EXISTS entrega_analista (
                     id TEXT NOT NULL PRIMARY KEY, productor_id INTEGER NOT NULL,
                     productor_codigo TEXT NOT NULL, productor TEXT NOT NULL,
@@ -43,6 +45,24 @@ abstract class BaseLocal : RoomDatabase() {
                     ph TEXT, temperatura_c TEXT, grasa_pct TEXT, densidad TEXT,
                     antibioticos_positivo INTEGER, foto_uri TEXT,
                     calidad_sincronizada INTEGER NOT NULL DEFAULT 0)""")
+            }
+        }
+
+        /**
+         * 0.8.0: el analista ya no revisa entregas en el celular (solo reporta): fuera entrega_analista y
+         * revision_calidad, y entra la cola reporte_analista. Lo del acopiador (productor, ruta, recoleccion, meta)
+         * no se toca.
+         */
+        internal val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS entrega_analista")
+                db.execSQL("DROP TABLE IF EXISTS revision_calidad")
+                db.execSQL("""CREATE TABLE IF NOT EXISTS reporte_analista (
+                    id TEXT NOT NULL PRIMARY KEY, productor_clave TEXT NOT NULL, productor_nombre TEXT NOT NULL,
+                    comentario TEXT, foto_ruta TEXT, creado_en_ms INTEGER NOT NULL, estado TEXT NOT NULL,
+                    motivo TEXT, intentos INTEGER NOT NULL, enviado_en_ms INTEGER)""")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_reporte_analista_productor_clave ON reporte_analista(productor_clave)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_reporte_analista_estado ON reporte_analista(estado)")
             }
         }
     }

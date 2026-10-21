@@ -50,6 +50,6 @@ class AppContainer(context: Context) {
     val ubicador = Ubicador(context.applicationContext)
     val motorSync = MotorSync(RemotoApi(::api, autenticador::bearer, { autenticador.usuario()?.rol ?: "" },
         { apiAnalistaOpcional ?: throw ErrorApp.Local("Falta configurar la URL del servidor") }),
-        base.syncDao(), analistaDao = base.analistaDao())
+        base.syncDao(), analistaDao = analistaDao)
     val miDia = MiDia(::api, autenticador::bearer, base.syncDao())
 }

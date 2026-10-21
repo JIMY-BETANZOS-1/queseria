@@ -106,6 +106,30 @@ export async function pedir<T>(metodo: Metodo, ruta: string, opciones: Opciones 
   return (await leerJson(r)) as T;
 }
 
+/**
+ * Descarga un archivo de la API (p. ej. una foto) con el token de la sesión. El panel lo muestra con un URL blob:
+ * (URL.createObjectURL), que el CSP permite en img-src: un <img> no puede mandar la cabecera Authorization.
+ */
+export async function pedirArchivo(ruta: string): Promise<Blob> {
+  const sesion = sesionVigente();
+  if (sesion === null) {
+    cerrarSesion("vencida");
+    throw new ErrorSesion();
+  }
+  let r: Response;
+  try {
+    r = await fetch(armarUrl(ruta), { headers: { Authorization: `Bearer ${sesion.token}` } });
+  } catch {
+    throw new ErrorApi(0, "sin_conexion", `No se pudo conectar con la API (${API_URL})`);
+  }
+  if (r.status === 401) {
+    cerrarSesion("vencida", sesion.token);
+    throw new ErrorSesion();
+  }
+  if (!r.ok) throw errorDeRespuesta(r.status, await leerJson(r));
+  return r.blob();
+}
+
 /** POST /auth/admin/login. Un 401 aquí es "Correo o contraseña incorrectos" (mensaje del servidor), no una sesión vencida. */
 export async function entrar(email: string, password: string): Promise<Sesion> {
   const token = await pedir<Token>("POST", "/auth/admin/login", { cuerpo: { email, password }, conSesion: false });
