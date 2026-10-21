@@ -95,6 +95,41 @@ data class RecoleccionEntidad(
     @ColumnInfo(name = "sincronizada_en_ms") val sincronizadaEnMs: Long? = null,
 )
 
+@Entity(tableName = "entrega_analista", indices = [Index("estado_calidad"), Index("registrada_en_ms")])
+data class EntregaAnalistaEntidad(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "productor_id") val productorId: Long,
+    @ColumnInfo(name = "productor_codigo") val productorCodigo: String,
+    val productor: String,
+    @ColumnInfo(name = "tipo_productor") val tipoProductor: String,
+    val acopiador: String?,
+    val litros: Double,
+    @ColumnInfo(name = "registrada_en") val registradaEn: String,
+    val observacion: String?,
+    @ColumnInfo(name = "estado_calidad") val estadoCalidad: String,
+    val revisada: Boolean,
+    val anulada: Boolean,
+    val ph: Double? = null,
+    @ColumnInfo(name = "temperatura_c") val temperaturaC: Double? = null,
+    @ColumnInfo(name = "grasa_pct") val grasaPct: Double? = null,
+    val densidad: Double? = null,
+    @ColumnInfo(name = "antibioticos_positivo") val antibioticosPositivo: Boolean? = null,
+    @ColumnInfo(name = "foto_url") val fotoUrl: String? = null,
+    @ColumnInfo(name = "registrada_en_ms") val registradaEnMs: Long,
+)
+
+@Entity(tableName = "revision_calidad")
+data class RevisionCalidadEntidad(
+    @PrimaryKey @ColumnInfo(name = "recoleccion_id") val recoleccionId: String,
+    val estado: String,
+    val ph: String?,
+    @ColumnInfo(name = "temperatura_c") val temperaturaC: String?,
+    @ColumnInfo(name = "grasa_pct") val grasaPct: String?,
+    val densidad: String?,
+    @ColumnInfo(name = "antibioticos_positivo") val antibioticosPositivo: Boolean?,
+    @ColumnInfo(name = "foto_uri") val fotoUri: String? = null,
+)
+
 /** Pares clave → valor: cursor del pull, último sync, última firma (cadena hash_anterior), precios. */
 @Entity(tableName = "meta")
 data class MetaEntidad(@PrimaryKey val clave: String, val valor: String?)

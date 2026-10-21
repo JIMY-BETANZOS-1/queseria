@@ -25,6 +25,7 @@ class AppContainer(context: Context) {
     private val caja = CajaFuerte(context)
     val claveDispositivo = ClaveDispositivo()
     private val apiOpcional: ApiQueseria? = Red.crearApi(BuildConfig.API_BASE_URL)
+    private val apiAnalistaOpcional = Red.crearApiAnalista(BuildConfig.API_BASE_URL)
 
     private fun api(): ApiQueseria =
         apiOpcional ?: throw ErrorApp.Local("Falta configurar la URL del servidor (api.base.url en local.properties)")
@@ -43,7 +44,10 @@ class AppContainer(context: Context) {
     )
 
     val registrador = Registrador(base, claveDispositivo)
+    val analistaDao = base.analistaDao()
     val ubicador = Ubicador(context.applicationContext)
-    val motorSync = MotorSync(RemotoApi(::api, autenticador::bearer), base.syncDao())
+    val motorSync = MotorSync(RemotoApi(::api, autenticador::bearer, { autenticador.usuario()?.rol ?: "" },
+        { apiAnalistaOpcional ?: throw ErrorApp.Local("Falta configurar la URL del servidor") }),
+        base.syncDao(), analistaDao = base.analistaDao())
     val miDia = MiDia(::api, autenticador::bearer, base.syncDao())
 }

@@ -64,6 +64,19 @@ class Registrador(
         return p
     }
 
+    suspend fun crearProductorExterno(nombre: String, documento: String?, celular: String?): ProductorEntidad {
+        val uuid = UUID.randomUUID().toString()
+        val p = ProductorEntidad(
+            clave = uuid, servidorId = null, uuidCliente = uuid, codigo = null,
+            nombre = nombre.trim(), documento = documento?.trim()?.takeIf { it.isNotEmpty() },
+            celular = celular?.trim()?.takeIf { it.isNotEmpty() }, rutaId = null,
+            latitudRef = null, longitudRef = null, aprobado = true, actualizadoEn = null,
+            estadoSync = EstadoSync.PENDIENTE, motivo = null, creadoEnMs = reloj().toEpochMilli(),
+        )
+        base.syncDao().insertarProductor(p)
+        return p
+    }
+
     companion object {
         /** "Fecha y hora automáticas" del sistema (evidencia firmada: hora_automatica). */
         fun horaAutomatica(context: Context): Boolean =

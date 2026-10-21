@@ -3,6 +3,9 @@ package pe.queseria.campo.sync
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import pe.queseria.campo.datos.local.EstadoProductorEntidad
+import pe.queseria.campo.datos.local.AnalistaDao
+import pe.queseria.campo.datos.local.EntregaAnalistaEntidad
+import pe.queseria.campo.datos.local.RevisionCalidadEntidad
 import pe.queseria.campo.datos.local.EstadoSync
 import pe.queseria.campo.datos.local.Meta
 import pe.queseria.campo.datos.local.MetaEntidad
@@ -10,12 +13,17 @@ import pe.queseria.campo.datos.local.ProductorEntidad
 import pe.queseria.campo.datos.local.RutaEntidad
 import pe.queseria.campo.datos.local.SyncDao
 import pe.queseria.campo.datos.remoto.ApiQueseria
+import pe.queseria.campo.datos.remoto.ApiAnalistaQueseria
 import pe.queseria.campo.datos.remoto.ErrorApp
 import pe.queseria.campo.datos.remoto.EstadoItem
 import pe.queseria.campo.datos.remoto.LotePushDto
 import pe.queseria.campo.datos.remoto.PreciosDto
 import pe.queseria.campo.datos.remoto.ProductorPushDto
 import pe.queseria.campo.datos.remoto.PullAcopiadorDto
+import pe.queseria.campo.datos.remoto.PullAnalistaDto
+import pe.queseria.campo.datos.remoto.PullSyncDto
+import pe.queseria.campo.datos.remoto.RevisionCalidadDto
+import pe.queseria.campo.datos.remoto.NumeroExacto
 import pe.queseria.campo.datos.remoto.Red
 import pe.queseria.campo.datos.remoto.RespuestaPushDto
 import pe.queseria.campo.datos.remoto.llamar
@@ -24,12 +32,28 @@ import pe.queseria.campo.registro.ArmadoRecoleccion
 /** Lo que el motor necesita del servidor (interfaz para probarlo sin red). Lanza [ErrorApp]. */
 interface RemotoSync {
     suspend fun push(lote: LotePushDto): RespuestaPushDto
-    suspend fun pull(desde: String?): PullAcopiadorDto
+    suspend fun pull(desde: String?): PullSyncDto
+    suspend fun calidad(lote: pe.queseria.campo.datos.remoto.LoteCalidadDto): pe.queseria.campo.datos.remoto.RespuestaCalidadDto =
+        throw ErrorApp.Local("Este usuario no puede registrar calidad")
 }
 
-class RemotoApi(private val api: () -> ApiQueseria, private val bearer: () -> String) : RemotoSync {
+class RemotoApi(
+    private val api: () -> ApiQueseria,
+    private val bearer: () -> String,
+    private val rol: () -> String = { "acopiador" },
+    private val analistaApi: (() -> ApiAnalistaQueseria)? = null,
+) : RemotoSync {
     override suspend fun push(lote: LotePushDto) = llamar { api().push(bearer(), lote) }
-    override suspend fun pull(desde: String?) = llamar { api().pull(bearer(), desde) }
+    override suspend fun pull(desde: String?): PullSyncDto = llamar {
+        if (rol() == "analista") {
+            val json = requireNotNull(analistaApi).invoke().pull(bearer(), desde)
+            Red.json.decodeFromJsonElement(PullAnalistaDto.serializer(), json)
+        } else {
+            api().pull(bearer(), desde)
+        }
+    }
+    override suspend fun calidad(lote: pe.queseria.campo.datos.remoto.LoteCalidadDto) =
+        llamar { requireNotNull(analistaApi).invoke().calidad(bearer(), lote) }
 }
 
 data class ResumenSync(
@@ -58,6 +82,7 @@ class MotorSync(
     private val dao: SyncDao,
     private val reloj: () -> Long = System::currentTimeMillis,
     private val tamLote: Int = 500,
+    private val analistaDao: AnalistaDao? = null,
 ) {
     private val mutex = Mutex()
 
@@ -134,11 +159,36 @@ class MotorSync(
 
     private suspend fun bajar() {
         val pull = remoto.pull(dao.meta(Meta.CURSOR_PULL))
-        if (pull.rol != "acopiador") throw ErrorApp.Local("Esta versión de la app es solo para acopiadores")
+        if (pull.rol == "analista") {
+            val analista = pull as? PullAnalistaDto
+                ?: throw ErrorApp.Local("Respuesta inválida del servidor para analista")
+            val revisiones = analistaDao?.revisionesPendientes().orEmpty()
+            if (revisiones.isNotEmpty()) {
+                val respuesta = remoto.calidad(revisiones.map {
+                    RevisionCalidadDto(it.recoleccionId, it.estado, it.ph?.numero(), it.temperaturaC?.numero(),
+                        it.grasaPct?.numero(), it.densidad?.numero(), it.antibioticosPositivo)
+                }.let { pe.queseria.campo.datos.remoto.LoteCalidadDto(it) })
+                respuesta.revisiones.filter { it.estado == "creado" || it.estado == "duplicado" }
+                    .forEach { it.recoleccionId?.let { id -> analistaDao?.borrarRevision(id); analistaDao?.marcarRevisada(id, revisiones.first { r -> r.recoleccionId == id }.estado) } }
+            }
+            analistaDao?.aplicarPull(analista.recoleccionesHoy.map {
+                EntregaAnalistaEntidad(it.id, it.productorId, it.productorCodigo, it.productor,
+                    it.tipoProductor, it.acopiador, it.litros, it.registradaEn, it.observacion,
+                    it.estadoCalidad, it.revisada, it.anulada, it.analisis?.ph,
+                    it.analisis?.temperaturaC, it.analisis?.grasaPct, it.analisis?.densidad,
+                    it.analisis?.antibioticosPositivo, it.analisis?.fotoUrl,
+                    java.time.Instant.parse(it.registradaEn).toEpochMilli())
+            })
+            dao.guardarMeta(MetaEntidad(Meta.CURSOR_PULL, analista.siguienteDesde))
+            return
+        }
+        val acopiador = pull as? PullAcopiadorDto
+            ?: throw ErrorApp.Local("Respuesta inválida del servidor para acopiador")
+        val pullAcopiador = acopiador
         dao.aplicarPull(
-            rutas = pull.rutas.map { RutaEntidad(it.id, it.nombre, it.descripcion, it.actualizadoEn) },
-            rutaIdsVigentes = pull.rutaIdsVigentes.toSet(),
-            productores = pull.productores.map {
+            rutas = pullAcopiador.rutas.map { RutaEntidad(it.id, it.nombre, it.descripcion, it.actualizadoEn) },
+            rutaIdsVigentes = pullAcopiador.rutaIdsVigentes.toSet(),
+            productores = pullAcopiador.productores.map {
                 ProductorEntidad(
                     clave = ProductorEntidad.claveDe(it.id, it.uuidCliente),
                     servidorId = it.id, uuidCliente = it.uuidCliente?.lowercase(), codigo = it.codigo,
@@ -148,15 +198,17 @@ class MotorSync(
                     creadoEnMs = reloj(),
                 )
             },
-            productorIdsVigentes = pull.productorIdsVigentes.toSet(),
-            estados = pull.estados.map { EstadoProductorEntidad(it.productorId, it.sancionado, it.bloqueado, it.sancionHasta) },
+            productorIdsVigentes = pullAcopiador.productorIdsVigentes.toSet(),
+            estados = pullAcopiador.estados.map { EstadoProductorEntidad(it.productorId, it.sancionado, it.bloqueado, it.sancionHasta) },
             meta = listOf(
-                MetaEntidad(Meta.CURSOR_PULL, pull.siguienteDesde),
-                MetaEntidad(Meta.PRECIOS, pull.precios?.let { Red.json.encodeToString(PreciosDto.serializer(), it) }),
+                MetaEntidad(Meta.CURSOR_PULL, pullAcopiador.siguienteDesde),
+                MetaEntidad(Meta.PRECIOS, pullAcopiador.precios?.let { Red.json.encodeToString(PreciosDto.serializer(), it) }),
             ),
             purgarAntesDeMs = reloj() - DIAS_CONSERVAR_MS,
         )
     }
+
+    private fun String.numero() = NumeroExacto(this)
 
     companion object {
         /** Las recolecciones ya confirmadas se conservan unos días para "Mi día" y consultas. */
