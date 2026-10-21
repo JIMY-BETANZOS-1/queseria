@@ -6,7 +6,7 @@
 \echo '== Hoy en Lima'
 SELECT (now() AT TIME ZONE 'America/Lima')::date AS hoy;
 
-\echo '== Productores observados (Cirilo: precio desde mañana; Gregoria: bloqueo desde mañana)'
+\echo '== Productores observados (hoy: Cirilo en sanción de precio; Gregoria bloqueada)'
 SELECT nombre, ruta, acopiador, tipo_sancion, estado, sancion_desde, sancion_hasta, ph, densidad, antibioticos_positivo
   FROM v_productor_observado ORDER BY nombre;
 
@@ -37,7 +37,7 @@ SELECT d.fecha, d.productor, d.litros, r.motivo_anulacion
 \echo '== Calidad: por revisar'
 SELECT productor, litros, registrada_en AT TIME ZONE 'America/Lima' AS hora FROM v_recoleccion_sin_revisar ORDER BY registrada_en;
 
-\echo '== Leche por jornada (mañana no debe quedar nada "sin destino" de días anteriores a hoy)'
+\echo '== Leche por jornada (hoy no debe quedar nada "sin destino")'
 SELECT fecha, litros_recolectados, litros_descartados, litros_por_revisar, litros_aprobados, litros_usados, litros_merma,
        litros_disponibles, costo_litro_util, sin_destino
   FROM v_leche_jornada ORDER BY fecha;

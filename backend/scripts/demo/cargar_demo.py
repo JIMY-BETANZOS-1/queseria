@@ -22,12 +22,15 @@ Fases de "todo":
   4. Verificación con las vistas y resumen con nombres y cifras.
 
 Escenario ("opción B"): la Ruta 2 (de Juan Carlos) la cubre Rosa Elena 4 días (hoy-4 … hoy-1, PUT /rutas/{id}/acopiador)
-y vuelve a Juan Carlos desde hoy. En esa cobertura Cirilo Ticona Larico entrega leche alterada ayer (sanción de precio
-desde mañana) y Gregoria Calsin Quispe reincide (bloqueo desde mañana). La entrega en vivo de mañana la hace Juan
-Carlos con Mario Quispe Mamani (Ruta 1, productor normal).
+y vuelve a Juan Carlos desde hoy. La demostración es HOY: en esa cobertura Cirilo Ticona Larico entrega leche
+alterada ayer (sanción de precio vigente hoy … hoy+6) y Gregoria Calsin Quispe reincide (bloqueo vigente hoy … hoy+6).
+La entrega en vivo de hoy la hace Juan Carlos con Mario Quispe Mamani (Ruta 1, productor normal).
 
-Sin endpoint en la API (se insertan por SQL con app.usuario_id del admin; los triggers de la base validan igual):
-  * la primera alteración de Gregoria con calidad_en de hace 3 días (si no, la base no puede ver reincidencia hoy);
+Sin endpoint en la API (se insertan por SQL con app.usuario_id del analista o del admin; los triggers validan igual):
+  * las tres alteraciones con su revisión (calidad_en) fechada en días anteriores: la base fija la sanción desde el día
+    siguiente a calidad_en (hora del servidor), así que para que rijan hoy la revisión tiene que ser de ayer. Primera de
+    Gregoria revisada hace 3 días (precio hoy-2 … hoy+4); Cirilo y la segunda de Gregoria revisadas ayer (la base crea
+    la sanción de precio de Cirilo y, por reincidencia, el bloqueo de Gregoria, ambos hoy … hoy+6);
   * el lote en proceso (POST /produccion crea y cierra en un paso);
   * la baja de producto (no hay POST de bajas).
 """
@@ -624,24 +627,31 @@ def cargar(client, conn, rng: random.Random, esc: dict) -> dict:
     if malas:
         raise RuntimeError(f"Revisiones no creadas: {malas}")
 
-    # Sin endpoint: la primera alteración de Gregoria se marca con calidad_en de hace 3 días (su análisis primero; la
-    # base crea la sanción de precio y, con la segunda alteración de hoy, decide ella misma el bloqueo)
+    # Sin endpoint: alteraciones con la revisión fechada en días anteriores, para que la sanción y el bloqueo rijan HOY.
+    # Primero el análisis (lo exige fn_exigir_analisis); el UPDATE dispara fn_aplicar_sancion, que decide precio o
+    # bloqueo con calidad_en. Orden: la primera de Gregoria antes que su reincidencia.
+    alteraciones = [
+        (primera_gregoria, 3, "09:40", {"ph": 6.2, "temperatura_c": 9.5, "densidad": 1.025, "antibioticos_positivo": False}),
+        (alteradas[CIRILO], 1, "11:10", {"ph": 6.4, "temperatura_c": 11.0, "densidad": 1.027, "antibioticos_positivo": False}),
+        (alteradas[GREGORIA], 1, "11:20", {"ph": 6.3, "temperatura_c": 10.5, "densidad": 1.024, "antibioticos_positivo": True}),
+    ]
     verificar_base(BASE, base_actual(conn))
-    with conn.transaction():
-        conn.execute("SELECT set_config('app.usuario_id', %s, true)", (str(edwin["id"]),))
-        conn.execute("INSERT INTO analisis_calidad (recoleccion_id, ph, temperatura_c, densidad, antibioticos_positivo) "
-                     "VALUES (%s, 6.2, 9.5, 1.025, false)", (primera_gregoria["id"],))
-        conn.execute("""UPDATE recoleccion SET estado_calidad = 'alterado', calidad_por = %s,
-                               calidad_en = (((now() AT TIME ZONE 'America/Lima')::date - 3) + time '09:40') AT TIME ZONE 'America/Lima'
-                         WHERE id = %s""", (edwin["id"], primera_gregoria["id"]))
-    # Hoy, por la API: Cirilo (primera vez → sanción de precio) y Gregoria (reincidencia → bloqueo), ambos desde mañana
-    analisis = {CIRILO: {"ph": 6.4, "temperatura_c": 11.0, "densidad": 1.027, "antibioticos_positivo": False},
-                GREGORIA: {"ph": 6.3, "temperatura_c": 10.5, "densidad": 1.024, "antibioticos_positivo": True}}
-    resp = _ok(client.post("/sync/calidad", headers=m_edwin.cab, json={"revisiones": [
-        {"recoleccion_id": alteradas[nombre]["id"], "estado": "alterado", **analisis[nombre]} for nombre in (CIRILO, GREGORIA)]}))
-    sanciones = {nombre: x["sancion"] for nombre, x in zip((CIRILO, GREGORIA), resp["revisiones"])}
+    for entrega, dias_atras, hora, a in alteraciones:
+        with conn.transaction():
+            conn.execute("SELECT set_config('app.usuario_id', %s, true)", (str(edwin["id"]),))
+            conn.execute("""INSERT INTO analisis_calidad (recoleccion_id, ph, temperatura_c, densidad, antibioticos_positivo)
+                            VALUES (%(id)s, %(ph)s, %(temperatura_c)s, %(densidad)s, %(antibioticos_positivo)s)""",
+                         {"id": entrega["id"], **a})
+            conn.execute("""UPDATE recoleccion SET estado_calidad = 'alterado', calidad_por = %s,
+                                   calidad_en = (((now() AT TIME ZONE 'America/Lima')::date - %s) + %s::time)
+                                                AT TIME ZONE 'America/Lima'
+                             WHERE id = %s""", (edwin["id"], dias_atras, hora, entrega["id"]))
+    sanciones = {nombre: conn.execute("""SELECT tipo::text AS tipo, desde, hasta FROM sancion_productor
+                                          WHERE recoleccion_id = %s AND levantada_en IS NULL""",
+                                       (alteradas[nombre]["id"],)).fetchone()
+                 for nombre in (CIRILO, GREGORIA)}
 
-    # Producción diaria con la leche aprobada hasta ayer (si no, mañana quedaría "sin destino"); una merma antes
+    # Producción diaria con la leche aprobada hasta ayer (si no, quedaría "sin destino"); una merma antes
     recetas = {r["nombre"]: r for r in _ok(client.get("/recetas", headers=adm))}
     turno = ["Queso paria", "Queso pasteurizado", "Queso paria", "Yogurt", "Queso paria", "Queso pasteurizado",
              "Queso fresco"]
@@ -801,15 +811,18 @@ def verificar(conn, esc: dict) -> list[str]:
     fallas: list[str] = []
     q = lambda s, *a: conn.execute(s, a).fetchall()  # noqa: E731
     uno = lambda s, *a: conn.execute(s, a).fetchone()  # noqa: E731
-    manana = "(now() AT TIME ZONE 'America/Lima')::date + 1"
+    hoy_sql = "(now() AT TIME ZONE 'America/Lima')::date"
 
     obs = {(f["nombre"], f["tipo"]) for f in q(f"""
         SELECT p.nombre, s.tipo::text AS tipo FROM sancion_productor s JOIN productor p ON p.id = s.productor_id
-         WHERE s.levantada_en IS NULL AND s.desde = {manana}""")}
+         WHERE s.levantada_en IS NULL AND s.desde = {hoy_sql}""")}
     if (CIRILO, "precio") not in obs:
-        fallas.append(f"Falta la sanción de precio de {CIRILO} desde mañana")
+        fallas.append(f"Falta la sanción de precio de {CIRILO} vigente desde hoy")
     if (GREGORIA, "bloqueo") not in obs:
-        fallas.append(f"Falta el bloqueo de {GREGORIA} desde mañana")
+        fallas.append(f"Falta el bloqueo de {GREGORIA} vigente desde hoy")
+    vigentes = {(f["nombre"], f["estado"]) for f in q("SELECT nombre, estado FROM v_productor_observado")}
+    if (CIRILO, "en_sancion") not in vigentes or (GREGORIA, "bloqueado") not in vigentes:
+        fallas.append(f"Hoy deberían verse {CIRILO} en sanción y {GREGORIA} bloqueada (v_productor_observado: {vigentes})")
     if q("SELECT 1 FROM sancion_productor s JOIN productor p ON p.id = s.productor_id WHERE p.nombre = %s", MARIO):
         fallas.append(f"{MARIO} no debería tener sanciones")
     asig = q("""SELECT u.nombre_completo AS a, ra.vigente_desde AS desde, ra.vigente_hasta AS hasta
@@ -832,8 +845,8 @@ def verificar(conn, esc: dict) -> list[str]:
     if not 1 <= por_revisar <= 6:
         fallas.append(f"Calidad debería tener entre 1 y 6 entregas por revisar (hay {por_revisar})")
     if q(f"""SELECT 1 FROM v_leche_jornada WHERE litros_disponibles > 0
-              AND {manana} - fecha > (SELECT valor::int FROM configuracion WHERE clave = 'dias_max_leche')"""):
-        fallas.append("Mañana habría leche sin destino")
+              AND {hoy_sql} - fecha > (SELECT valor::int FROM configuracion WHERE clave = 'dias_max_leche')"""):
+        fallas.append("Hoy hay leche sin destino")
     liq = {f["estado"]: f["n"] for f in q("SELECT estado::text AS estado, COUNT(*) AS n FROM v_liquidacion_productor GROUP BY 1")}
     if not liq.get("pagado"):
         fallas.append("Falta la liquidación pagada")
