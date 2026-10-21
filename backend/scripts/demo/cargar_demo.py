@@ -26,6 +26,13 @@ y vuelve a Juan Carlos desde hoy. La demostración es HOY: en esa cobertura Ciri
 alterada ayer (sanción de precio vigente hoy … hoy+6) y Gregoria Calsin Quispe reincide (bloqueo vigente hoy … hoy+6).
 La entrega en vivo de hoy la hace Juan Carlos con Mario Quispe Mamani (Ruta 1, productor normal).
 
+Además, para que los compañeros vinculen su celular desde el panel (sin códigos generados por la carga):
+  * Ruta 4 y Ruta 5 (EJEMPLO) con 7 y 6 productores de ruta (DNI, celular y referencia GPS en Huata), sin entregas,
+    asignadas a dos acopiadores nuevos SIN celular ni PIN (pendientes de activar), con color, vehículo, sueldo y comisión;
+  * un analista nuevo pendiente de activar, y 4 productores externos libres (documento y celular), sin entregas;
+  * parte de las entregas de hoy de Rosa Elena se registran "sin señal" y llegan en una segunda sincronización; una de
+    ellas con la firma alterada (alerta firma_invalida: pago retenido hasta que el admin la revise).
+
 Sin endpoint en la API (se insertan por SQL con app.usuario_id del analista o del admin; los triggers validan igual):
   * las tres alteraciones con su revisión (calidad_en) fechada en días anteriores: la base fija la sanción desde el día
     siguiente a calidad_en (hora del servidor), así que para que rijan hoy la revisión tiene que ser de ayer. Primera de
@@ -78,6 +85,38 @@ PATRON_PRUEBA = "PRUEBA%"
 DIAS_COBERTURA = 4
 M_POR_GRADO = 111_320
 PLANTA = (-15.6105, -69.9705)           # EJEMPLO: ubicación de la planta (entregas de externos)
+
+# Rutas nuevas listas para acopiadores que vinculan su celular desde el panel -- EJEMPLO (todo ficticio)
+RUTAS_NUEVAS = [
+    {"nombre": "Ruta 4 - Ccotos", "descripcion": "EJEMPLO: comunidades de Ccotos, al norte de Huata",
+     "inicio": (-15.5840, -69.9790), "paso": (0.0030, -0.0025),
+     "acopiador": {"nombre_completo": "Wilber Soto Mamani", "dni": "44561230", "celular": "956100230",
+                   "color_hex": "#D97706", "vehiculo": "motocarga", "sueldo_base_mensual": 850,
+                   "comision_por_litro": 0.05},
+     "productores": [("Alejandro Coaquira Pari", "40111241", "954100241"),
+                     ("Bernardina Mamani Huanca", "40111242", "954100242"),
+                     ("Crisóstomo Ticona Apaza", "40111243", "954100243"),
+                     ("Dominga Quispe Choque", "40111244", "954100244"),
+                     ("Eleuterio Flores Ccama", "40111245", "954100245"),
+                     ("Francisca Yucra Mamani", "40111246", "954100246"),
+                     ("Gumercindo Chura Laura", "40111247", "954100247")]},
+    {"nombre": "Ruta 5 - Yasín", "descripcion": "EJEMPLO: comunidades de Yasín, al sur de Huata",
+     "inicio": (-15.6420, -69.9620), "paso": (-0.0030, 0.0025),
+     "acopiador": {"nombre_completo": "Delia Condori Huamán", "dni": "44561231", "celular": "956100231",
+                   "color_hex": "#9333EA", "vehiculo": "moto_lineal", "sueldo_base_mensual": 800,
+                   "comision_por_litro": 0.045},
+     "productores": [("Hermelinda Apaza Cutipa", "40111248", "954100248"),
+                     ("Isidoro Huarachi Condori", "40111249", "954100249"),
+                     ("Juliana Pacompía Machaca", "40111250", "954100250"),
+                     ("Leoncio Cahui Turpo", "40111251", "954100251"),
+                     ("Marcelina Vilca Sucasaca", "40111252", "954100252"),
+                     ("Nemesio Larico Chambi", "40111253", "954100253")]},
+]
+ANALISTA_NUEVO = {"nombre_completo": "Yeny Pari Quispe", "dni": "44561232", "celular": "956100232"}
+EXTERNOS_LIBRES = [("Lácteos Ccotos E.I.R.L.", "20612345671", "955200011"),
+                   ("Fortunata Quispe Huanca", "40111261", "955200012"),
+                   ("Asociación de Ganaderos Yasín", "20612345689", "955200013"),
+                   ("Rufino Apaza Ticona", "40111262", "955200014")]
 
 # Producción diaria típica (L) por productor; el resto, al azar entre 12 y 38 -- EJEMPLO
 LITROS_TIPICOS = {
@@ -304,9 +343,26 @@ def escenario(conn) -> dict:
                                  AND nombre NOT ILIKE %s ORDER BY id""", (PATRON_PRUEBA,)).fetchall()
     if len(externos) < 2:
         raise BaseNoPermitida(f"Se esperaban al menos 2 productores externos activos; hay {len(externos)}")
+    revisar_nuevos(conn)
     return {"hoy": hoy, "jc": jc, "rosa": rosa, "edwin": edwin, "mario": mario, "cirilo": cirilo,
             "gregoria": gregoria, "ruta1": mario["ruta_id"], "ruta2": cirilo["ruta_id"], "ruta3": ruta3[0],
             "externos": externos}
+
+
+def revisar_nuevos(conn) -> None:
+    """Las rutas, usuarios y productores nuevos de la carga no pueden existir ya (¿se cargó antes? restaure el respaldo)."""
+    rutas = [r["nombre"] for r in RUTAS_NUEVAS]
+    dnis = [r["acopiador"]["dni"] for r in RUTAS_NUEVAS] + [ANALISTA_NUEVO["dni"]]
+    colores = [r["acopiador"]["color_hex"].upper() for r in RUTAS_NUEVAS]
+    docs = [x[1] for r in RUTAS_NUEVAS for x in r["productores"]] + [x[1] for x in EXTERNOS_LIBRES] + ["40111217"]
+    ya = [f["x"] for f in conn.execute("""
+        SELECT 'ruta ' || nombre AS x FROM ruta WHERE nombre = ANY(%(rutas)s)
+        UNION ALL SELECT 'usuario ' || nombre_completo FROM usuario WHERE dni = ANY(%(dnis)s)
+        UNION ALL SELECT 'color ' || color_hex FROM acopiador WHERE upper(color_hex) = ANY(%(colores)s)
+        UNION ALL SELECT 'productor ' || nombre FROM productor WHERE documento = ANY(%(docs)s)
+    """, {"rutas": rutas, "dnis": dnis, "colores": colores, "docs": docs}).fetchall()]
+    if ya:
+        raise BaseNoPermitida(f"Ya existen datos de la carga ({', '.join(ya)}): restaure el respaldo antes de repetirla")
 
 
 def listar(conn) -> dict:
@@ -533,6 +589,9 @@ def cargar(client, conn, rng: random.Random, esc: dict) -> dict:
     primera_gregoria: dict | None = None
     todas: dict[date, list[dict]] = {}
     n_anuladas = 0
+    sin_senal: list[dict] = []                   # hoy: registradas sin señal, llegan en una segunda sincronización
+    altas_sin_senal: list[dict] = []
+    firma_alterada: set[str] = set()
 
     for n in range(7, -1, -1):
         dia = d(n)
@@ -585,6 +644,12 @@ def cargar(client, conn, rng: random.Random, esc: dict) -> dict:
                     items.append(_entrega(p, hora, items[-1]["litros"], rng))
                     anular.append((items[-1]["id"], "Registro duplicado (doble toque)"))
                     revisar_alerta.append((items[-1]["id"], "posible_duplicado", "Era un duplicado: se anuló"))
+        if n == 0:
+            # Desde Benedicto el celular se quedó sin señal: eso (y el alta de campo) llega más tarde
+            corte = next(i for i, it in enumerate(items) if it.get("productor_id") == benedicto["id"])
+            items, sin_senal = items[:corte], items[corte:]
+            altas, altas_sin_senal = [], altas
+            firma_alterada = {next(it["id"] for it in sin_senal if it.get("productor_id") == sabina["id"])}
         _push(client, m_rosa, altas, items, dia)
         todas[dia] = items
         # El admin anula el mismo día (antes de liquidar, y para que lo anulado no cuente en el promedio del productor)
@@ -613,6 +678,18 @@ def cargar(client, conn, rng: random.Random, esc: dict) -> dict:
 
     # Rosa Elena devuelve la Ruta 2 a Juan Carlos desde hoy
     _ok(client.put(f"/rutas/{r2}/acopiador", headers=adm, json={"acopiador_id": jc_id, "desde": str(hoy)}))
+
+    # Rosa Elena recupera la señal: llega lo que registró sin señal hoy (la cadena de firmas sigue). Una entrega llega
+    # con los litros cambiados después de firmar: se guarda igual, con la alerta firma_invalida (pago retenido)
+    resultado = _ok(client.post("/sync/push", headers=m_rosa.cab, json={
+        "productores": altas_sin_senal,
+        "recolecciones": (firmados := [
+            {**f, "litros": round(f["litros"] + 1.5, 2)} if f["id"] in firma_alterada else f
+            for f in (m_rosa.firmar(it) for it in sin_senal)])}))
+    malos = [x for x in resultado["productores"] + resultado["recolecciones"] if x["estado"] != "creado"]
+    if malos:
+        raise RuntimeError(f"Push de lo registrado sin señal con ítems no creados: {malos}")
+    todas[hoy] = todas[hoy] + firmados
 
     # La alerta del duplicado anulado queda revisada
     for rid, tipo, resolucion in revisar_alerta:
@@ -755,11 +832,37 @@ def cargar(client, conn, rng: random.Random, esc: dict) -> dict:
             _ok(client.post("/gastos", headers=adm, json={"categoria_id": cat[nombre], "monto": monto, "descripcion": desc,
                                                           "acopiador_id": acop, "fecha": str(fecha)}))
 
-    return {"hoy": hoy, "sanciones": sanciones, "lotes": [l["codigo"] for l in lotes], "lote_en_proceso": en_proceso["codigo"],
+    nuevos = cargar_nuevos(client, adm)
+    return {"hoy": hoy, "sanciones": sanciones, "sin_senal": len(sin_senal), "firma_alterada": len(firma_alterada),
+            **nuevos, "lotes": [l["codigo"] for l in lotes], "lote_en_proceso": en_proceso["codigo"],
             "litros_en_proceso": litros_proceso, "merma_litros": merma and merma["litros"], "ventas": len(ventas),
             "liquidaciones_pagadas": len(pagadas), "liquidaciones_pendientes": len(pendientes),
             "pago_acopiador": float(pago["total"]), "compras": n_compras, "anuladas": len(anular),
             "alta": alta["nombre"], "nuevo_externo": nuevo_ext["nombre"], "semana_pagada": pasada}
+
+
+def cargar_nuevos(client, adm: dict) -> dict:
+    """Rutas 4 y 5 con productores y sin entregas, sus acopiadores y un analista pendientes de activar (sin celular ni
+    código: los compañeros generan el código desde el panel) y externos libres. Todo por la API del panel."""
+    rutas, acopiadores = [], []
+    for r in RUTAS_NUEVAS:
+        ruta = _ok(client.post("/rutas", headers=adm, json={"nombre": r["nombre"], "descripcion": r["descripcion"]}))
+        for k, (nombre, dni, cel) in enumerate(r["productores"]):
+            lat = r["inicio"][0] + k * r["paso"][0]
+            lon = r["inicio"][1] + k * r["paso"][1]
+            _ok(client.post("/productores", headers=adm, json={
+                "nombre": nombre, "documento": dni, "celular": cel, "tipo": "de_ruta", "ruta_id": ruta["id"],
+                "latitud_ref": round(lat, 6), "longitud_ref": round(lon, 6)}))
+        acop = _ok(client.post("/acopiadores", headers=adm, json=r["acopiador"]))
+        _ok(client.put(f"/rutas/{ruta['id']}/acopiador", headers=adm, json={"acopiador_id": acop["id"]}))
+        rutas.append(r["nombre"])
+        acopiadores.append(acop["nombre_completo"])
+    analista = _ok(client.post("/analistas", headers=adm, json=ANALISTA_NUEVO))
+    for nombre, doc, cel in EXTERNOS_LIBRES:
+        _ok(client.post("/productores", headers=adm, json={
+            "nombre": nombre, "documento": doc, "celular": cel, "tipo": "externo"}))
+    return {"rutas_nuevas": rutas, "acopiadores_nuevos": acopiadores, "analista_nuevo": analista["nombre_completo"],
+            "externos_libres": [x[0] for x in EXTERNOS_LIBRES]}
 
 
 # ------------------------------------------------------------------ cifras para el guion
@@ -767,6 +870,31 @@ def cifras_guion(conn) -> None:
     """Nombres y montos reales de la carga (de las vistas) para completar el guion y la hoja de ensayo."""
     q = lambda s: conn.execute(s).fetchall()  # noqa: E731
     print("\n===== Cifras para el guion =====")
+    for f in q("""SELECT r.nombre, u.nombre_completo AS acopiador, a.color_hex, a.vehiculo::text AS vehiculo,
+                         a.sueldo_base_mensual, a.comision_por_litro,
+                         (SELECT COUNT(*) FROM productor p WHERE p.ruta_id = r.id AND p.activo) AS productores
+                    FROM ruta r JOIN ruta_acopiador ra ON ra.ruta_id = r.id AND ra.vigente_hasta IS NULL
+                    JOIN usuario u ON u.id = ra.acopiador_id JOIN acopiador a ON a.usuario_id = u.id
+                   WHERE r.activa ORDER BY r.nombre"""):
+        print(f"Ruta: {f['nombre']} → {f['acopiador']} ({f['color_hex']}, {f['vehiculo']}, sueldo S/ {f['sueldo_base_mensual']}"
+              f" + S/ {f['comision_por_litro']}/L), {f['productores']} productores")
+    for f in q("""SELECT u.rol::text AS rol, u.nombre_completo, u.dni,
+                         (u.pin_hash IS NULL) AS sin_pin,
+                         EXISTS (SELECT 1 FROM dispositivo d WHERE d.usuario_id = u.id AND d.activo) AS con_celular
+                    FROM usuario u WHERE u.rol IN ('acopiador', 'analista') AND u.activo ORDER BY u.rol, u.nombre_completo"""):
+        estado = "celular vinculado" if f["con_celular"] else ("pendiente de activar" if f["sin_pin"] else "sin celular")
+        print(f"Usuario {f['rol']}: {f['nombre_completo']} (DNI {f['dni']}) — {estado}")
+    for f in q("""SELECT p.nombre, p.documento, p.celular FROM productor p
+                   WHERE p.tipo = 'externo' AND p.activo
+                     AND NOT EXISTS (SELECT 1 FROM recoleccion r WHERE r.productor_id = p.id) ORDER BY p.nombre"""):
+        print(f"Externo libre (sin entregas): {f['nombre']} · {f['documento']} · {f['celular']}")
+    for f in q("""SELECT p.nombre, r.litros, r.registrada_en AT TIME ZONE 'America/Lima' AS registrada,
+                         r.recibida_en - r.registrada_en AS demora
+                    FROM recoleccion r JOIN productor p ON p.id = r.productor_id
+                   WHERE (r.registrada_en AT TIME ZONE 'America/Lima')::date = (now() AT TIME ZONE 'America/Lima')::date
+                     AND r.recibida_en - r.registrada_en > interval '1 hour' ORDER BY r.registrada_en"""):
+        print(f"Llegó después (sin señal): {f['nombre']} {f['litros']} L, registrada {f['registrada']:%H:%M}, "
+              f"llegó {str(f['demora']).split('.')[0]} después")
     for f in q("""SELECT nombre, ruta, tipo_sancion, estado, sancion_desde, sancion_hasta, ph, densidad,
                          antibioticos_positivo FROM v_productor_observado ORDER BY nombre"""):
         print(f"Observado: {f['nombre']} ({f['ruta']}): {f['tipo_sancion']} {f['sancion_desde']}…{f['sancion_hasta']}, "
@@ -838,7 +966,41 @@ def verificar(conn, esc: dict) -> list[str]:
     for tipo in ("lejos_del_productor", "ubicacion_simulada", "sin_ubicacion", "posible_duplicado", "litros_atipicos"):
         if alertas.get(tipo, 0) < 1:
             fallas.append(f"Falta la alerta pendiente {tipo}")
-    for tipo in ("firma_invalida", "hora_inconsistente", "velocidad_imposible", "ubicacion_imprecisa"):
+    if alertas.get("firma_invalida", 0) != 1:
+        fallas.append(f"Debería haber exactamente 1 alerta firma_invalida (hay {alertas.get('firma_invalida', 0)})")
+    if not q("""SELECT 1 FROM v_recoleccion_pago pg JOIN alerta_recoleccion a ON a.recoleccion_id = pg.recoleccion_id
+                 WHERE a.tipo = 'firma_invalida' AND pg.retenida"""):
+        fallas.append("La entrega con firma inválida debería tener el pago retenido")
+    for r in RUTAS_NUEVAS:
+        fila = uno("""SELECT u.nombre_completo AS acop, u.pin_hash IS NULL AS sin_pin, a.sueldo_base_mensual AS sueldo,
+                             a.comision_por_litro AS comision,
+                             (SELECT COUNT(*) FROM dispositivo d WHERE d.usuario_id = u.id) AS celulares,
+                             (SELECT COUNT(*) FROM codigo_activacion c WHERE c.usuario_id = u.id) AS codigos,
+                             (SELECT COUNT(*) FROM productor p WHERE p.ruta_id = rt.id AND p.activo AND p.aprobado
+                                                                 AND p.latitud_ref IS NOT NULL) AS productores,
+                             (SELECT COUNT(*) FROM recoleccion x WHERE x.ruta_id = rt.id) AS entregas
+                        FROM ruta rt JOIN ruta_acopiador ra ON ra.ruta_id = rt.id AND ra.vigente_hasta IS NULL
+                        JOIN usuario u ON u.id = ra.acopiador_id JOIN acopiador a ON a.usuario_id = u.id
+                       WHERE rt.nombre = %s""", r["nombre"])
+        if fila is None or fila["acop"] != r["acopiador"]["nombre_completo"]:
+            fallas.append(f"{r['nombre']} debería estar asignada a {r['acopiador']['nombre_completo']}")
+        elif not (6 <= fila["productores"] <= 8 and fila["entregas"] == 0 and fila["sin_pin"] and fila["celulares"] == 0
+                  and fila["codigos"] == 0 and fila["sueldo"] > 0 and fila["comision"] > 0):
+            fallas.append(f"{r['nombre']} no quedó lista para vincular: {dict(fila)}")
+    nuevo = uno("""SELECT u.pin_hash IS NULL AS sin_pin, (SELECT COUNT(*) FROM dispositivo d WHERE d.usuario_id = u.id) AS cel
+                     FROM usuario u WHERE u.dni = %s AND u.rol = 'analista'""", ANALISTA_NUEVO["dni"])
+    if nuevo is None or not nuevo["sin_pin"] or nuevo["cel"] != 0:
+        fallas.append(f"El analista {ANALISTA_NUEVO['nombre_completo']} debería quedar pendiente de activar")
+    libres = uno("""SELECT COUNT(*) AS n FROM productor p WHERE p.tipo = 'externo' AND p.documento = ANY(%s)
+                      AND p.celular IS NOT NULL AND NOT EXISTS (SELECT 1 FROM recoleccion r WHERE r.productor_id = p.id)""",
+                 [x[1] for x in EXTERNOS_LIBRES])["n"]
+    if libres != len(EXTERNOS_LIBRES):
+        fallas.append(f"Faltan externos libres sin entregas ({libres} de {len(EXTERNOS_LIBRES)})")
+    if not q("""SELECT 1 FROM recoleccion WHERE (registrada_en AT TIME ZONE 'America/Lima')::date
+                                                = (now() AT TIME ZONE 'America/Lima')::date
+                 AND recibida_en - registrada_en > interval '1 hour'"""):
+        fallas.append("Faltan entregas de hoy que llegaron después (sin señal)")
+    for tipo in ("hora_inconsistente", "velocidad_imposible", "ubicacion_imprecisa"):
         if alertas.get(tipo, 0) > 0:
             fallas.append(f"No debería haber alertas {tipo} ({alertas[tipo]})")
     por_revisar = uno("SELECT COUNT(*) AS n FROM v_recoleccion_sin_revisar")["n"]

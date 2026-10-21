@@ -79,3 +79,27 @@ SELECT codigo, nombre, tipo, pendiente_aprobacion, n_recolecciones, litros_total
 SELECT * FROM v_flujo_mensual ORDER BY mes;
 SELECT * FROM v_resultado_mensual ORDER BY mes;
 SELECT * FROM v_leche_stock;
+
+\echo '== Rutas, acopiadores y productores (Ruta 4 y Ruta 5: con acopiador nuevo y sin entregas)'
+SELECT r.nombre AS ruta, u.nombre_completo AS acopiador, a.color_hex, a.vehiculo, a.sueldo_base_mensual, a.comision_por_litro,
+       (SELECT COUNT(*) FROM productor p WHERE p.ruta_id = r.id AND p.activo) AS productores,
+       (SELECT COUNT(*) FROM recoleccion x WHERE x.ruta_id = r.id) AS entregas
+  FROM ruta r LEFT JOIN ruta_acopiador ra ON ra.ruta_id = r.id AND ra.vigente_hasta IS NULL
+  LEFT JOIN usuario u ON u.id = ra.acopiador_id LEFT JOIN acopiador a ON a.usuario_id = u.id
+ WHERE r.activa ORDER BY r.nombre;
+
+\echo '== Usuarios del celular (pendiente de activar = sin PIN ni celular; nadie con código generado por la carga)'
+SELECT u.rol, u.nombre_completo, u.dni, u.celular, (u.pin_hash IS NULL) AS pendiente_de_activar,
+       EXISTS (SELECT 1 FROM dispositivo d WHERE d.usuario_id = u.id AND d.activo) AS celular_activo,
+       (SELECT COUNT(*) FROM codigo_activacion c WHERE c.usuario_id = u.id) AS codigos
+  FROM usuario u WHERE u.rol IN ('acopiador', 'analista') ORDER BY u.rol, u.nombre_completo;
+
+\echo '== Externos sin entregas (los ve el analista 0.8.0)'
+SELECT codigo, nombre, documento, celular FROM productor p
+ WHERE tipo = 'externo' AND activo AND NOT EXISTS (SELECT 1 FROM recoleccion r WHERE r.productor_id = p.id) ORDER BY nombre;
+
+\echo '== Entregas de hoy: hora del celular y llegada al servidor (las "sin señal" llegaron después)'
+SELECT d.productor, d.litros, d.registrada_en AT TIME ZONE 'America/Lima' AS registrada, r.recibida_en AT TIME ZONE 'America/Lima' AS llego,
+       d.alertas_pendientes, d.retenida
+  FROM v_recoleccion_detalle d JOIN recoleccion r ON r.id = d.recoleccion_id
+ WHERE d.fecha = (now() AT TIME ZONE 'America/Lima')::date ORDER BY r.recibida_en, d.registrada_en;
