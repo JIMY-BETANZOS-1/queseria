@@ -265,31 +265,29 @@ def _pull_acopiador(conn, usuario: Usuario, desde: datetime | None) -> dict:
 
 
 def _pull_analista(conn, desde: datetime | None) -> dict:
+    """Rutas activas, productores activos de todas ellas y los externos (sin entregas: el analista solo reporta)."""
     p = {"desde": desde}
-    externos = db.todos(conn, f"""
-        SELECT {COLUMNAS_PRODUCTOR},
-               (%(desde)s::timestamptz IS NULL OR p.actualizado_en > %(desde)s) AS cambio
-          FROM productor p
-         WHERE p.tipo = 'externo' AND p.activo
-         ORDER BY p.nombre
+    rutas = db.todos(conn, """
+        SELECT r.id, r.nombre, r.descripcion, r.actualizado_en,
+               (%(desde)s::timestamptz IS NULL OR r.actualizado_en > %(desde)s) AS cambio
+          FROM ruta r WHERE r.activa ORDER BY r.nombre
     """, p)
-    # v_recoleccion_sin_revisar no tiene actualizado_en: es la lista de trabajo y va completa
-    sin_revisar = db.todos(conn, "SELECT * FROM v_recoleccion_sin_revisar ORDER BY registrada_en")
-    recolecciones_hoy = db.todos(conn, f"""
-        SELECT r.id, r.productor_id, p.codigo AS productor_codigo, p.nombre AS productor, r.litros,
-               r.registrada_en, r.registrado_por, r.estado_calidad::text AS estado_calidad,
-               (r.calidad_en IS NOT NULL) AS revisada, (r.anulada_en IS NOT NULL) AS anulada, r.actualizado_en
-          FROM recoleccion r JOIN productor p ON p.id = r.productor_id
-         WHERE (r.registrada_en AT TIME ZONE 'America/Lima')::date = {HOY_LIMA}
-           AND (%(desde)s::timestamptz IS NULL OR r.actualizado_en > %(desde)s)
-         ORDER BY r.registrada_en
+    # Si la ruta cambió (p. ej. reactivada), van todos sus productores
+    productores = db.todos(conn, f"""
+        SELECT {COLUMNAS_PRODUCTOR},
+               (%(desde)s::timestamptz IS NULL OR p.actualizado_en > %(desde)s
+                OR r.actualizado_en > %(desde)s) AS cambio
+          FROM productor p
+          LEFT JOIN ruta r ON r.id = p.ruta_id
+         WHERE p.activo AND (p.tipo = 'externo' OR r.activa)
+         ORDER BY p.nombre
     """, p)
     estados = db.todos(conn, "SELECT * FROM v_productor_estado_hoy WHERE sancionado")
     return {
-        "productores": [x for x in externos if x["cambio"]],
-        "productor_ids_vigentes": [x["id"] for x in externos],
-        "sin_revisar": sin_revisar,
-        "recolecciones_hoy": recolecciones_hoy,
+        "rutas": [r for r in rutas if r["cambio"]],
+        "ruta_ids_vigentes": [r["id"] for r in rutas],
+        "productores": [x for x in productores if x["cambio"]],
+        "productor_ids_vigentes": [x["id"] for x in productores],
         "estados": estados,
     }
 

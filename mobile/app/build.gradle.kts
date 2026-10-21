@@ -40,8 +40,8 @@ android {
         applicationId = "pe.queseria.campo"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.7.0"
+        versionCode = 6
+        versionName = "0.8.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
         buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
@@ -103,5 +103,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.room.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test)
 }

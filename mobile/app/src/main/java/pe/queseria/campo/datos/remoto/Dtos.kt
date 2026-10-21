@@ -181,17 +181,45 @@ data class EstadoProductorDto(
 @Serializable
 data class PreciosDto(val fecha: String, val normal: Double? = null, val sancion: Double? = null)
 
+interface PullSyncDto {
+    val rol: String
+    val servidorAhora: String
+    val siguienteDesde: String
+}
+
 @Serializable
 data class PullAcopiadorDto(
-    val rol: String,
-    @SerialName("servidor_ahora") val servidorAhora: String,
-    @SerialName("siguiente_desde") val siguienteDesde: String,
+    override val rol: String,
+    @SerialName("servidor_ahora") override val servidorAhora: String,
+    @SerialName("siguiente_desde") override val siguienteDesde: String,
     val estados: List<EstadoProductorDto> = emptyList(),
     val rutas: List<RutaPullDto> = emptyList(),
     @SerialName("ruta_ids_vigentes") val rutaIdsVigentes: List<Long> = emptyList(),
     val productores: List<ProductorPullDto> = emptyList(),
     @SerialName("productor_ids_vigentes") val productorIdsVigentes: List<Long> = emptyList(),
     val precios: PreciosDto? = null,
+) : PullSyncDto
+
+/** Pull del analista (0.8.0): rutas activas, productores de todas ellas y externos. No trae entregas. */
+@Serializable
+data class PullAnalistaDto(
+    override val rol: String,
+    @SerialName("servidor_ahora") override val servidorAhora: String,
+    @SerialName("siguiente_desde") override val siguienteDesde: String,
+    val estados: List<EstadoProductorDto> = emptyList(),
+    val rutas: List<RutaPullDto> = emptyList(),
+    @SerialName("ruta_ids_vigentes") val rutaIdsVigentes: List<Long> = emptyList(),
+    val productores: List<ProductorPullDto> = emptyList(),
+    @SerialName("productor_ids_vigentes") val productorIdsVigentes: List<Long> = emptyList(),
+) : PullSyncDto
+
+/** Respuesta de POST /analista/reportes (creado o duplicado). */
+@Serializable
+data class ReporteGuardadoDto(
+    @SerialName("uuid_reporte") val uuidReporte: String,
+    val estado: String,
+    @SerialName("recoleccion_id") val recoleccionId: String,
+    @SerialName("foto_url") val fotoUrl: String,
 )
 
 // ----------------------------------------------------------------- mi día

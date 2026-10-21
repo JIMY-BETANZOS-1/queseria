@@ -1,6 +1,7 @@
 package pe.queseria.campo.datos.remoto
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -9,8 +10,12 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.Multipart
+import retrofit2.http.Part
 import retrofit2.http.POST
 import retrofit2.http.Query
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import java.util.concurrent.TimeUnit
 
 /** Endpoints reales del backend que usa el acopiador (backend/app/routers/auth.py, sync.py, acopiador.py). */
@@ -33,6 +38,22 @@ interface ApiQueseria {
     /** Hoy y los 6 días anteriores, hoy primero, incluidos los días sin entregas. */
     @GET("acopiador/ultimos-dias")
     suspend fun ultimosDias(@Header("Authorization") bearer: String): List<MiDiaDto>
+}
+
+/** Endpoints del analista (backend/app/routers/sync.py y reportes_analista.py). */
+interface ApiAnalistaQueseria {
+    @GET("sync/pull")
+    suspend fun pull(@Header("Authorization") bearer: String, @Query("desde") desde: String?): JsonObject
+
+    @Multipart
+    @POST("analista/reportes")
+    suspend fun subirReporte(
+        @Header("Authorization") bearer: String,
+        @Part("uuid_reporte") uuidReporte: RequestBody,
+        @Part("productor_id") productorId: RequestBody?,
+        @Part("productor_uuid_cliente") productorUuidCliente: RequestBody?,
+        @Part foto: MultipartBody.Part,
+    ): ReporteGuardadoDto
 }
 
 object Red {
@@ -62,6 +83,21 @@ object Red {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(ApiQueseria::class.java)
+    }
+
+    fun crearApiAnalista(baseUrl: String): ApiAnalistaQueseria? {
+        if (baseUrl.isBlank()) return null
+        val cliente = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(cliente)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(ApiAnalistaQueseria::class.java)
     }
 
     /**

@@ -185,6 +185,23 @@ def test_analista_registra_externo_pero_no_de_ruta(client, admin, acop):
     assert (r["tipo"], r["aprobado"]) == ("externo", True)
 
 
+def test_entrega_sin_senal_se_acepta_aunque_la_ruta_se_reasigne_antes_de_sincronizar(client, admin):
+    """La app nunca impide el registro (CLAUDE.md): lo que el acopiador registró sin señal entra aunque, antes de
+    sincronizar, el admin le haya pasado la ruta a otro (p. ej. una cobertura). La API no revisa la asignación."""
+    acop = movil_con_celular(client, admin, "acopiador")
+    ruta_id = crear_ruta_asignada(client, admin, acop["id"])
+    prod = crear_productor(client, admin, ruta_id)
+    item = item_recoleccion(acop, prod["id"])                  # registrada sin señal, aún no subida
+    alta = {"uuid_cliente": str(uuid.uuid4()), "nombre": "Alta antes de la reasignación", "ruta_id": ruta_id}
+    otro = movil_con_celular(client, admin, "acopiador")
+    assert client.put(f"/rutas/{ruta_id}/acopiador", json={"acopiador_id": otro["id"]},
+                      headers=cab(admin)).status_code == 200
+
+    r = push(client, acop, productores=[alta], recolecciones=[item])
+    assert r["productores"][0]["estado"] == "creado"
+    assert r["recolecciones"][0]["estado"] == "creado" and r["recolecciones"][0].get("motivo") is None
+
+
 def test_sin_gps_se_acepta_con_alerta(client, admin, acop, db):
     prod = crear_productor(client, admin, acop["ruta_id"])
     sin_gps = item_recoleccion(acop, prod["id"], latitud=None, longitud=None, precision_m=None, origen_ubicacion=None)

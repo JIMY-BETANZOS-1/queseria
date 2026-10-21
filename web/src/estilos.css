@@ -1325,3 +1325,13 @@ td.acciones .boton + .boton {
   border-left: 4px solid var(--acento);
   background: var(--acento-claro);
 }
+
+/* Reportes del analista (Analistas): foto mostrada como blob: */
+.foto-reporte {
+  display: block;
+  max-width: 240px;
+  max-height: 240px;
+  margin-bottom: 4px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+}

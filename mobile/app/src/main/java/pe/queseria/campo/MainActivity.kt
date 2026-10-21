@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pe.queseria.campo.seguridad.EstadoSesion
 import pe.queseria.campo.ui.AppAcopiador
+import pe.queseria.campo.ui.analista.AppAnalista
 import pe.queseria.campo.ui.activar.ActivarPantalla
 import pe.queseria.campo.ui.pin.PinPantalla
 import pe.queseria.campo.ui.tema.TemaCampo
@@ -47,7 +48,11 @@ class MainActivity : ComponentActivity() {
                         is EstadoSesion.Cerrada -> PinPantalla(contenedor.autenticador)
 
                         // El PIN lo crea el propio usuario al activar: ya no hay cambio obligatorio (B2b)
-                        is EstadoSesion.Abierta -> AppAcopiador(contenedor, s)
+                        is EstadoSesion.Abierta -> if (s.usuario.rol == "analista") {
+                            AppAnalista(contenedor, s.usuario.nombre)
+                        } else {
+                            AppAcopiador(contenedor, s)
+                        }
                     }
                 }
             }

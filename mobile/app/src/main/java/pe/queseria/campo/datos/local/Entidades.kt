@@ -95,6 +95,33 @@ data class RecoleccionEntidad(
     @ColumnInfo(name = "sincronizada_en_ms") val sincronizadaEnMs: Long? = null,
 )
 
+/** Estado de un reporte del analista en el celular. */
+object EstadoReporte {
+    const val PENDIENTE = "PENDIENTE"         // con foto: se envía (y se reintenta) en cada sincronización
+    const val ENVIADO = "ENVIADO"             // el servidor guardó la foto (creado o duplicado)
+    const val SOLO_CELULAR = "SOLO_CELULAR"   // solo comentario: la base aún no tiene dónde guardarlo
+    const val RECHAZADO = "RECHAZADO"         // el servidor lo rechazó (foto inválida...): se conserva con su motivo
+}
+
+/**
+ * Reporte informativo del analista sobre un productor (comentario, foto o ambos). No registra valores de
+ * calidad. id = uuid_reporte (idempotencia en el servidor). La foto va reducida (JPEG) en filesDir.
+ * El comentario se queda en el celular: la base no tiene columna para él (docs/sincronizacion.md §5b).
+ */
+@Entity(tableName = "reporte_analista", indices = [Index("productor_clave"), Index("estado")])
+data class ReporteAnalistaEntidad(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "productor_clave") val productorClave: String,
+    @ColumnInfo(name = "productor_nombre") val productorNombre: String,
+    val comentario: String?,
+    @ColumnInfo(name = "foto_ruta") val fotoRuta: String?,
+    @ColumnInfo(name = "creado_en_ms") val creadoEnMs: Long,
+    val estado: String,
+    val motivo: String?,
+    val intentos: Int,
+    @ColumnInfo(name = "enviado_en_ms") val enviadoEnMs: Long?,
+)
+
 /** Pares clave → valor: cursor del pull, último sync, última firma (cadena hash_anterior), precios. */
 @Entity(tableName = "meta")
 data class MetaEntidad(@PrimaryKey val clave: String, val valor: String?)

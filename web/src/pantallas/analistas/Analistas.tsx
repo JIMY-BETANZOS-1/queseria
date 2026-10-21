@@ -6,8 +6,9 @@ import { Insignia } from "../../comun/Insignia";
 import { useCarga } from "../../comun/useCarga";
 import { useTitulo } from "../../comun/useTitulo";
 import { estadoAcceso } from "../../usuarios/estadoAcceso";
+import ReportesAnalista from "./ReportesAnalista";
 
-/** A13 (parcial) · Lista de analistas con su estado de acceso al celular. */
+/** A13 (parcial) · Lista de analistas con su estado de acceso al celular y los reportes que envían. */
 export default function Analistas() {
   useTitulo("Analistas");
   const id = useId();
@@ -76,6 +77,8 @@ export default function Analistas() {
           </tbody>
         </table>
       ))}
+
+      <ReportesAnalista />
     </>
   );
 }

@@ -201,10 +201,28 @@ puede subirse antes o después de la revisión. `GET /analisis/{recoleccion_id}/
 - `ruta_ids_vigentes`, `productor_ids_vigentes`, `estados`.
 - `precios`: `{fecha, normal, sancion}` vigentes hoy.
 
-**Analista** (`rol: "analista"`)
-- `sin_revisar`: lista completa de `v_recoleccion_sin_revisar` (su lista de trabajo).
-- `recolecciones_hoy`: recolecciones de hoy (hora de Lima) que cambiaron, con `revisada` y `anulada`.
-- `productores` (externos que cambiaron), `productor_ids_vigentes` y `estados` (todos los productores sancionados).
+**Analista** (`rol: "analista"`, app 0.8.0): **no baja entregas**.
+- `rutas`: rutas activas que cambiaron; `ruta_ids_vigentes`: todas las activas.
+- `productores`: productores activos de todas las rutas activas y los externos, que cambiaron (si la ruta
+  cambió, llegan todos los suyos); `productor_ids_vigentes` y `estados` (todos los sancionados hoy).
+
+## 5b. `POST /analista/reportes` (solo analista) y `GET /analista/reportes` (admin)
+
+Reporte **informativo** del analista sobre un productor: no registra valores de calidad ni genera
+sanciones (la decisión es del administrador). Multipart con `uuid_reporte` (UUID del celular),
+`productor_id` **o** `productor_uuid_cliente` (externo dado de alta en el celular) y `foto` (JPEG, PNG o
+WebP, máximo `FOTO_MAX_MB`).
+
+- La base no tiene tabla de reportes por productor: la foto se asocia a la **entrega más reciente del
+  productor que aún no tiene análisis** (fila de `analisis_calidad` solo con `foto_url`; no cambia
+  `estado_calidad` ni pisa un análisis). El archivo es `analisis/reporte-<uuid_reporte>.<ext>`.
+- Idempotente por `uuid_reporte`: reenviarlo responde `estado: "duplicado"` con lo ya guardado.
+- `409 sin_entrega`: el productor aún no llegó al servidor o no tiene una entrega libre. El celular
+  conserva el reporte y lo reintenta en cada sincronización.
+- **Pendiente de estructura:** el comentario del analista no tiene columna (`analisis_calidad` no tiene
+  observación y `recoleccion.observacion` es del acopiador y va firmada). Se guarda solo en el celular.
+- `GET /analista/reportes?desde&hasta` (admin): fecha y hora (`creado_en`), productor, ruta y
+  `recoleccion_id`; la foto se ve con `GET /analisis/{recoleccion_id}/foto`.
 
 ## 6. `GET /acopiador/mi-dia` (solo acopiador)
 
@@ -275,8 +293,10 @@ Huecos del contrato encontrados al implementar el móvil. El backend no se cambi
 7. **Revinculación y firmas pendientes.** Si el celular se vuelve a vincular, la app **reutiliza** la
    clave del Keystore: las recolecciones pendientes firmadas antes siguen validando. Si se reinstala la
    app, la clave y el `device_uuid` se pierden (y con ellos lo no sincronizado).
-8. **Rol analista.** El mismo APK lo puede activar un analista, pero las Fases 3A/3B solo implementan al
-   acopiador: el pull del analista se rechaza en el celular con "Esta versión de la app es solo para acopiadores".
+8. **Rol analista (0.8.0).** El mismo APK, activado por un analista, muestra los productores de todas
+   las rutas y los externos; al tocar uno guarda un reporte (comentario, foto o ambos; la foto reducida a
+   1280 px en JPEG) sin señal, y da de alta productores externos (nombre o empresa, DNI, celular). La cola
+   (`reporte_analista`, migración Room 2→3) se envía con reintento de WorkManager. No sincroniza entregas.
 9. **Varias recolecciones por productor y día (Fase 3B).** No hay límite: ni `db/schema.sql` (no existe
    un UNIQUE por productor y fecha en `recoleccion`) ni este contrato lo imponen, y el push acepta
    varias. Cada entrega lleva su propio UUID de cliente y suma al total del día. Consecuencia para la
