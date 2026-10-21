@@ -33,7 +33,11 @@
   --esp-4: 32px;
   --radio: 6px;
   --ancho-menu: 220px;
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  /* Tipografía: Inter autohospedada (@fontsource-variable/inter, mismo origen: la permite default-src 'self' del CSP)
+     y, mientras carga o si falta, la fuente del sistema */
+  --fuente: "Inter Variable", system-ui, "Segoe UI", Roboto, sans-serif;
+  --fuente-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-family: var(--fuente);
   font-size: 15px;
   line-height: 1.5;
   color: var(--texto);
@@ -453,6 +457,7 @@ a.boton {
 
 /* ---------------------------------------------------------------- tablas */
 .tabla {
+  font-variant-numeric: tabular-nums;   /* cifras alineadas en columnas */
   width: 100%;
   border-collapse: collapse;
   background: var(--superficie);
@@ -559,7 +564,7 @@ a.boton {
 }
 
 .codigo-activacion {
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-family: var(--fuente-mono);
   font-size: 2.2rem;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -703,6 +708,7 @@ a.boton {
 }
 
 .dato-cifra {
+  font-variant-numeric: tabular-nums;
   font-size: 1.85rem;
   font-weight: 700;
   line-height: 1.15;
@@ -754,6 +760,7 @@ a.boton {
 }
 
 .grafico .grafico-cifra {
+  font-variant-numeric: tabular-nums;
   fill: var(--texto);
 }
 
@@ -987,6 +994,7 @@ a.boton {
 }
 
 .tarjeta-accion-cifra {
+  font-variant-numeric: tabular-nums;
   font-size: 1.9rem;
   font-weight: 700;
   line-height: 1.2;
@@ -1068,6 +1076,7 @@ a.boton {
 }
 
 .kardex-cantidad {
+  font-variant-numeric: tabular-nums;
   font-size: 1.35rem;
   font-weight: 700;
 }
