@@ -128,6 +128,7 @@ data class RevisionCalidadEntidad(
     val densidad: String?,
     @ColumnInfo(name = "antibioticos_positivo") val antibioticosPositivo: Boolean?,
     @ColumnInfo(name = "foto_uri") val fotoUri: String? = null,
+    @ColumnInfo(name = "calidad_sincronizada") val calidadSincronizada: Boolean = false,
 )
 
 /** Pares clave → valor: cursor del pull, último sync, última firma (cadena hash_anterior), precios. */

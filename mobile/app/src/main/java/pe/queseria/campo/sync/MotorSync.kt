@@ -2,6 +2,8 @@ package pe.queseria.campo.sync
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
 import pe.queseria.campo.datos.local.EstadoProductorEntidad
 import pe.queseria.campo.datos.local.AnalistaDao
 import pe.queseria.campo.datos.local.EntregaAnalistaEntidad
@@ -35,6 +37,8 @@ interface RemotoSync {
     suspend fun pull(desde: String?): PullSyncDto
     suspend fun calidad(lote: pe.queseria.campo.datos.remoto.LoteCalidadDto): pe.queseria.campo.datos.remoto.RespuestaCalidadDto =
         throw ErrorApp.Local("Este usuario no puede registrar calidad")
+    suspend fun subirFoto(recoleccionId: String, rutaLocal: String): pe.queseria.campo.datos.remoto.FotoGuardadaDto =
+        throw ErrorApp.Local("Este usuario no puede subir fotos")
 }
 
 class RemotoApi(
@@ -54,6 +58,17 @@ class RemotoApi(
     }
     override suspend fun calidad(lote: pe.queseria.campo.datos.remoto.LoteCalidadDto) =
         llamar { requireNotNull(analistaApi).invoke().calidad(bearer(), lote) }
+    override suspend fun subirFoto(recoleccionId: String, rutaLocal: String) = llamar {
+        val archivo = java.io.File(rutaLocal)
+        if (!archivo.isFile) throw ErrorApp.Local("La foto local ya no está disponible")
+        requireNotNull(analistaApi).invoke().subirFoto(
+            bearer(), recoleccionId,
+            okhttp3.MultipartBody.Part.createFormData(
+                "archivo", archivo.name,
+                archivo.asRequestBody("image/jpeg".toMediaType()),
+            ),
+        )
+    }
 }
 
 data class ResumenSync(
@@ -162,14 +177,27 @@ class MotorSync(
         if (pull.rol == "analista") {
             val analista = pull as? PullAnalistaDto
                 ?: throw ErrorApp.Local("Respuesta inválida del servidor para analista")
-            val revisiones = analistaDao?.revisionesPendientes().orEmpty()
+            val revisiones = analistaDao?.revisionesPorSincronizar().orEmpty()
             if (revisiones.isNotEmpty()) {
                 val respuesta = remoto.calidad(revisiones.map {
                     RevisionCalidadDto(it.recoleccionId, it.estado, it.ph?.numero(), it.temperaturaC?.numero(),
                         it.grasaPct?.numero(), it.densidad?.numero(), it.antibioticosPositivo)
                 }.let { pe.queseria.campo.datos.remoto.LoteCalidadDto(it) })
                 respuesta.revisiones.filter { it.estado == "creado" || it.estado == "duplicado" }
-                    .forEach { it.recoleccionId?.let { id -> analistaDao?.borrarRevision(id); analistaDao?.marcarRevisada(id, revisiones.first { r -> r.recoleccionId == id }.estado) } }
+                    .forEach { resultado ->
+                        resultado.recoleccionId?.let { id ->
+                            analistaDao?.marcarCalidadSincronizada(id)
+                            val revision = revisiones.first { it.recoleccionId == id }
+                            if (revision.fotoUri == null) analistaDao?.borrarRevision(id)
+                        }
+                    }
+            }
+            val fotos = analistaDao?.revisionesPendientes().orEmpty()
+                .filter { it.calidadSincronizada && it.fotoUri != null }
+            fotos.forEach { revision ->
+                val foto = remoto.subirFoto(revision.recoleccionId, requireNotNull(revision.fotoUri))
+                analistaDao?.guardarFotoUrl(revision.recoleccionId, foto.fotoUrl)
+                analistaDao?.borrarRevision(revision.recoleccionId)
             }
             analistaDao?.aplicarPull(analista.recoleccionesHoy.map {
                 EntregaAnalistaEntidad(it.id, it.productorId, it.productorCodigo, it.productor,

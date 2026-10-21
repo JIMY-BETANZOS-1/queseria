@@ -26,7 +26,7 @@ abstract class BaseLocal : RoomDatabase() {
                 .addMigrations(MIGRATION_1_2)
                 .build()
 
-        private val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+        internal val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("""CREATE TABLE IF NOT EXISTS entrega_analista (
                     id TEXT NOT NULL PRIMARY KEY, productor_id INTEGER NOT NULL,
@@ -41,7 +41,8 @@ abstract class BaseLocal : RoomDatabase() {
                 db.execSQL("""CREATE TABLE IF NOT EXISTS revision_calidad (
                     recoleccion_id TEXT NOT NULL PRIMARY KEY, estado TEXT NOT NULL,
                     ph TEXT, temperatura_c TEXT, grasa_pct TEXT, densidad TEXT,
-                    antibioticos_positivo INTEGER, foto_uri TEXT)""")
+                    antibioticos_positivo INTEGER, foto_uri TEXT,
+                    calidad_sincronizada INTEGER NOT NULL DEFAULT 0)""")
             }
         }
     }

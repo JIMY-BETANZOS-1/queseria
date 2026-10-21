@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
                         // El PIN lo crea el propio usuario al activar: ya no hay cambio obligatorio (B2b)
                         is EstadoSesion.Abierta -> if (s.usuario.rol == "analista") {
                             AppAnalista(contenedor.analistaDao, contenedor.base.syncDao(),
-                                contenedor.registrador, contenedor.motorSync, s.usuario.nombre)
+                                contenedor.registrador, contenedor.motorSync, contenedor.fotoAnalisis, s.usuario.nombre)
                         } else {
                             AppAcopiador(contenedor, s)
                         }

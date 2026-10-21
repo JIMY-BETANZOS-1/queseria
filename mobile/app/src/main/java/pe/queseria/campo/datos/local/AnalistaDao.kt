@@ -22,6 +22,15 @@ abstract class AnalistaDao {
     @Query("SELECT * FROM revision_calidad")
     abstract suspend fun revisionesPendientes(): List<RevisionCalidadEntidad>
 
+    @Query("SELECT * FROM revision_calidad WHERE calidad_sincronizada = 0")
+    abstract suspend fun revisionesPorSincronizar(): List<RevisionCalidadEntidad>
+
+    @Query("UPDATE revision_calidad SET calidad_sincronizada = 1 WHERE recoleccion_id = :id")
+    abstract suspend fun marcarCalidadSincronizada(id: String)
+
+    @Query("UPDATE revision_calidad SET foto_uri = :fotoUri WHERE recoleccion_id = :id")
+    abstract suspend fun guardarFotoLocal(id: String, fotoUri: String)
+
     @Query("DELETE FROM revision_calidad WHERE recoleccion_id = :id")
     abstract suspend fun borrarRevision(id: String)
 

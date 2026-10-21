@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "8655f5acadbe0f30eb61e9858c03c783",
+    "identityHash": "63715b92c2ed5d42bdaf326b016b3a77",
     "entities": [
       {
         "tableName": "productor",
@@ -484,7 +484,7 @@
       },
       {
         "tableName": "revision_calidad",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recoleccion_id` TEXT NOT NULL, `estado` TEXT NOT NULL, `ph` TEXT, `temperatura_c` TEXT, `grasa_pct` TEXT, `densidad` TEXT, `antibioticos_positivo` INTEGER, `foto_uri` TEXT, PRIMARY KEY(`recoleccion_id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recoleccion_id` TEXT NOT NULL, `estado` TEXT NOT NULL, `ph` TEXT, `temperatura_c` TEXT, `grasa_pct` TEXT, `densidad` TEXT, `antibioticos_positivo` INTEGER, `foto_uri` TEXT, `calidad_sincronizada` INTEGER NOT NULL, PRIMARY KEY(`recoleccion_id`))",
         "fields": [
           {
             "fieldPath": "recoleccionId",
@@ -527,6 +527,12 @@
             "fieldPath": "fotoUri",
             "columnName": "foto_uri",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "calidadSincronizada",
+            "columnName": "calidad_sincronizada",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -562,7 +568,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '8655f5acadbe0f30eb61e9858c03c783')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '63715b92c2ed5d42bdaf326b016b3a77')"
     ]
   }
 }

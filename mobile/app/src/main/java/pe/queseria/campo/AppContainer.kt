@@ -15,6 +15,7 @@ import pe.queseria.campo.seguridad.CajaFuerte
 import pe.queseria.campo.seguridad.PinLocal
 import pe.queseria.campo.sync.MiDia
 import pe.queseria.campo.sync.MotorSync
+import pe.queseria.campo.sync.FotoAnalisis
 import pe.queseria.campo.sync.RemotoApi
 import pe.queseria.campo.ubicacion.Ubicador
 import pe.queseria.campo.ui.componentes.TextosPendientes
@@ -45,6 +46,7 @@ class AppContainer(context: Context) {
 
     val registrador = Registrador(base, claveDispositivo)
     val analistaDao = base.analistaDao()
+    val fotoAnalisis = FotoAnalisis(context.applicationContext)
     val ubicador = Ubicador(context.applicationContext)
     val motorSync = MotorSync(RemotoApi(::api, autenticador::bearer, { autenticador.usuario()?.rol ?: "" },
         { apiAnalistaOpcional ?: throw ErrorApp.Local("Falta configurar la URL del servidor") }),
