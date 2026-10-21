@@ -5,6 +5,10 @@
 # Archivos subidos (fotos de análisis)
 backend/storage/
 
+# Respaldos de la base (pg_dump): tienen datos, nunca van a git
+respaldos/
+*.dump
+
 # Python
 __pycache__/
 *.py[cod]
