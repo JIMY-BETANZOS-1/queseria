@@ -65,6 +65,11 @@ def test_pull_analista(client, admin):
     assert datos["rol"] == "analista"
     assert item["id"] in {r["recoleccion_id"] for r in datos["sin_revisar"]}
     assert item["id"] in {r["id"] for r in datos["recolecciones_hoy"]}
+    entrega = next(r for r in datos["recolecciones_hoy"] if r["id"] == item["id"])
+    assert entrega["tipo_productor"] == "de_ruta"
+    assert entrega["acopiador"] == acop["nombre_completo"]
+    assert entrega["observacion"] is None
+    assert entrega["analisis"] is None
     assert externo["id"] in {p["id"] for p in datos["productores"]}
     assert externo["id"] in datos["productor_ids_vigentes"]
     assert all(p["tipo"] == "externo" for p in datos["productores"])
@@ -79,6 +84,32 @@ def test_pull_analista(client, admin):
     hoy = {r["id"]: r for r in despues["recolecciones_hoy"]}
     assert hoy[item["id"]]["revisada"] is True
     assert externo["id"] not in {p["id"] for p in despues["productores"]}
+
+
+def test_pull_analista_incluye_analisis_y_foto(client, admin):
+    acop = movil_con_celular(client, admin, "acopiador")
+    ruta_id = crear_ruta_asignada(client, admin, acop["id"])
+    prod = crear_productor(client, admin, ruta_id)
+    item = item_recoleccion(acop, prod["id"], observacion="Entrega de prueba")
+    push(client, acop, recolecciones=[item])
+    analista = movil_con_celular(client, admin, "analista")
+
+    foto = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+    subida = client.post(f"/analisis/{item['id']}/foto",
+                         files={"archivo": ("analisis.png", foto, "image/png")},
+                         headers=cab(analista["token"]))
+    assert subida.status_code == 200, subida.text
+    calidad = client.post("/sync/calidad", json={"revisiones": [{
+        "recoleccion_id": item["id"], "estado": "alterado", "ph": 6.2,
+    }]}, headers=cab(analista["token"]))
+    assert calidad.status_code == 200 and calidad.json()["revisiones"][0]["estado"] == "creado"
+
+    datos = pull(client, analista)
+    entrega = next(r for r in datos["recolecciones_hoy"] if r["id"] == item["id"])
+    assert entrega["observacion"] == "Entrega de prueba"
+    assert entrega["estado_calidad"] == "alterado"
+    assert entrega["analisis"]["ph"] == 6.2
+    assert entrega["analisis"]["foto_url"].startswith("analisis/")
 
 
 def test_mi_dia_y_anulacion(client, admin):

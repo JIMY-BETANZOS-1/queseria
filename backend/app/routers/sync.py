@@ -50,7 +50,16 @@ def _campo(item, nombre: str) -> str | None:
 
 # ----------------------------------------------------------------- push
 def _push_productor(usuario: Usuario, p: ProductorPush) -> dict:
+    if usuario.rol == "analista" and p.ruta_id is not None:
+        return {"estado": "rechazado", "motivo": "Un analista solo puede registrar productores externos"}
+    if usuario.rol == "acopiador" and p.ruta_id is None:
+        return {"estado": "rechazado", "motivo": "Un acopiador debe registrar productores de una ruta"}
     with db.transaccion(usuario.id) as conn:
+        if usuario.rol == "acopiador" and db.uno(conn, """
+            SELECT 1 FROM ruta_acopiador
+             WHERE ruta_id = %s AND acopiador_id = %s AND vigente_hasta IS NULL
+        """, (p.ruta_id, usuario.id)) is None:
+            return {"estado": "rechazado", "motivo": "El acopiador no tiene asignada esa ruta"}
         existente = db.uno(conn, "SELECT id, codigo FROM productor WHERE uuid_cliente = %s", (p.uuid_cliente,))
         if existente is None:
             existente = db.uno(conn, """
@@ -102,6 +111,20 @@ def _push_recoleccion(usuario: Usuario, r: RecoleccionPush, clave_publica: str |
                 return {"estado": "rechazado",
                         "motivo": "El productor no está registrado (súbalo antes que sus recolecciones)"}
             productor_id = fila["id"]
+
+        productor = db.uno(conn, "SELECT tipo::text AS tipo, ruta_id FROM productor WHERE id = %s", (productor_id,))
+        if productor is None:
+            return {"estado": "rechazado", "motivo": "El productor no existe"}
+        if usuario.rol == "analista" and productor["tipo"] != "externo":
+            return {"estado": "rechazado", "motivo": "El analista solo registra productores externos"}
+        if usuario.rol == "acopiador":
+            if productor["tipo"] != "de_ruta":
+                return {"estado": "rechazado", "motivo": "Un acopiador solo registra productores de ruta"}
+            if db.uno(conn, """
+                SELECT 1 FROM ruta_acopiador
+                 WHERE ruta_id = %s AND acopiador_id = %s AND vigente_hasta IS NULL
+            """, (productor["ruta_id"], usuario.id)) is None:
+                return {"estado": "rechazado", "motivo": "El acopiador no tiene asignada la ruta del productor"}
 
         creada = db.uno(conn, """
             INSERT INTO recoleccion (id, productor_id, registrado_por, dispositivo_id, litros, observacion,
@@ -276,10 +299,20 @@ def _pull_analista(conn, desde: datetime | None) -> dict:
     # v_recoleccion_sin_revisar no tiene actualizado_en: es la lista de trabajo y va completa
     sin_revisar = db.todos(conn, "SELECT * FROM v_recoleccion_sin_revisar ORDER BY registrada_en")
     recolecciones_hoy = db.todos(conn, f"""
-        SELECT r.id, r.productor_id, p.codigo AS productor_codigo, p.nombre AS productor, r.litros,
-               r.registrada_en, r.registrado_por, r.estado_calidad::text AS estado_calidad,
-               (r.calidad_en IS NOT NULL) AS revisada, (r.anulada_en IS NOT NULL) AS anulada, r.actualizado_en
+        SELECT r.id, r.productor_id, p.codigo AS productor_codigo, p.nombre AS productor,
+               p.tipo::text AS tipo_productor, u.nombre_completo AS acopiador,
+               r.litros, r.registrada_en, r.observacion, r.registrado_por,
+               r.estado_calidad::text AS estado_calidad,
+               (r.calidad_en IS NOT NULL) AS revisada, (r.anulada_en IS NOT NULL) AS anulada,
+               r.actualizado_en,
+               CASE WHEN aq.recoleccion_id IS NULL THEN NULL ELSE json_build_object(
+                   'ph', aq.ph, 'temperatura_c', aq.temperatura_c, 'grasa_pct', aq.grasa_pct,
+                   'densidad', aq.densidad, 'antibioticos_positivo', aq.antibioticos_positivo,
+                   'foto_url', aq.foto_url
+               ) END AS analisis
           FROM recoleccion r JOIN productor p ON p.id = r.productor_id
+          LEFT JOIN usuario u ON u.id = r.registrado_por AND u.rol = 'acopiador'
+          LEFT JOIN analisis_calidad aq ON aq.recoleccion_id = r.id
          WHERE (r.registrada_en AT TIME ZONE 'America/Lima')::date = {HOY_LIMA}
            AND (%(desde)s::timestamptz IS NULL OR r.actualizado_en > %(desde)s)
          ORDER BY r.registrada_en

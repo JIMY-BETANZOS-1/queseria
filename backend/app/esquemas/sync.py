@@ -165,18 +165,31 @@ class RecoleccionPendiente(BaseModel):
     registrado_por: int
 
 
+class AnalisisCalidadPull(BaseModel):
+    ph: float | None
+    temperatura_c: float | None
+    grasa_pct: float | None
+    densidad: float | None
+    antibioticos_positivo: bool | None
+    foto_url: str | None
+
+
 class RecoleccionDia(BaseModel):
     id: UUID
     productor_id: int
     productor_codigo: str
     productor: str
+    tipo_productor: Literal["de_ruta", "externo"]
+    acopiador: str | None
     litros: float
     registrada_en: datetime
+    observacion: str | None
     registrado_por: int
     estado_calidad: Literal["normal", "alterado"]
     revisada: bool
     anulada: bool
     actualizado_en: datetime
+    analisis: AnalisisCalidadPull | None = None
 
 
 class PullBase(BaseModel):
